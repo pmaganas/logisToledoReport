@@ -1,0 +1,105 @@
+from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for
+from datetime import datetime, timedelta
+import io
+import logging
+from services.report_generator import ReportGenerator
+
+main_bp = Blueprint('main', __name__)
+logger = logging.getLogger(__name__)
+
+@main_bp.route('/')
+def index():
+    """Main page with report generation form"""
+    return render_template('index.html')
+
+@main_bp.route('/test-connection')
+def test_connection():
+    """Test API connection"""
+    try:
+        report_generator = ReportGenerator()
+        result = report_generator.test_connection()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error testing connection: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Connection test failed: {str(e)}"
+        }), 500
+
+@main_bp.route('/generate-report', methods=['POST'])
+def generate_report():
+    """Generate and download XLSX report"""
+    try:
+        # Get form data
+        from_date = request.form.get('from_date')
+        to_date = request.form.get('to_date')
+        employee_id = request.form.get('employee_id')
+        
+        # Validate dates
+        if from_date:
+            try:
+                datetime.strptime(from_date, '%Y-%m-%d')
+            except ValueError:
+                flash('Fecha de inicio inválida', 'error')
+                return redirect(url_for('main.index'))
+                
+        if to_date:
+            try:
+                datetime.strptime(to_date, '%Y-%m-%d')
+            except ValueError:
+                flash('Fecha de fin inválida', 'error')
+                return redirect(url_for('main.index'))
+
+        # Generate report
+        report_generator = ReportGenerator()
+        report_data = report_generator.generate_report(
+            from_date=from_date,
+            to_date=to_date,
+            employee_id=employee_id
+        )
+        
+        if report_data:
+            # Create filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"reporte_actividades_{timestamp}.xlsx"
+            
+            # Return file
+            return send_file(
+                io.BytesIO(report_data),
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=filename
+            )
+        else:
+            flash('Error al generar el reporte. Verifique los datos y vuelva a intentar.', 'error')
+            return redirect(url_for('main.index'))
+            
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}")
+        flash(f'Error al generar el reporte: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+@main_bp.route('/get-employees')
+def get_employees():
+    """Get list of employees for dropdown"""
+    try:
+        report_generator = ReportGenerator()
+        employees = report_generator.sesame_api.get_all_employees_data()
+        
+        employee_list = []
+        for employee in employees:
+            employee_list.append({
+                'id': employee.get('id'),
+                'name': f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
+            })
+        
+        return jsonify({
+            "status": "success",
+            "employees": employee_list
+        })
+    except Exception as e:
+        logger.error(f"Error getting employees: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error getting employees: {str(e)}"
+        }), 500

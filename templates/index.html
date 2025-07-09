@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Generador de Reportes de Actividades
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Genere reportes XLSX con las actividades de los empleados. Los descansos de desayuno se incluyen automáticamente en las actividades adyacentes para una facturación precisa.
+                </p>
+
+                <!-- Connection Status -->
+                <div class="mb-4">
+                    <button type="button" class="btn btn-outline-info" id="testConnectionBtn">
+                        <i class="fas fa-wifi me-2"></i>
+                        Probar Conexión API
+                    </button>
+                    <div id="connectionStatus" class="mt-2"></div>
+                </div>
+
+                <!-- Report Generation Form -->
+                <form method="POST" action="{{ url_for('main.generate_report') }}" id="reportForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="from_date" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    Fecha de Inicio
+                                </label>
+                                <input type="date" class="form-control" id="from_date" name="from_date">
+                                <div class="form-text">Opcional: Dejar vacío para obtener todos los registros</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="to_date" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    Fecha de Fin
+                                </label>
+                                <input type="date" class="form-control" id="to_date" name="to_date">
+                                <div class="form-text">Opcional: Dejar vacío para obtener todos los registros</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="employee_id" class="form-label">
+                            <i class="fas fa-user me-1"></i>
+                            Empleado
+                        </label>
+                        <select class="form-select" id="employee_id" name="employee_id">
+                            <option value="">Todos los empleados</option>
+                        </select>
+                        <div class="form-text">Opcional: Seleccione un empleado específico o deje vacío para todos</div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="generateBtn">
+                            <i class="fas fa-file-excel me-2"></i>
+                            Generar Reporte XLSX
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Report Information -->
+                <div class="mt-4">
+                    <h5>Información del Reporte</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Columnas incluidas:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-user text-primary me-2"></i>Empleado</li>
+                                <li><i class="fas fa-id-card text-primary me-2"></i>Tipo de Identificación</li>
+                                <li><i class="fas fa-hashtag text-primary me-2"></i>Nº de Identificación</li>
+                                <li><i class="fas fa-calendar text-primary me-2"></i>Fecha</li>
+                                <li><i class="fas fa-tasks text-primary me-2"></i>Actividad</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Columnas adicionales:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-layer-group text-primary me-2"></i>Grupo</li>
+                                <li><i class="fas fa-clock text-primary me-2"></i>Entrada</li>
+                                <li><i class="fas fa-clock text-primary me-2"></i>Salida</li>
+                                <li><i class="fas fa-stopwatch text-primary me-2"></i>Tiempo registrado</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature Highlight -->
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Característica especial:</strong> Los descansos de desayuno se incluyen automáticamente en las actividades adyacentes, asegurando que las 8 horas de trabajo se reflejen correctamente para la facturación.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mb-0">Generando reporte...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const employeeSelect = document.getElementById('employee_id');
+    const reportForm = document.getElementById('reportForm');
+    const generateBtn = document.getElementById('generateBtn');
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+
+    // Test connection
+    testConnectionBtn.addEventListener('click', function() {
+        testConnectionBtn.disabled = true;
+        testConnectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Probando...';
+        
+        fetch('/test-connection')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    connectionStatus.innerHTML = `
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Conexión exitosa. Empresa: ${data.company}
+                        </div>
+                    `;
+                    loadEmployees();
+                } else {
+                    connectionStatus.innerHTML = `
+                        <div class="alert alert-danger mb-0">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            ${data.message}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                connectionStatus.innerHTML = `
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Error de conexión: ${error.message}
+                    </div>
+                `;
+            })
+            .finally(() => {
+                testConnectionBtn.disabled = false;
+                testConnectionBtn.innerHTML = '<i class="fas fa-wifi me-2"></i>Probar Conexión API';
+            });
+    });
+
+    // Load employees
+    function loadEmployees() {
+        fetch('/get-employees')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    employeeSelect.innerHTML = '<option value="">Todos los empleados</option>';
+                    data.employees.forEach(employee => {
+                        const option = document.createElement('option');
+                        option.value = employee.id;
+                        option.textContent = employee.name;
+                        employeeSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading employees:', error);
+            });
+    }
+
+    // Form submission
+    reportForm.addEventListener('submit', function(e) {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando...';
+        loadingModal.show();
+
+        // Reset button state after a delay (in case of errors)
+        setTimeout(() => {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<i class="fas fa-file-excel me-2"></i>Generar Reporte XLSX';
+            loadingModal.hide();
+        }, 30000); // 30 seconds timeout
+    });
+
+    // Set default dates (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    document.getElementById('from_date').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('to_date').value = today.toISOString().split('T')[0];
+
+    // Auto-test connection on page load
+    setTimeout(() => {
+        testConnectionBtn.click();
+    }, 1000);
+});
+</script>
+{% endblock %}
