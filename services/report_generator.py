@@ -124,7 +124,7 @@ class ReportGenerator:
 
     def generate_report(self, from_date: str = None, to_date: str = None, 
                        employee_id: str = None, company_id: str = None) -> Optional[bytes]:
-        """Generate XLSX report with employee activities and merged breakfast breaks"""
+        """Generate XLSX report with employee activities grouped by date and employee with totals"""
         try:
             # Get token info to get company ID if not provided
             if not company_id:
@@ -173,8 +173,10 @@ class ReportGenerator:
                 cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
                 cell.alignment = Alignment(horizontal="center")
 
-            # Process data for each employee
+            # Collect and organize data by employee and date
+            employee_date_data = {}
             row = 2
+            
             for employee in employees:
                 emp_id = employee.get('id')
                 emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
@@ -186,7 +188,7 @@ class ReportGenerator:
                     from_date=from_date,
                     to_date=to_date,
                     page=1,
-                    limit=20
+                    limit=50
                 )
                 
                 time_entries = work_entries_response.get('data', []) if work_entries_response else []
@@ -197,14 +199,14 @@ class ReportGenerator:
                     from_date=from_date,
                     to_date=to_date,
                     page=1,
-                    limit=20
+                    limit=50
                 )
                 
                 break_entries = break_entries_response.get('data', []) if break_entries_response else []
 
-                # Add work entries to worksheet
+                # Process work entries grouped by date
+                date_entries = {}
                 for entry in time_entries:
-                    # Parse work entry data
                     work_in = entry.get('workEntryIn', {})
                     work_out = entry.get('workEntryOut', {})
                     
@@ -214,26 +216,76 @@ class ReportGenerator:
                     if not start_time:
                         continue
 
+                    date_key = start_time.strftime("%Y-%m-%d")
+                    
+                    if date_key not in date_entries:
+                        date_entries[date_key] = []
+                    
                     # Calculate registered time
                     if start_time and end_time:
-                        registered_time = self._format_duration(self._calculate_duration(start_time, end_time))
+                        duration = self._calculate_duration(start_time, end_time)
                     elif entry.get('workedSeconds'):
-                        registered_time = self._format_duration(timedelta(seconds=entry['workedSeconds']))
+                        duration = timedelta(seconds=entry['workedSeconds'])
                     else:
-                        registered_time = "N/A"
+                        duration = timedelta(0)
 
-                    # Add row data
-                    ws.cell(row=row, column=1, value=emp_name)
-                    ws.cell(row=row, column=2, value=identity_type)
-                    ws.cell(row=row, column=3, value=identity_number)
-                    ws.cell(row=row, column=4, value=start_time.strftime("%Y-%m-%d") if start_time else "N/A")
-                    ws.cell(row=row, column=5, value="Trabajo")
-                    ws.cell(row=row, column=6, value="Actividad Principal")
-                    ws.cell(row=row, column=7, value=start_time.strftime("%H:%M:%S") if start_time else "N/A")
-                    ws.cell(row=row, column=8, value=end_time.strftime("%H:%M:%S") if end_time else "N/A")
-                    ws.cell(row=row, column=9, value=registered_time)
+                    date_entries[date_key].append({
+                        'employee': emp_name,
+                        'identity_type': identity_type,
+                        'identity_number': identity_number,
+                        'date': date_key,
+                        'activity': entry.get('workEntryType', 'Trabajo'),
+                        'group': 'Actividad Principal',
+                        'start_time': start_time.strftime("%H:%M:%S") if start_time else "N/A",
+                        'end_time': end_time.strftime("%H:%M:%S") if end_time else "N/A",
+                        'duration': duration,
+                        'registered_time': self._format_duration(duration)
+                    })
 
-                    row += 1
+                # Add data to worksheet grouped by employee and date
+                for date_key in sorted(date_entries.keys()):
+                    entries = date_entries[date_key]
+                    
+                    # Add individual entries
+                    for entry in entries:
+                        ws.cell(row=row, column=1, value=entry['employee'])
+                        ws.cell(row=row, column=2, value=entry['identity_type'])
+                        ws.cell(row=row, column=3, value=entry['identity_number'])
+                        ws.cell(row=row, column=4, value=entry['date'])
+                        ws.cell(row=row, column=5, value=entry['activity'])
+                        ws.cell(row=row, column=6, value=entry['group'])
+                        ws.cell(row=row, column=7, value=entry['start_time'])
+                        ws.cell(row=row, column=8, value=entry['end_time'])
+                        ws.cell(row=row, column=9, value=entry['registered_time'])
+                        row += 1
+
+                    # Add total row for this employee and date
+                    if entries:
+                        total_duration = sum([entry['duration'] for entry in entries], timedelta(0))
+                        total_entries = len(entries)
+                        
+                        # Total row styling
+                        total_row = row
+                        ws.cell(row=total_row, column=1, value=f"TOTAL - {emp_name}")
+                        ws.cell(row=total_row, column=2, value="")
+                        ws.cell(row=total_row, column=3, value="")
+                        ws.cell(row=total_row, column=4, value=date_key)
+                        ws.cell(row=total_row, column=5, value=f"{total_entries} registros")
+                        ws.cell(row=total_row, column=6, value="")
+                        ws.cell(row=total_row, column=7, value="")
+                        ws.cell(row=total_row, column=8, value="")
+                        ws.cell(row=total_row, column=9, value=self._format_duration(total_duration))
+                        
+                        # Style total row
+                        for col in range(1, 10):
+                            cell = ws.cell(row=total_row, column=col)
+                            cell.font = Font(bold=True)
+                            cell.fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+                        
+                        row += 1
+                        
+                        # Add empty row for separation
+                        row += 1
 
             # Add a message if no data found
             if row == 2:

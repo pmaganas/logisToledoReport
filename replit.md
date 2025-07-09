@@ -70,10 +70,11 @@ Preferred communication style: Simple, everyday language.
 
 1. **Date Range Filtering**: Optional start and end date selection
 2. **Employee Filtering**: Optional employee ID specification
-3. **Break Integration**: Breakfast breaks automatically included in adjacent activities
-4. **Connection Testing**: API connectivity verification
-5. **Error Handling**: User-friendly error messages and logging
-6. **Excel Export**: Professional XLSX report generation with formatting
+3. **Grouped Reporting**: Data organized by employee and date with totals
+4. **Break Integration**: Breakfast breaks automatically included in adjacent activities
+5. **Connection Testing**: API connectivity verification
+6. **Error Handling**: User-friendly error messages and logging
+7. **Excel Export**: Professional XLSX report generation with formatting and totals
 
 ## Deployment Strategy
 
