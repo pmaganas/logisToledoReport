@@ -25,7 +25,7 @@ class SesameAPI:
                 headers=self.headers,
                 params=params,
                 json=data,
-                timeout=30
+                timeout=60  # Increased timeout
             )
             
             self.logger.debug(f"API Request: {method} {url} - Status: {response.status_code}")
@@ -36,6 +36,12 @@ class SesameAPI:
                 self.logger.error(f"API Error: {response.status_code} - {response.text}")
                 return None
                 
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Request timeout for {url}")
+            return None
+        except requests.exceptions.ConnectionError:
+            self.logger.error(f"Connection error for {url}")
+            return None
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Request failed: {str(e)}")
             return None

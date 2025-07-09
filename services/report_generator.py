@@ -135,12 +135,14 @@ class ReportGenerator:
                     self.logger.error("Could not get company ID from token info")
                     return None
 
-            # Get employees data
+            # Get employees data (limit to first 10 employees for testing)
             if employee_id:
                 employee_data = self.sesame_api.get_employee_details(employee_id)
                 employees = [employee_data['data']] if employee_data else []
             else:
-                employees = self.sesame_api.get_all_employees_data(company_id=company_id)
+                # Get first page of employees only to avoid timeout
+                employees_response = self.sesame_api.get_employees(company_id=company_id, page=1, per_page=10)
+                employees = employees_response.get('data', []) if employees_response else []
 
             if not employees:
                 self.logger.error("No employees found")
@@ -178,42 +180,45 @@ class ReportGenerator:
                 emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
                 identity_type, identity_number = self._get_employee_identification(employee)
 
-                # Get time tracking data
-                time_entries = self.sesame_api.get_all_time_tracking_data(
+                # Get work entries data (limit to first page)
+                work_entries_response = self.sesame_api.get_work_entries(
                     employee_id=emp_id,
-                    company_id=company_id,
                     from_date=from_date,
-                    to_date=to_date
+                    to_date=to_date,
+                    page=1,
+                    limit=20
                 )
+                
+                time_entries = work_entries_response.get('data', []) if work_entries_response else []
 
-                # Get break data
-                break_entries = self.sesame_api.get_all_breaks_data(
+                # Get break data (limit to first page)
+                break_entries_response = self.sesame_api.get_breaks(
                     employee_id=emp_id,
-                    company_id=company_id,
                     from_date=from_date,
-                    to_date=to_date
+                    to_date=to_date,
+                    page=1,
+                    limit=20
                 )
+                
+                break_entries = break_entries_response.get('data', []) if break_entries_response else []
 
-                # Merge breakfast breaks with activities
-                merged_activities = self._merge_breakfast_breaks(time_entries, break_entries)
-
-                # Add data to worksheet
-                for activity in merged_activities:
-                    start_time = self._parse_datetime(activity.get('startTime'))
-                    end_time = self._parse_datetime(activity.get('endTime'))
+                # Add work entries to worksheet
+                for entry in time_entries:
+                    # Parse work entry data
+                    work_in = entry.get('workEntryIn', {})
+                    work_out = entry.get('workEntryOut', {})
+                    
+                    start_time = self._parse_datetime(work_in.get('date')) if work_in else None
+                    end_time = self._parse_datetime(work_out.get('date')) if work_out else None
                     
                     if not start_time:
                         continue
 
-                    # Get activity details
-                    activity_name = activity.get('activity', {}).get('name', 'N/A')
-                    activity_group = activity.get('activity', {}).get('group', {}).get('name', 'N/A')
-                    
                     # Calculate registered time
-                    if 'totalTime' in activity:
-                        registered_time = self._format_duration(activity['totalTime'])
-                    elif end_time:
+                    if start_time and end_time:
                         registered_time = self._format_duration(self._calculate_duration(start_time, end_time))
+                    elif entry.get('workedSeconds'):
+                        registered_time = self._format_duration(timedelta(seconds=entry['workedSeconds']))
                     else:
                         registered_time = "N/A"
 
@@ -222,13 +227,17 @@ class ReportGenerator:
                     ws.cell(row=row, column=2, value=identity_type)
                     ws.cell(row=row, column=3, value=identity_number)
                     ws.cell(row=row, column=4, value=start_time.strftime("%Y-%m-%d") if start_time else "N/A")
-                    ws.cell(row=row, column=5, value=activity_name)
-                    ws.cell(row=row, column=6, value=activity_group)
+                    ws.cell(row=row, column=5, value="Trabajo")
+                    ws.cell(row=row, column=6, value="Actividad Principal")
                     ws.cell(row=row, column=7, value=start_time.strftime("%H:%M:%S") if start_time else "N/A")
                     ws.cell(row=row, column=8, value=end_time.strftime("%H:%M:%S") if end_time else "N/A")
                     ws.cell(row=row, column=9, value=registered_time)
 
                     row += 1
+
+            # Add a message if no data found
+            if row == 2:
+                ws.cell(row=2, column=1, value="No se encontraron datos para el período seleccionado")
 
             # Auto-adjust column widths
             for column in ws.columns:
@@ -251,7 +260,7 @@ class ReportGenerator:
             return excel_buffer.getvalue()
 
         except Exception as e:
-            self.logger.error(f"Error generating report: {str(e)}")
+            self.logger.error(f"Error generating report: {str(e)}", exc_info=True)
             return None
 
     def test_connection(self) -> Dict:
