@@ -61,23 +61,21 @@ class SesameAPI:
 
     def get_work_entries(self, employee_id: str = None, company_id: str = None, 
                         from_date: str = None, to_date: str = None, 
-                        page: int = 1, per_page: int = 100) -> Optional[Dict]:
+                        page: int = 1, limit: int = 100) -> Optional[Dict]:
         """Get work entries (time tracking data)"""
         params = {
             "page": page,
-            "per_page": per_page
+            "limit": limit
         }
         
         if employee_id:
             params["employeeId"] = employee_id
-        if company_id:
-            params["companyId"] = company_id
         if from_date:
             params["from"] = from_date
         if to_date:
             params["to"] = to_date
             
-        return self._make_request("/core/v3/work-entries", params=params)
+        return self._make_request("/schedule/v1/work-entries", params=params)
 
     def get_activities(self, company_id: str = None, page: int = 1, per_page: int = 100) -> Optional[Dict]:
         """Get list of activities"""
@@ -92,43 +90,27 @@ class SesameAPI:
 
     def get_time_tracking(self, employee_id: str = None, company_id: str = None,
                          from_date: str = None, to_date: str = None,
-                         page: int = 1, per_page: int = 100) -> Optional[Dict]:
-        """Get time tracking entries"""
-        params = {
-            "page": page,
-            "per_page": per_page
-        }
-        
-        if employee_id:
-            params["employeeId"] = employee_id
-        if company_id:
-            params["companyId"] = company_id
-        if from_date:
-            params["from"] = from_date
-        if to_date:
-            params["to"] = to_date
-            
-        return self._make_request("/core/v3/time-tracking", params=params)
+                         page: int = 1, limit: int = 100) -> Optional[Dict]:
+        """Get time tracking entries - using work-entries endpoint"""
+        return self.get_work_entries(employee_id, company_id, from_date, to_date, page, limit)
 
     def get_breaks(self, employee_id: str = None, company_id: str = None,
                    from_date: str = None, to_date: str = None,
-                   page: int = 1, per_page: int = 100) -> Optional[Dict]:
+                   page: int = 1, limit: int = 100) -> Optional[Dict]:
         """Get break entries"""
         params = {
             "page": page,
-            "per_page": per_page
+            "limit": limit
         }
         
         if employee_id:
             params["employeeId"] = employee_id
-        if company_id:
-            params["companyId"] = company_id
         if from_date:
             params["from"] = from_date
         if to_date:
             params["to"] = to_date
             
-        return self._make_request("/core/v3/breaks", params=params)
+        return self._make_request("/schedule/v1/work-breaks", params=params)
 
     def get_all_employees_data(self, company_id: str = None) -> List[Dict]:
         """Get all employees with pagination"""
@@ -168,7 +150,7 @@ class SesameAPI:
                 from_date=from_date,
                 to_date=to_date,
                 page=page,
-                per_page=100
+                limit=100
             )
             
             if not response or not response.get("data"):
@@ -202,7 +184,7 @@ class SesameAPI:
                 from_date=from_date,
                 to_date=to_date,
                 page=page,
-                per_page=100
+                limit=100
             )
             
             if not response or not response.get("data"):
