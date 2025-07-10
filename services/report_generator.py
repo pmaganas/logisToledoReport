@@ -285,7 +285,7 @@ class ReportGenerator:
                         ws.cell(row=total_row, column=2, value="")
                         ws.cell(row=total_row, column=3, value="")
                         ws.cell(row=total_row, column=4, value=date_key)
-                        ws.cell(row=total_row, column=5, value=f"{total_entries} registros")
+                        ws.cell(row=total_row, column=5, value=str(total_entries))
                         ws.cell(row=total_row, column=6, value="")
                         ws.cell(row=total_row, column=7, value="")
                         ws.cell(row=total_row, column=8, value="")
