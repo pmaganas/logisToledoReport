@@ -17,11 +17,34 @@
 
                 <!-- Connection Status -->
                 <div class="mb-4">
-                    <button type="button" class="btn btn-outline-info" id="testConnectionBtn">
-                        <i class="fas fa-wifi me-2"></i>
-                        Probar Conexión API
-                    </button>
+                    <div class="d-flex gap-2 mb-2">
+                        <button type="button" class="btn btn-outline-info" id="testConnectionBtn">
+                            <i class="fas fa-wifi me-2"></i>
+                            Probar Conexión API
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" id="resetConnectionBtn" style="display: none;">
+                            <i class="fas fa-sign-out-alt me-2"></i>
+                            Cerrar Conexión
+                        </button>
+                    </div>
                     <div id="connectionStatus" class="mt-2"></div>
+                    <div id="tokenInput" class="mt-3" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Nuevo Token API:</strong> Introduce el nuevo token de Sesame para conectar con una cuenta diferente.
+                        </div>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="newTokenInput" placeholder="Introduce el nuevo token de Sesame API">
+                            <button class="btn btn-success" type="button" id="applyTokenBtn">
+                                <i class="fas fa-check me-2"></i>
+                                Aplicar Token
+                            </button>
+                            <button class="btn btn-secondary" type="button" id="cancelTokenBtn">
+                                <i class="fas fa-times me-2"></i>
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Report Generation Form -->
@@ -136,7 +159,12 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const testConnectionBtn = document.getElementById('testConnectionBtn');
+    const resetConnectionBtn = document.getElementById('resetConnectionBtn');
     const connectionStatus = document.getElementById('connectionStatus');
+    const tokenInput = document.getElementById('tokenInput');
+    const newTokenInput = document.getElementById('newTokenInput');
+    const applyTokenBtn = document.getElementById('applyTokenBtn');
+    const cancelTokenBtn = document.getElementById('cancelTokenBtn');
     const employeeSelect = document.getElementById('employee_id');
     const reportForm = document.getElementById('reportForm');
     const generateBtn = document.getElementById('generateBtn');
@@ -157,6 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             Conexión exitosa. Empresa: ${data.company}
                         </div>
                     `;
+                    resetConnectionBtn.style.display = 'inline-block';
                     loadEmployees();
                 } else {
                     connectionStatus.innerHTML = `
@@ -165,6 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${data.message}
                         </div>
                     `;
+                    resetConnectionBtn.style.display = 'none';
                 }
             })
             .catch(error => {
@@ -179,6 +209,87 @@ document.addEventListener('DOMContentLoaded', function() {
                 testConnectionBtn.disabled = false;
                 testConnectionBtn.innerHTML = '<i class="fas fa-wifi me-2"></i>Probar Conexión API';
             });
+    });
+
+    // Reset connection
+    resetConnectionBtn.addEventListener('click', function() {
+        resetConnectionBtn.disabled = true;
+        connectionStatus.innerHTML = `
+            <div class="alert alert-warning mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                Conexión cerrada. Puedes introducir un nuevo token para conectar con otra cuenta.
+            </div>
+        `;
+        resetConnectionBtn.style.display = 'none';
+        tokenInput.style.display = 'block';
+        employeeSelect.innerHTML = '<option value="">Todos los empleados</option>';
+        newTokenInput.value = '';
+        newTokenInput.focus();
+    });
+
+    // Apply new token
+    applyTokenBtn.addEventListener('click', function() {
+        const newToken = newTokenInput.value.trim();
+        if (!newToken) {
+            alert('Por favor, introduce un token válido');
+            return;
+        }
+
+        applyTokenBtn.disabled = true;
+        applyTokenBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Aplicando...';
+
+        fetch('/apply-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ token: newToken })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                connectionStatus.innerHTML = `
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Token aplicado correctamente. Empresa: ${data.company}
+                    </div>
+                `;
+                tokenInput.style.display = 'none';
+                resetConnectionBtn.style.display = 'inline-block';
+                loadEmployees();
+            } else {
+                connectionStatus.innerHTML = `
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Error al aplicar el token: ${data.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            connectionStatus.innerHTML = `
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Error al conectar: ${error.message}
+                </div>
+            `;
+        })
+        .finally(() => {
+            applyTokenBtn.disabled = false;
+            applyTokenBtn.innerHTML = '<i class="fas fa-check me-2"></i>Aplicar Token';
+        });
+    });
+
+    // Cancel token input
+    cancelTokenBtn.addEventListener('click', function() {
+        tokenInput.style.display = 'none';
+        newTokenInput.value = '';
+        connectionStatus.innerHTML = `
+            <div class="alert alert-info mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                Haz clic en "Probar Conexión API" para verificar la conexión actual.
+            </div>
+        `;
     });
 
     // Load employees

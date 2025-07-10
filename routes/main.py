@@ -81,6 +81,50 @@ def generate_report():
         flash(f'Error al generar el reporte: {str(e)}', 'error')
         return redirect(url_for('main.index'))
 
+@main_bp.route('/apply-token', methods=['POST'])
+def apply_token():
+    """Apply new API token"""
+    try:
+        data = request.get_json()
+        new_token = data.get('token')
+        
+        if not new_token:
+            return jsonify({
+                "status": "error",
+                "message": "Token is required"
+            }), 400
+        
+        # Update environment variable temporarily (in memory)
+        import os
+        old_token = os.environ.get('SESAME_TOKEN')
+        os.environ['SESAME_TOKEN'] = new_token
+        
+        # Test new token
+        report_generator = ReportGenerator()
+        result = report_generator.test_connection()
+        
+        if result.get('status') == 'success':
+            return jsonify({
+                "status": "success",
+                "company": result.get('company', 'Unknown'),
+                "message": "Token applied successfully"
+            })
+        else:
+            # Restore old token if test failed
+            if old_token:
+                os.environ['SESAME_TOKEN'] = old_token
+            return jsonify({
+                "status": "error",
+                "message": result.get('message', 'Token test failed')
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error applying token: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error applying token: {str(e)}"
+        }), 500
+
 @main_bp.route('/get-employees')
 def get_employees():
     """Get list of employees for dropdown"""
