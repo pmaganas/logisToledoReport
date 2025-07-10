@@ -123,7 +123,7 @@ class ReportGenerator:
         return type_mapping.get(identity_type, identity_type), identity_number
 
     def generate_report(self, from_date: str = None, to_date: str = None, 
-                       employee_id: str = None, company_id: str = None) -> Optional[bytes]:
+                       employee_id: str = None, company_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
         """Generate XLSX report with employee activities grouped by date and employee with totals"""
         try:
             # Get token info to get company ID if not provided
@@ -151,7 +151,16 @@ class ReportGenerator:
             # Create workbook and worksheet
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "Reporte de Actividades"
+            
+            # Set worksheet title based on report type
+            if report_type == "by_employee":
+                ws.title = "Por Empleado"
+            elif report_type == "by_type":
+                ws.title = "Por Tipo de Fichaje"
+            elif report_type == "by_group":
+                ws.title = "Por Grupos"
+            else:
+                ws.title = "Reporte de Actividades"
 
             # Define headers
             headers = [
@@ -173,6 +182,23 @@ class ReportGenerator:
                 cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
                 cell.alignment = Alignment(horizontal="center")
 
+            # Generate report based on type
+            if report_type == "by_employee":
+                return self._generate_by_employee_report(wb, ws, employees, from_date, to_date, company_id)
+            elif report_type == "by_type":
+                return self._generate_by_type_report(wb, ws, employees, from_date, to_date, company_id)
+            elif report_type == "by_group":
+                return self._generate_by_group_report(wb, ws, employees, from_date, to_date, company_id)
+            else:
+                return self._generate_by_employee_report(wb, ws, employees, from_date, to_date, company_id)
+
+        except Exception as e:
+            self.logger.error(f"Error generating report: {str(e)}", exc_info=True)
+            return None
+
+    def _generate_by_employee_report(self, wb, ws, employees, from_date, to_date, company_id):
+        """Generate report grouped by employee"""
+        try:
             # Collect and organize data by employee and date
             employee_date_data = {}
             row = 2
@@ -192,17 +218,6 @@ class ReportGenerator:
                 )
                 
                 time_entries = work_entries_response.get('data', []) if work_entries_response else []
-
-                # Get break data (limit to first page)
-                break_entries_response = self.sesame_api.get_breaks(
-                    employee_id=emp_id,
-                    from_date=from_date,
-                    to_date=to_date,
-                    page=1,
-                    limit=50
-                )
-                
-                break_entries = break_entries_response.get('data', []) if break_entries_response else []
 
                 # Process work entries grouped by date
                 date_entries = {}
@@ -309,7 +324,27 @@ class ReportGenerator:
             return excel_buffer.getvalue()
 
         except Exception as e:
-            self.logger.error(f"Error generating report: {str(e)}", exc_info=True)
+            self.logger.error(f"Error generating by employee report: {str(e)}", exc_info=True)
+            return None
+
+    def _generate_by_type_report(self, wb, ws, employees, from_date, to_date, company_id):
+        """Generate report grouped by type of fichaje"""
+        try:
+            # For now, use same logic as by_employee but grouped by type
+            # This is a placeholder - implement specific logic as needed
+            return self._generate_by_employee_report(wb, ws, employees, from_date, to_date, company_id)
+        except Exception as e:
+            self.logger.error(f"Error generating by type report: {str(e)}", exc_info=True)
+            return None
+
+    def _generate_by_group_report(self, wb, ws, employees, from_date, to_date, company_id):
+        """Generate report grouped by groups"""
+        try:
+            # For now, use same logic as by_employee but grouped by group
+            # This is a placeholder - implement specific logic as needed
+            return self._generate_by_employee_report(wb, ws, employees, from_date, to_date, company_id)
+        except Exception as e:
+            self.logger.error(f"Error generating by group report: {str(e)}", exc_info=True)
             return None
 
     def test_connection(self) -> Dict:

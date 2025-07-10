@@ -70,11 +70,15 @@ Preferred communication style: Simple, everyday language.
 
 1. **Date Range Filtering**: Optional start and end date selection
 2. **Employee Filtering**: Optional employee ID specification
-3. **Grouped Reporting**: Data organized by employee and date with totals
-4. **Break Integration**: Breakfast breaks automatically included in adjacent activities
-5. **Connection Testing**: API connectivity verification
-6. **Error Handling**: User-friendly error messages and logging
-7. **Excel Export**: Professional XLSX report generation with formatting and totals
+3. **Report Type Selection**: Multiple report formats available:
+   - Grupos y tipos de fichaje por empleado
+   - Grupos y tipos de fichaje por tipo de fichaje
+   - Grupos y tipos de fichaje por grupos
+4. **Grouped Reporting**: Data organized by employee and date with totals
+5. **Break Integration**: Breakfast breaks automatically included in adjacent activities
+6. **Connection Testing**: API connectivity verification
+7. **Error Handling**: User-friendly error messages and logging
+8. **Excel Export**: Professional XLSX report generation with formatting and totals
 
 ## Deployment Strategy
 

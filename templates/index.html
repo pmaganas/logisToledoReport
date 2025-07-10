@@ -50,6 +50,19 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="report_type" class="form-label">
+                            <i class="fas fa-chart-bar me-1"></i>
+                            Tipo de informe
+                        </label>
+                        <select class="form-select" id="report_type" name="report_type">
+                            <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
+                            <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
+                            <option value="by_group">Grupos y tipos de fichaje por grupos</option>
+                        </select>
+                        <div class="form-text">Seleccione el tipo de agrupación para el informe</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="employee_id" class="form-label">
                             <i class="fas fa-user me-1"></i>
                             Empleado

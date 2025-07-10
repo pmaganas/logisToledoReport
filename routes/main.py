@@ -34,6 +34,7 @@ def generate_report():
         from_date = request.form.get('from_date')
         to_date = request.form.get('to_date')
         employee_id = request.form.get('employee_id')
+        report_type = request.form.get('report_type', 'by_employee')
         
         # Validate dates
         if from_date:
@@ -55,7 +56,8 @@ def generate_report():
         report_data = report_generator.generate_report(
             from_date=from_date,
             to_date=to_date,
-            employee_id=employee_id
+            employee_id=employee_id,
+            report_type=report_type
         )
         
         if report_data:
