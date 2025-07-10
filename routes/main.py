@@ -34,6 +34,8 @@ def generate_report():
         from_date = request.form.get('from_date')
         to_date = request.form.get('to_date')
         employee_id = request.form.get('employee_id')
+        office_id = request.form.get('office_id')
+        department_id = request.form.get('department_id')
         report_type = request.form.get('report_type', 'by_employee')
         
         # Validate dates
@@ -57,6 +59,8 @@ def generate_report():
             from_date=from_date,
             to_date=to_date,
             employee_id=employee_id,
+            office_id=office_id,
+            department_id=department_id,
             report_type=report_type
         )
         
@@ -180,4 +184,54 @@ def get_employees():
         return jsonify({
             "status": "error",
             "message": f"Error getting employees: {str(e)}"
+        }), 500
+
+@main_bp.route('/get-offices')
+def get_offices():
+    """Get list of offices/centers for dropdown"""
+    try:
+        report_generator = ReportGenerator()
+        offices = report_generator.sesame_api.get_all_offices_data()
+        
+        office_list = []
+        for office in offices:
+            office_list.append({
+                'id': office.get('id'),
+                'name': office.get('name', 'Centro sin nombre')
+            })
+        
+        return jsonify({
+            "status": "success",
+            "offices": office_list
+        })
+    except Exception as e:
+        logger.error(f"Error getting offices: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error getting offices: {str(e)}"
+        }), 500
+
+@main_bp.route('/get-departments')
+def get_departments():
+    """Get list of departments for dropdown"""
+    try:
+        report_generator = ReportGenerator()
+        departments = report_generator.sesame_api.get_all_departments_data()
+        
+        department_list = []
+        for department in departments:
+            department_list.append({
+                'id': department.get('id'),
+                'name': department.get('name', 'Departamento sin nombre')
+            })
+        
+        return jsonify({
+            "status": "success",
+            "departments": department_list
+        })
+    except Exception as e:
+        logger.error(f"Error getting departments: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error getting departments: {str(e)}"
         }), 500

@@ -210,3 +210,89 @@ class SesameAPI:
             page += 1
             
         return all_breaks
+
+    def get_offices(self, company_id: str = None, page: int = 1, per_page: int = 100) -> Optional[Dict]:
+        """Get list of offices/centers"""
+        params = {
+            "page": page,
+            "per_page": per_page
+        }
+        if company_id:
+            params["companyId"] = company_id
+            
+        return self._make_request("/core/v3/offices", params=params)
+
+    def get_departments(self, company_id: str = None, page: int = 1, per_page: int = 100) -> Optional[Dict]:
+        """Get list of departments"""
+        params = {
+            "page": page,
+            "per_page": per_page
+        }
+        if company_id:
+            params["companyId"] = company_id
+            
+        return self._make_request("/core/v3/departments", params=params)
+
+    def get_all_offices_data(self, company_id: str = None) -> List[Dict]:
+        """Get all offices with pagination"""
+        all_offices = []
+        page = 1
+        per_page = 100
+        
+        while True:
+            try:
+                response = self.get_offices(company_id=company_id, page=page, per_page=per_page)
+                
+                if not response or 'data' not in response:
+                    break
+                
+                offices_data = response['data']
+                if not offices_data:
+                    break
+                
+                all_offices.extend(offices_data)
+                
+                # Check if there are more pages
+                meta = response.get("meta", {})
+                if page >= meta.get("lastPage", 1):
+                    break
+                
+                page += 1
+                
+            except Exception as e:
+                self.logger.error(f"Error getting offices data page {page}: {str(e)}")
+                break
+        
+        return all_offices
+
+    def get_all_departments_data(self, company_id: str = None) -> List[Dict]:
+        """Get all departments with pagination"""
+        all_departments = []
+        page = 1
+        per_page = 100
+        
+        while True:
+            try:
+                response = self.get_departments(company_id=company_id, page=page, per_page=per_page)
+                
+                if not response or 'data' not in response:
+                    break
+                
+                departments_data = response['data']
+                if not departments_data:
+                    break
+                
+                all_departments.extend(departments_data)
+                
+                # Check if there are more pages
+                meta = response.get("meta", {})
+                if page >= meta.get("lastPage", 1):
+                    break
+                
+                page += 1
+                
+            except Exception as e:
+                self.logger.error(f"Error getting departments data page {page}: {str(e)}")
+                break
+        
+        return all_departments

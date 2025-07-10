@@ -123,7 +123,8 @@ class ReportGenerator:
         return type_mapping.get(identity_type, identity_type), identity_number
 
     def generate_report(self, from_date: str = None, to_date: str = None, 
-                       employee_id: str = None, company_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
+                       employee_id: str = None, office_id: str = None, department_id: str = None, 
+                       company_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
         """Generate XLSX report with employee activities grouped by date and employee with totals"""
         try:
             # Get token info to get company ID if not provided
@@ -135,14 +136,34 @@ class ReportGenerator:
                     self.logger.error("Could not get company ID from token info")
                     return None
 
-            # Get employees data (limit to first 10 employees for testing)
+            # Get employees based on filters
             if employee_id:
+                # Get specific employee
                 employee_data = self.sesame_api.get_employee_details(employee_id)
                 employees = [employee_data['data']] if employee_data else []
             else:
-                # Get first page of employees only to avoid timeout
-                employees_response = self.sesame_api.get_employees(company_id=company_id, page=1, per_page=10)
-                employees = employees_response.get('data', []) if employees_response else []
+                # Get all employees and filter by office and department
+                all_employees = self.sesame_api.get_all_employees_data(company_id)
+                employees = []
+                
+                # Filter by office and department
+                for employee in all_employees:
+                    include_employee = True
+                    
+                    # Filter by office_id
+                    if office_id:
+                        employee_office_id = employee.get('office', {}).get('id') if employee.get('office') else None
+                        if employee_office_id != office_id:
+                            include_employee = False
+                    
+                    # Filter by department_id
+                    if department_id and include_employee:
+                        employee_department_id = employee.get('department', {}).get('id') if employee.get('department') else None
+                        if employee_department_id != department_id:
+                            include_employee = False
+                    
+                    if include_employee:
+                        employees.append(employee)
 
             if not employees:
                 self.logger.error("No employees found")

@@ -81,15 +81,43 @@
                         <div class="form-text">Seleccione el tipo de agrupación para el informe</div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="employee_id" class="form-label">
-                            <i class="fas fa-user me-1"></i>
-                            Empleado
-                        </label>
-                        <select class="form-select" id="employee_id" name="employee_id">
-                            <option value="">Todos los empleados</option>
-                        </select>
-                        <div class="form-text">Opcional: Seleccione un empleado específico o deje vacío para todos</div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="employee_id" class="form-label">
+                                    <i class="fas fa-user me-1"></i>
+                                    Empleado
+                                </label>
+                                <select class="form-select" id="employee_id" name="employee_id">
+                                    <option value="">Todos los empleados</option>
+                                </select>
+                                <div class="form-text">Opcional: Seleccione un empleado específico o deje vacío para todos</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="office_id" class="form-label">
+                                    <i class="fas fa-building me-1"></i>
+                                    Centro
+                                </label>
+                                <select class="form-select" id="office_id" name="office_id">
+                                    <option value="">Todos los centros</option>
+                                </select>
+                                <div class="form-text">Opcional: Seleccione un centro específico</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="department_id" class="form-label">
+                                    <i class="fas fa-users me-1"></i>
+                                    Departamento
+                                </label>
+                                <select class="form-select" id="department_id" name="department_id">
+                                    <option value="">Todos los departamentos</option>
+                                </select>
+                                <div class="form-text">Opcional: Seleccione un departamento específico</div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="d-grid gap-2">
@@ -163,6 +191,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const applyTokenBtn = document.getElementById('applyTokenBtn');
     const cancelTokenBtn = document.getElementById('cancelTokenBtn');
     const employeeSelect = document.getElementById('employee_id');
+    const officeSelect = document.getElementById('office_id');
+    const departmentSelect = document.getElementById('department_id');
     const reportForm = document.getElementById('reportForm');
     const generateBtn = document.getElementById('generateBtn');
     const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
@@ -184,6 +214,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                     resetConnectionBtn.style.display = 'inline-block';
                     loadEmployees();
+                    loadOffices();
+                    loadDepartments();
                 } else {
                     connectionStatus.innerHTML = `
                         <div class="alert alert-danger mb-0">
@@ -258,6 +290,8 @@ document.addEventListener('DOMContentLoaded', function() {
         resetConnectionBtn.style.display = 'none';
         tokenInput.style.display = 'block';
         employeeSelect.innerHTML = '<option value="">Todos los empleados</option>';
+        officeSelect.innerHTML = '<option value="">Todos los centros</option>';
+        departmentSelect.innerHTML = '<option value="">Todos los departamentos</option>';
         newTokenInput.value = '';
         newTokenInput.focus();
     });
@@ -292,6 +326,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 tokenInput.style.display = 'none';
                 resetConnectionBtn.style.display = 'inline-block';
                 loadEmployees();
+                loadOffices();
+                loadDepartments();
             } else {
                 connectionStatus.innerHTML = `
                     <div class="alert alert-danger mb-0">
@@ -344,6 +380,46 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading employees:', error);
+            });
+    }
+
+    // Load offices
+    function loadOffices() {
+        fetch('/get-offices')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    officeSelect.innerHTML = '<option value="">Todos los centros</option>';
+                    data.offices.forEach(office => {
+                        const option = document.createElement('option');
+                        option.value = office.id;
+                        option.textContent = office.name;
+                        officeSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading offices:', error);
+            });
+    }
+
+    // Load departments
+    function loadDepartments() {
+        fetch('/get-departments')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    departmentSelect.innerHTML = '<option value="">Todos los departamentos</option>';
+                    data.departments.forEach(department => {
+                        const option = document.createElement('option');
+                        option.value = department.id;
+                        option.textContent = department.name;
+                        departmentSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading departments:', error);
             });
     }
 
