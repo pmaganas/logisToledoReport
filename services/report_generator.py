@@ -142,29 +142,39 @@ class ReportGenerator:
                 employee_data = self.sesame_api.get_employee_details(employee_id)
                 employees = [employee_data['data']] if employee_data else []
             else:
-                # Get limited employees to avoid timeout (first 20 employees)
-                employees_response = self.sesame_api.get_employees(company_id=company_id, page=1, per_page=20)
-                all_employees = employees_response.get('data', []) if employees_response else []
-                employees = []
-                
-                # Filter by office and department
-                for employee in all_employees:
-                    include_employee = True
+                # Get all employees data with pagination to ensure complete data
+                try:
+                    self.logger.info("Fetching all employee data...")
+                    all_employees = self.sesame_api.get_all_employees_data(company_id)
+                    self.logger.info(f"Retrieved {len(all_employees)} employees")
+                    employees = []
                     
-                    # Filter by office_id
-                    if office_id:
-                        employee_office_id = employee.get('office', {}).get('id') if employee.get('office') else None
-                        if employee_office_id != office_id:
-                            include_employee = False
+                    # Filter by office and department
+                    for employee in all_employees:
+                        include_employee = True
+                        
+                        # Filter by office_id
+                        if office_id:
+                            employee_office_id = employee.get('office', {}).get('id') if employee.get('office') else None
+                            if employee_office_id != office_id:
+                                include_employee = False
+                        
+                        # Filter by department_id
+                        if department_id and include_employee:
+                            employee_department_id = employee.get('department', {}).get('id') if employee.get('department') else None
+                            if employee_department_id != department_id:
+                                include_employee = False
+                        
+                        if include_employee:
+                            employees.append(employee)
                     
-                    # Filter by department_id
-                    if department_id and include_employee:
-                        employee_department_id = employee.get('department', {}).get('id') if employee.get('department') else None
-                        if employee_department_id != department_id:
-                            include_employee = False
+                    self.logger.info(f"After filtering: {len(employees)} employees")
                     
-                    if include_employee:
-                        employees.append(employee)
+                except Exception as e:
+                    self.logger.error(f"Error fetching employee data: {str(e)}")
+                    # Fallback to limited data
+                    employees_response = self.sesame_api.get_employees(company_id=company_id, page=1, per_page=50)
+                    employees = employees_response.get('data', []) if employees_response else []
 
             if not employees:
                 self.logger.error("No employees found")
@@ -230,19 +240,30 @@ class ReportGenerator:
                 emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
                 identity_type, identity_number = self._get_employee_identification(employee)
 
-                # Get work entries for this employee with limited data
+                # Get all work entries for this employee
                 try:
-                    time_entries = self.sesame_api.get_time_tracking(
+                    self.logger.info(f"Fetching time entries for employee {emp_name} ({emp_id})")
+                    time_entries = self.sesame_api.get_all_time_tracking_data(
                         employee_id=emp_id,
                         from_date=from_date,
-                        to_date=to_date,
-                        page=1,
-                        limit=50  # Limit to avoid timeout
+                        to_date=to_date
                     )
-                    time_entries = time_entries.get('data', []) if time_entries else []
+                    self.logger.info(f"Retrieved {len(time_entries)} time entries for {emp_name}")
                 except Exception as e:
-                    self.logger.error(f"Error getting time entries for employee {emp_id}: {str(e)}")
-                    time_entries = []
+                    self.logger.error(f"Error getting time entries for employee {emp_name} ({emp_id}): {str(e)}")
+                    # Try to get at least some data
+                    try:
+                        time_response = self.sesame_api.get_time_tracking(
+                            employee_id=emp_id,
+                            from_date=from_date,
+                            to_date=to_date,
+                            page=1,
+                            limit=100
+                        )
+                        time_entries = time_response.get('data', []) if time_response else []
+                    except Exception as e2:
+                        self.logger.error(f"Fallback also failed for {emp_name}: {str(e2)}")
+                        time_entries = []
 
                 # Process work entries grouped by date
                 date_entries = {}

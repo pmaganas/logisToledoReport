@@ -56,6 +56,7 @@ def generate_report():
 
         # Generate report with error handling
         try:
+            logger.info(f"Starting report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}")
             report_generator = ReportGenerator()
             report_data = report_generator.generate_report(
                 from_date=from_date,
@@ -65,6 +66,7 @@ def generate_report():
                 department_id=department_id,
                 report_type=report_type
             )
+            logger.info("Report generation completed successfully")
         except Exception as report_error:
             logger.error(f"Error during report generation: {str(report_error)}")
             flash(f'Error al generar el reporte: {str(report_error)}', 'error')

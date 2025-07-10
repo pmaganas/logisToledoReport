@@ -124,23 +124,34 @@ class SesameAPI:
         page = 1
         
         while True:
-            response = self.get_employees(company_id=company_id, page=page, per_page=100)
-            if not response or not response.get("data"):
+            try:
+                response = self.get_employees(company_id=company_id, page=page, per_page=100)
+                if not response or not response.get("data"):
+                    break
+                    
+                employees = response["data"]
+                if isinstance(employees, list):
+                    all_employees.extend(employees)
+                else:
+                    all_employees.append(employees)
+                
+                self.logger.info(f"Fetched page {page}, total employees: {len(all_employees)}")
+                
+                # Check if there are more pages
+                meta = response.get("meta", {})
+                if page >= meta.get("lastPage", 1):
+                    break
+                    
+                page += 1
+                
+                # Safety check to avoid infinite loops
+                if page > 50:  # Max 5000 employees
+                    break
+                    
+            except Exception as e:
+                self.logger.error(f"Error fetching employees page {page}: {str(e)}")
                 break
                 
-            employees = response["data"]
-            if isinstance(employees, list):
-                all_employees.extend(employees)
-            else:
-                all_employees.append(employees)
-            
-            # Check if there are more pages
-            meta = response.get("meta", {})
-            if page >= meta.get("lastPage", 1):
-                break
-                
-            page += 1
-            
         return all_employees
 
     def get_all_time_tracking_data(self, employee_id: str = None, company_id: str = None,
@@ -150,31 +161,40 @@ class SesameAPI:
         page = 1
         
         while True:
-            response = self.get_time_tracking(
-                employee_id=employee_id,
-                company_id=company_id,
-                from_date=from_date,
-                to_date=to_date,
-                page=page,
-                limit=100
-            )
-            
-            if not response or not response.get("data"):
+            try:
+                response = self.get_time_tracking(
+                    employee_id=employee_id,
+                    company_id=company_id,
+                    from_date=from_date,
+                    to_date=to_date,
+                    page=page,
+                    limit=100
+                )
+                
+                if not response or not response.get("data"):
+                    break
+                    
+                entries = response["data"]
+                if isinstance(entries, list):
+                    all_entries.extend(entries)
+                else:
+                    all_entries.append(entries)
+                
+                # Check if there are more pages
+                meta = response.get("meta", {})
+                if page >= meta.get("lastPage", 1):
+                    break
+                    
+                page += 1
+                
+                # Safety check to avoid infinite loops
+                if page > 100:  # Max 10000 entries
+                    break
+                    
+            except Exception as e:
+                self.logger.error(f"Error fetching time tracking data page {page}: {str(e)}")
                 break
                 
-            entries = response["data"]
-            if isinstance(entries, list):
-                all_entries.extend(entries)
-            else:
-                all_entries.append(entries)
-            
-            # Check if there are more pages
-            meta = response.get("meta", {})
-            if page >= meta.get("lastPage", 1):
-                break
-                
-            page += 1
-            
         return all_entries
 
     def get_all_breaks_data(self, employee_id: str = None, company_id: str = None,
