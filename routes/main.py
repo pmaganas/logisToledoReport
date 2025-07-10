@@ -54,16 +54,21 @@ def generate_report():
                 flash('Fecha de fin inválida', 'error')
                 return redirect(url_for('main.index'))
 
-        # Generate report
-        report_generator = ReportGenerator()
-        report_data = report_generator.generate_report(
-            from_date=from_date,
-            to_date=to_date,
-            employee_id=employee_id,
-            office_id=office_id,
-            department_id=department_id,
-            report_type=report_type
-        )
+        # Generate report with error handling
+        try:
+            report_generator = ReportGenerator()
+            report_data = report_generator.generate_report(
+                from_date=from_date,
+                to_date=to_date,
+                employee_id=employee_id,
+                office_id=office_id,
+                department_id=department_id,
+                report_type=report_type
+            )
+        except Exception as report_error:
+            logger.error(f"Error during report generation: {str(report_error)}")
+            flash(f'Error al generar el reporte: {str(report_error)}', 'error')
+            return redirect(url_for('main.index'))
         
         if report_data:
             # Create filename with timestamp

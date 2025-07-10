@@ -25,7 +25,7 @@ class SesameAPI:
                 headers=self.headers,
                 params=params,
                 json=data,
-                timeout=60  # Increased timeout
+                timeout=30  # Timeout reduced
             )
             
             self.logger.debug(f"API Request: {method} {url} - Status: {response.status_code}")

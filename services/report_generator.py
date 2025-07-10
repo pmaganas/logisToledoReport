@@ -142,8 +142,9 @@ class ReportGenerator:
                 employee_data = self.sesame_api.get_employee_details(employee_id)
                 employees = [employee_data['data']] if employee_data else []
             else:
-                # Get all employees and filter by office and department
-                all_employees = self.sesame_api.get_all_employees_data(company_id)
+                # Get limited employees to avoid timeout (first 20 employees)
+                employees_response = self.sesame_api.get_employees(company_id=company_id, page=1, per_page=20)
+                all_employees = employees_response.get('data', []) if employees_response else []
                 employees = []
                 
                 # Filter by office and department
@@ -229,12 +230,19 @@ class ReportGenerator:
                 emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
                 identity_type, identity_number = self._get_employee_identification(employee)
 
-                # Get all work entries for this employee
-                time_entries = self.sesame_api.get_all_time_tracking_data(
-                    employee_id=emp_id,
-                    from_date=from_date,
-                    to_date=to_date
-                )
+                # Get work entries for this employee with limited data
+                try:
+                    time_entries = self.sesame_api.get_time_tracking(
+                        employee_id=emp_id,
+                        from_date=from_date,
+                        to_date=to_date,
+                        page=1,
+                        limit=50  # Limit to avoid timeout
+                    )
+                    time_entries = time_entries.get('data', []) if time_entries else []
+                except Exception as e:
+                    self.logger.error(f"Error getting time entries for employee {emp_id}: {str(e)}")
+                    time_entries = []
 
                 # Process work entries grouped by date
                 date_entries = {}
