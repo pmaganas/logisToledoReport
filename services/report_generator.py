@@ -283,9 +283,6 @@ class ReportGenerator:
                             cell.fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
                         
                         row += 1
-                        
-                        # Add empty row for separation
-                        row += 1
 
             # Add a message if no data found
             if row == 2:
