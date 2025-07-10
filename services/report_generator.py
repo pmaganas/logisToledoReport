@@ -208,16 +208,12 @@ class ReportGenerator:
                 emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
                 identity_type, identity_number = self._get_employee_identification(employee)
 
-                # Get work entries data (limit to first page)
-                work_entries_response = self.sesame_api.get_work_entries(
+                # Get all work entries for this employee
+                time_entries = self.sesame_api.get_all_time_tracking_data(
                     employee_id=emp_id,
                     from_date=from_date,
-                    to_date=to_date,
-                    page=1,
-                    limit=50
+                    to_date=to_date
                 )
-                
-                time_entries = work_entries_response.get('data', []) if work_entries_response else []
 
                 # Process work entries grouped by date
                 date_entries = {}
@@ -330,9 +326,129 @@ class ReportGenerator:
     def _generate_by_type_report(self, wb, ws, employees, from_date, to_date, company_id):
         """Generate report grouped by type of fichaje"""
         try:
-            # For now, use same logic as by_employee but grouped by type
-            # This is a placeholder - implement specific logic as needed
-            return self._generate_by_employee_report(wb, ws, employees, from_date, to_date, company_id)
+            # Collect all work entries for all employees
+            all_entries = []
+            for employee in employees:
+                emp_id = employee.get('id')
+                emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
+                identity_type, identity_number = self._get_employee_identification(employee)
+
+                # Get all work entries for this employee
+                work_entries = self.sesame_api.get_all_time_tracking_data(
+                    employee_id=emp_id,
+                    from_date=from_date,
+                    to_date=to_date
+                )
+                
+                for entry in work_entries:
+                    work_in = entry.get('workEntryIn', {})
+                    work_out = entry.get('workEntryOut', {})
+                    
+                    start_time = self._parse_datetime(work_in.get('date')) if work_in else None
+                    end_time = self._parse_datetime(work_out.get('date')) if work_out else None
+                    
+                    if not start_time:
+                        continue
+
+                    # Calculate registered time
+                    if start_time and end_time:
+                        duration = self._calculate_duration(start_time, end_time)
+                    elif entry.get('workedSeconds'):
+                        duration = timedelta(seconds=entry['workedSeconds'])
+                    else:
+                        duration = timedelta(0)
+
+                    fichaje_type = entry.get('workEntryType', 'Trabajo')
+                    
+                    all_entries.append({
+                        'employee': emp_name,
+                        'identity_type': identity_type,
+                        'identity_number': identity_number,
+                        'date': start_time.strftime("%Y-%m-%d"),
+                        'activity': fichaje_type,
+                        'group': 'Actividad Principal',
+                        'start_time': start_time.strftime("%H:%M:%S") if start_time else "N/A",
+                        'end_time': end_time.strftime("%H:%M:%S") if end_time else "N/A",
+                        'duration': duration,
+                        'registered_time': self._format_duration(duration),
+                        'fichaje_type': fichaje_type
+                    })
+
+            # Group by fichaje type
+            type_groups = {}
+            for entry in all_entries:
+                fichaje_type = entry['fichaje_type']
+                if fichaje_type not in type_groups:
+                    type_groups[fichaje_type] = []
+                type_groups[fichaje_type].append(entry)
+
+            # Add data to worksheet grouped by fichaje type
+            row = 2
+            for fichaje_type in sorted(type_groups.keys()):
+                entries = type_groups[fichaje_type]
+                
+                # Add individual entries
+                for entry in entries:
+                    ws.cell(row=row, column=1, value=entry['employee'])
+                    ws.cell(row=row, column=2, value=entry['identity_type'])
+                    ws.cell(row=row, column=3, value=entry['identity_number'])
+                    ws.cell(row=row, column=4, value=entry['date'])
+                    ws.cell(row=row, column=5, value=entry['activity'])
+                    ws.cell(row=row, column=6, value=entry['group'])
+                    ws.cell(row=row, column=7, value=entry['start_time'])
+                    ws.cell(row=row, column=8, value=entry['end_time'])
+                    ws.cell(row=row, column=9, value=entry['registered_time'])
+                    row += 1
+
+                # Add total row for this fichaje type
+                if entries:
+                    total_duration = sum([entry['duration'] for entry in entries], timedelta(0))
+                    total_entries = len(entries)
+                    
+                    # Total row
+                    total_row = row
+                    ws.cell(row=total_row, column=1, value=f"TOTAL - {fichaje_type}")
+                    ws.cell(row=total_row, column=2, value="")
+                    ws.cell(row=total_row, column=3, value="")
+                    ws.cell(row=total_row, column=4, value="")
+                    ws.cell(row=total_row, column=5, value=str(total_entries))
+                    ws.cell(row=total_row, column=6, value="")
+                    ws.cell(row=total_row, column=7, value="")
+                    ws.cell(row=total_row, column=8, value="")
+                    ws.cell(row=total_row, column=9, value=self._format_duration(total_duration))
+                    
+                    # Style total row
+                    for col in range(1, 10):
+                        cell = ws.cell(row=total_row, column=col)
+                        cell.font = Font(bold=True)
+                        cell.fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+                    
+                    row += 1
+
+            # Add a message if no data found
+            if row == 2:
+                ws.cell(row=2, column=1, value="No se encontraron datos para el período seleccionado")
+
+            # Auto-adjust column widths
+            for column in ws.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws.column_dimensions[column_letter].width = adjusted_width
+
+            # Save to bytes
+            excel_buffer = io.BytesIO()
+            wb.save(excel_buffer)
+            excel_buffer.seek(0)
+            
+            return excel_buffer.getvalue()
+
         except Exception as e:
             self.logger.error(f"Error generating by type report: {str(e)}", exc_info=True)
             return None
@@ -340,9 +456,132 @@ class ReportGenerator:
     def _generate_by_group_report(self, wb, ws, employees, from_date, to_date, company_id):
         """Generate report grouped by groups"""
         try:
-            # For now, use same logic as by_employee but grouped by group
-            # This is a placeholder - implement specific logic as needed
-            return self._generate_by_employee_report(wb, ws, employees, from_date, to_date, company_id)
+            # Collect all work entries for all employees
+            all_entries = []
+            for employee in employees:
+                emp_id = employee.get('id')
+                emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
+                identity_type, identity_number = self._get_employee_identification(employee)
+
+                # Get all work entries for this employee
+                work_entries = self.sesame_api.get_all_time_tracking_data(
+                    employee_id=emp_id,
+                    from_date=from_date,
+                    to_date=to_date
+                )
+                
+                for entry in work_entries:
+                    work_in = entry.get('workEntryIn', {})
+                    work_out = entry.get('workEntryOut', {})
+                    
+                    start_time = self._parse_datetime(work_in.get('date')) if work_in else None
+                    end_time = self._parse_datetime(work_out.get('date')) if work_out else None
+                    
+                    if not start_time:
+                        continue
+
+                    # Calculate registered time
+                    if start_time and end_time:
+                        duration = self._calculate_duration(start_time, end_time)
+                    elif entry.get('workedSeconds'):
+                        duration = timedelta(seconds=entry['workedSeconds'])
+                    else:
+                        duration = timedelta(0)
+
+                    # Try to get group from activity or use default
+                    group = 'Actividad Principal'
+                    if entry.get('activity', {}).get('group', {}).get('name'):
+                        group = entry['activity']['group']['name']
+                    
+                    all_entries.append({
+                        'employee': emp_name,
+                        'identity_type': identity_type,
+                        'identity_number': identity_number,
+                        'date': start_time.strftime("%Y-%m-%d"),
+                        'activity': entry.get('workEntryType', 'Trabajo'),
+                        'group': group,
+                        'start_time': start_time.strftime("%H:%M:%S") if start_time else "N/A",
+                        'end_time': end_time.strftime("%H:%M:%S") if end_time else "N/A",
+                        'duration': duration,
+                        'registered_time': self._format_duration(duration),
+                        'group_key': group
+                    })
+
+            # Group by group
+            group_groups = {}
+            for entry in all_entries:
+                group_key = entry['group_key']
+                if group_key not in group_groups:
+                    group_groups[group_key] = []
+                group_groups[group_key].append(entry)
+
+            # Add data to worksheet grouped by group
+            row = 2
+            for group_key in sorted(group_groups.keys()):
+                entries = group_groups[group_key]
+                
+                # Add individual entries
+                for entry in entries:
+                    ws.cell(row=row, column=1, value=entry['employee'])
+                    ws.cell(row=row, column=2, value=entry['identity_type'])
+                    ws.cell(row=row, column=3, value=entry['identity_number'])
+                    ws.cell(row=row, column=4, value=entry['date'])
+                    ws.cell(row=row, column=5, value=entry['activity'])
+                    ws.cell(row=row, column=6, value=entry['group'])
+                    ws.cell(row=row, column=7, value=entry['start_time'])
+                    ws.cell(row=row, column=8, value=entry['end_time'])
+                    ws.cell(row=row, column=9, value=entry['registered_time'])
+                    row += 1
+
+                # Add total row for this group
+                if entries:
+                    total_duration = sum([entry['duration'] for entry in entries], timedelta(0))
+                    total_entries = len(entries)
+                    
+                    # Total row
+                    total_row = row
+                    ws.cell(row=total_row, column=1, value=f"TOTAL - {group_key}")
+                    ws.cell(row=total_row, column=2, value="")
+                    ws.cell(row=total_row, column=3, value="")
+                    ws.cell(row=total_row, column=4, value="")
+                    ws.cell(row=total_row, column=5, value=str(total_entries))
+                    ws.cell(row=total_row, column=6, value="")
+                    ws.cell(row=total_row, column=7, value="")
+                    ws.cell(row=total_row, column=8, value="")
+                    ws.cell(row=total_row, column=9, value=self._format_duration(total_duration))
+                    
+                    # Style total row
+                    for col in range(1, 10):
+                        cell = ws.cell(row=total_row, column=col)
+                        cell.font = Font(bold=True)
+                        cell.fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+                    
+                    row += 1
+
+            # Add a message if no data found
+            if row == 2:
+                ws.cell(row=2, column=1, value="No se encontraron datos para el período seleccionado")
+
+            # Auto-adjust column widths
+            for column in ws.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws.column_dimensions[column_letter].width = adjusted_width
+
+            # Save to bytes
+            excel_buffer = io.BytesIO()
+            wb.save(excel_buffer)
+            excel_buffer.seek(0)
+            
+            return excel_buffer.getvalue()
+
         except Exception as e:
             self.logger.error(f"Error generating by group report: {str(e)}", exc_info=True)
             return None
