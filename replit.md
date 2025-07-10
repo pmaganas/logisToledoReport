@@ -86,7 +86,8 @@ Preferred communication style: Simple, everyday language.
 9. **Error Handling**: User-friendly error messages and logging
 10. **Excel Export**: Professional XLSX report generation with formatting and totals
 11. **Database Token Storage**: Secure token management in PostgreSQL database
-12. **Simplified Report Generation**: Optimized processing for stability and performance
+12. **Multi-Region Support**: Support for all Sesame API regions (eu1-eu5, br1-br2, mx1, demo1)
+13. **Simplified Report Generation**: Optimized processing for stability and performance
 
 ## Deployment Strategy
 

@@ -8,7 +8,7 @@ class SesameToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String(255), nullable=True)
-    region = db.Column(db.String(10), default='eu1')  # eu1, us1, etc.
+    region = db.Column(db.String(10), default='eu1')  # eu1, eu2, eu3, eu4, eu5, br1, br2, mx1, demo1
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
