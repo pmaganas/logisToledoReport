@@ -48,22 +48,39 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="from_date" class="form-label">
+                                <label for="date_range" class="form-label">
                                     <i class="fas fa-calendar-alt me-1"></i>
-                                    Fecha de Inicio
+                                    Rango de Fechas
                                 </label>
-                                <input type="date" class="form-control" id="from_date" name="from_date">
-                                <div class="form-text">Opcional: Dejar vacío para obtener todos los registros</div>
+                                <select class="form-select" id="date_range" name="date_range">
+                                    <option value="today">Hoy</option>
+                                    <option value="yesterday">Ayer</option>
+                                    <option value="current_week">Semana actual</option>
+                                    <option value="last_week">Semana pasada</option>
+                                    <option value="current_month">Mes actual</option>
+                                    <option value="last_month">Mes pasado</option>
+                                    <option value="current_quarter">Trimestre actual</option>
+                                    <option value="current_year">Año actual</option>
+                                    <option value="last_year">Año pasado</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                                <div class="form-text">Seleccione un rango de fechas predefinido</div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="to_date" class="form-label">
-                                    <i class="fas fa-calendar-alt me-1"></i>
-                                    Fecha de Fin
-                                </label>
-                                <input type="date" class="form-control" id="to_date" name="to_date">
-                                <div class="form-text">Opcional: Dejar vacío para obtener todos los registros</div>
+                        <div class="col-md-6" id="custom_date_range" style="display: none;">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="mb-3">
+                                        <label for="from_date" class="form-label">Fecha de Inicio</label>
+                                        <input type="date" class="form-control" id="from_date" name="from_date">
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="mb-3">
+                                        <label for="to_date" class="form-label">Fecha de Fin</label>
+                                        <input type="date" class="form-control" id="to_date" name="to_date">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -193,9 +210,111 @@ document.addEventListener('DOMContentLoaded', function() {
     const employeeSelect = document.getElementById('employee_id');
     const officeSelect = document.getElementById('office_id');
     const departmentSelect = document.getElementById('department_id');
+    const dateRangeSelect = document.getElementById('date_range');
+    const customDateRange = document.getElementById('custom_date_range');
+    const fromDateInput = document.getElementById('from_date');
+    const toDateInput = document.getElementById('to_date');
     const reportForm = document.getElementById('reportForm');
     const generateBtn = document.getElementById('generateBtn');
     const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+
+    // Handle date range selection
+    dateRangeSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            customDateRange.style.display = 'block';
+        } else {
+            customDateRange.style.display = 'none';
+            // Clear custom date inputs when not using custom range
+            fromDateInput.value = '';
+            toDateInput.value = '';
+        }
+    });
+
+    // Function to calculate date ranges
+    function calculateDateRange(rangeType) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        switch (rangeType) {
+            case 'today':
+                return {
+                    from: today.toISOString().split('T')[0],
+                    to: today.toISOString().split('T')[0]
+                };
+            
+            case 'yesterday':
+                const yesterday = new Date(today);
+                yesterday.setDate(today.getDate() - 1);
+                return {
+                    from: yesterday.toISOString().split('T')[0],
+                    to: yesterday.toISOString().split('T')[0]
+                };
+            
+            case 'current_week':
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday
+                return {
+                    from: startOfWeek.toISOString().split('T')[0],
+                    to: endOfWeek.toISOString().split('T')[0]
+                };
+            
+            case 'last_week':
+                const lastWeekStart = new Date(today);
+                lastWeekStart.setDate(today.getDate() - today.getDay() - 6); // Last Monday
+                const lastWeekEnd = new Date(lastWeekStart);
+                lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Last Sunday
+                return {
+                    from: lastWeekStart.toISOString().split('T')[0],
+                    to: lastWeekEnd.toISOString().split('T')[0]
+                };
+            
+            case 'current_month':
+                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                return {
+                    from: startOfMonth.toISOString().split('T')[0],
+                    to: endOfMonth.toISOString().split('T')[0]
+                };
+            
+            case 'last_month':
+                const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+                return {
+                    from: lastMonthStart.toISOString().split('T')[0],
+                    to: lastMonthEnd.toISOString().split('T')[0]
+                };
+            
+            case 'current_quarter':
+                const quarter = Math.floor(today.getMonth() / 3);
+                const quarterStart = new Date(today.getFullYear(), quarter * 3, 1);
+                const quarterEnd = new Date(today.getFullYear(), quarter * 3 + 3, 0);
+                return {
+                    from: quarterStart.toISOString().split('T')[0],
+                    to: quarterEnd.toISOString().split('T')[0]
+                };
+            
+            case 'current_year':
+                const yearStart = new Date(today.getFullYear(), 0, 1);
+                const yearEnd = new Date(today.getFullYear(), 11, 31);
+                return {
+                    from: yearStart.toISOString().split('T')[0],
+                    to: yearEnd.toISOString().split('T')[0]
+                };
+            
+            case 'last_year':
+                const lastYearStart = new Date(today.getFullYear() - 1, 0, 1);
+                const lastYearEnd = new Date(today.getFullYear() - 1, 11, 31);
+                return {
+                    from: lastYearStart.toISOString().split('T')[0],
+                    to: lastYearEnd.toISOString().split('T')[0]
+                };
+            
+            default:
+                return { from: '', to: '' };
+        }
+    }
 
     // Test connection
     testConnectionBtn.addEventListener('click', function() {
@@ -425,6 +544,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Form submission
     reportForm.addEventListener('submit', function(e) {
+        // Process date range before submission
+        const dateRange = dateRangeSelect.value;
+        if (dateRange !== 'custom') {
+            const dates = calculateDateRange(dateRange);
+            fromDateInput.value = dates.from;
+            toDateInput.value = dates.to;
+        }
+        
         generateBtn.disabled = true;
         generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando...';
         loadingModal.show();

@@ -68,17 +68,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Key Features
 
-1. **Date Range Filtering**: Optional start and end date selection
+1. **Advanced Date Range Filtering**: Predefined date ranges with custom option
+   - Today, Yesterday, Current/Last Week, Current/Last Month
+   - Current Quarter, Current/Last Year, Custom range selection
 2. **Employee Filtering**: Optional employee ID specification
-3. **Report Type Selection**: Multiple report formats available:
+3. **Office/Center Filtering**: Filter employees by office/center
+4. **Department Filtering**: Filter employees by department
+5. **Report Type Selection**: Multiple report formats available:
    - Grupos y tipos de fichaje por empleado
    - Grupos y tipos de fichaje por tipo de fichaje
    - Grupos y tipos de fichaje por grupos
-4. **Grouped Reporting**: Data organized by employee and date with totals
-5. **Break Integration**: Breakfast breaks automatically included in adjacent activities
-6. **Connection Testing**: API connectivity verification
-7. **Error Handling**: User-friendly error messages and logging
-8. **Excel Export**: Professional XLSX report generation with formatting and totals
+6. **Grouped Reporting**: Data organized by employee and date with totals
+7. **Break Integration**: Breakfast breaks automatically included in adjacent activities
+8. **Connection Testing**: API connectivity verification
+9. **Error Handling**: User-friendly error messages and logging
+10. **Excel Export**: Professional XLSX report generation with formatting and totals
 
 ## Deployment Strategy
 

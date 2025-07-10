@@ -33,6 +33,7 @@ def generate_report():
         # Get form data
         from_date = request.form.get('from_date')
         to_date = request.form.get('to_date')
+        date_range = request.form.get('date_range', 'today')
         employee_id = request.form.get('employee_id')
         office_id = request.form.get('office_id')
         department_id = request.form.get('department_id')
