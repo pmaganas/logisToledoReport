@@ -100,6 +100,7 @@ def apply_token():
     try:
         data = request.get_json()
         new_token = data.get('token')
+        description = data.get('description', 'Token aplicado desde interfaz web')
         
         if not new_token:
             return jsonify({
@@ -107,45 +108,50 @@ def apply_token():
                 "message": "Token is required"
             }), 400
         
-        # Update environment variable temporarily (in memory)
-        import os
-        old_token = os.environ.get('SESAME_TOKEN')
-        os.environ['SESAME_TOKEN'] = new_token
+        # Test the token first
+        from services.sesame_api import SesameAPI
+        api = SesameAPI()
         
-        # Test new token
-        report_generator = ReportGenerator()
-        result = report_generator.test_connection()
+        # Temporarily set the token for testing
+        api.token = new_token
+        api.headers["Authorization"] = f"Bearer {new_token}"
         
-        if result.get('status') == 'success':
+        # Test the token
+        result = api.get_token_info()
+        
+        if result:
+            # Save the token to database
+            from models import SesameToken
+            SesameToken.set_active_token(new_token, description)
+            
             return jsonify({
                 "status": "success",
-                "company": result.get('company', 'Unknown'),
-                "message": "Token applied successfully"
+                "message": "Token aplicado correctamente y guardado en base de datos",
+                "company": result.get('company', 'Unknown')
             })
         else:
-            # Restore old token if test failed
-            if old_token:
-                os.environ['SESAME_TOKEN'] = old_token
             return jsonify({
                 "status": "error",
-                "message": result.get('message', 'Token test failed')
+                "message": "Token inválido"
             }), 400
             
     except Exception as e:
         logger.error(f"Error applying token: {str(e)}")
         return jsonify({
             "status": "error",
-            "message": f"Error applying token: {str(e)}"
+            "message": f"Error al aplicar el token: {str(e)}"
         }), 500
 
 @main_bp.route('/get-current-token')
 def get_current_token():
     """Get information about current token (masked for security)"""
     try:
-        import os
-        current_token = os.environ.get('SESAME_TOKEN', 'No token configured')
+        from models import SesameToken
         
-        if current_token == 'No token configured':
+        # Get active token from database
+        active_token = SesameToken.get_active_token()
+        
+        if not active_token:
             return jsonify({
                 "status": "error",
                 "message": "No token configured",
@@ -153,15 +159,18 @@ def get_current_token():
             })
         
         # Show only first 8 and last 4 characters for security
-        if len(current_token) > 12:
-            token_preview = current_token[:8] + "..." + current_token[-4:]
+        token_value = active_token.token
+        if len(token_value) > 12:
+            token_preview = token_value[:8] + "..." + token_value[-4:]
         else:
-            token_preview = current_token[:4] + "..." + current_token[-2:]
+            token_preview = token_value[:4] + "..." + token_value[-2:]
         
         return jsonify({
             "status": "success",
             "token_preview": token_preview,
-            "token_length": len(current_token)
+            "token_length": len(token_value),
+            "description": active_token.description,
+            "created_at": active_token.created_at.isoformat() if active_token.created_at else None
         })
     except Exception as e:
         logger.error(f"Error getting current token: {str(e)}")

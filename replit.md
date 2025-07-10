@@ -61,10 +61,12 @@ Preferred communication style: Simple, everyday language.
 ## Authentication & Configuration
 
 - **Session Management**: Flask session with configurable secret key
-- **API Authentication**: Bearer token stored in environment variables
+- **API Authentication**: Bearer token stored in PostgreSQL database
+- **Database Storage**: SesameToken model stores API tokens securely
 - **Environment Variables**:
-  - `SESAME_TOKEN`: API authentication token
+  - `DATABASE_URL`: PostgreSQL database connection
   - `SESSION_SECRET`: Flask session encryption key
+- **Token Management**: Web interface for token configuration and testing
 
 ## Key Features
 
@@ -83,6 +85,8 @@ Preferred communication style: Simple, everyday language.
 8. **Connection Testing**: API connectivity verification
 9. **Error Handling**: User-friendly error messages and logging
 10. **Excel Export**: Professional XLSX report generation with formatting and totals
+11. **Database Token Storage**: Secure token management in PostgreSQL database
+12. **Simplified Report Generation**: Optimized processing for stability and performance
 
 ## Deployment Strategy
 

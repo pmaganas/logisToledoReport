@@ -7,12 +7,33 @@ from typing import Dict, List, Optional
 class SesameAPI:
     def __init__(self):
         self.base_url = "https://api-eu1.sesametime.com"
-        self.token = os.getenv("SESAME_TOKEN", "13896c4d68b9c4f92b6243d4616b2c50c605cb2bf8e7c158d8267a676bfd83cb")
+        self.token = self._get_token()
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
         self.logger = logging.getLogger(__name__)
+    
+    def _get_token(self):
+        """Get token from database or environment"""
+        try:
+            from models import SesameToken
+            from app import db
+            
+            # Try to get token from database
+            active_token = SesameToken.get_active_token()
+            if active_token:
+                return active_token.token
+        except Exception as e:
+            self.logger.warning(f"Could not get token from database: {str(e)}")
+        
+        # Fallback to environment variable
+        token = os.getenv("SESAME_TOKEN")
+        if not token:
+            self.logger.error("No token configured")
+            return None
+        
+        return token
 
     def _make_request(self, endpoint: str, method: str = "GET", params: Dict = None, data: Dict = None) -> Optional[Dict]:
         """Make a request to the Sesame API"""
