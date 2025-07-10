@@ -125,6 +125,38 @@ def apply_token():
             "message": f"Error applying token: {str(e)}"
         }), 500
 
+@main_bp.route('/get-current-token')
+def get_current_token():
+    """Get information about current token (masked for security)"""
+    try:
+        import os
+        current_token = os.environ.get('SESAME_TOKEN', 'No token configured')
+        
+        if current_token == 'No token configured':
+            return jsonify({
+                "status": "error",
+                "message": "No token configured",
+                "token_preview": "No token"
+            })
+        
+        # Show only first 8 and last 4 characters for security
+        if len(current_token) > 12:
+            token_preview = current_token[:8] + "..." + current_token[-4:]
+        else:
+            token_preview = current_token[:4] + "..." + current_token[-2:]
+        
+        return jsonify({
+            "status": "success",
+            "token_preview": token_preview,
+            "token_length": len(current_token)
+        })
+    except Exception as e:
+        logger.error(f"Error getting current token: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error getting current token: {str(e)}"
+        }), 500
+
 @main_bp.route('/get-employees')
 def get_employees():
     """Get list of employees for dropdown"""

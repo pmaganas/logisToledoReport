@@ -22,6 +22,10 @@
                             <i class="fas fa-wifi me-2"></i>
                             Probar Conexión API
                         </button>
+                        <button type="button" class="btn btn-outline-secondary" id="showTokenBtn">
+                            <i class="fas fa-key me-2"></i>
+                            Ver Token Actual
+                        </button>
                         <button type="button" class="btn btn-outline-warning" id="resetConnectionBtn" style="display: none;">
                             <i class="fas fa-sign-out-alt me-2"></i>
                             Cerrar Conexión
@@ -159,6 +163,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const testConnectionBtn = document.getElementById('testConnectionBtn');
+    const showTokenBtn = document.getElementById('showTokenBtn');
     const resetConnectionBtn = document.getElementById('resetConnectionBtn');
     const connectionStatus = document.getElementById('connectionStatus');
     const tokenInput = document.getElementById('tokenInput');
@@ -208,6 +213,44 @@ document.addEventListener('DOMContentLoaded', function() {
             .finally(() => {
                 testConnectionBtn.disabled = false;
                 testConnectionBtn.innerHTML = '<i class="fas fa-wifi me-2"></i>Probar Conexión API';
+            });
+    });
+
+    // Show current token
+    showTokenBtn.addEventListener('click', function() {
+        showTokenBtn.disabled = true;
+        showTokenBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Consultando...';
+        
+        fetch('/get-current-token')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    connectionStatus.innerHTML = `
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-key me-2"></i>
+                            <strong>Token Actual:</strong> ${data.token_preview} (${data.token_length} caracteres)
+                        </div>
+                    `;
+                } else {
+                    connectionStatus.innerHTML = `
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${data.message}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                connectionStatus.innerHTML = `
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Error al obtener información del token: ${error.message}
+                    </div>
+                `;
+            })
+            .finally(() => {
+                showTokenBtn.disabled = false;
+                showTokenBtn.innerHTML = '<i class="fas fa-key me-2"></i>Ver Token Actual';
             });
     });
 
