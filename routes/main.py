@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import io
 import logging
 from services.report_generator import ReportGenerator
+from services.simple_report_generator import SimpleReportGenerator
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -54,11 +55,11 @@ def generate_report():
                 flash('Fecha de fin inválida', 'error')
                 return redirect(url_for('main.index'))
 
-        # Generate report with error handling
+        # Generate report with error handling - using simplified generator
         try:
-            logger.info(f"Starting report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}")
-            report_generator = ReportGenerator()
-            report_data = report_generator.generate_report(
+            logger.info(f"Starting simplified report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}")
+            simple_generator = SimpleReportGenerator()
+            report_data = simple_generator.generate_simple_report(
                 from_date=from_date,
                 to_date=to_date,
                 employee_id=employee_id,
@@ -66,9 +67,9 @@ def generate_report():
                 department_id=department_id,
                 report_type=report_type
             )
-            logger.info("Report generation completed successfully")
+            logger.info("Simplified report generation completed successfully")
         except Exception as report_error:
-            logger.error(f"Error during report generation: {str(report_error)}")
+            logger.error(f"Error during simplified report generation: {str(report_error)}")
             flash(f'Error al generar el reporte: {str(report_error)}', 'error')
             return redirect(url_for('main.index'))
         

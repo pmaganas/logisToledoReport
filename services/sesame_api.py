@@ -18,14 +18,19 @@ class SesameAPI:
         """Make a request to the Sesame API"""
         url = f"{self.base_url}{endpoint}"
         
+        # Create a session with specific configuration to avoid proxy issues
+        session = requests.Session()
+        session.trust_env = False  # Disable environment proxy settings
+        
         try:
-            response = requests.request(
+            response = session.request(
                 method=method,
                 url=url,
                 headers=self.headers,
                 params=params,
                 json=data,
-                timeout=30  # Timeout reduced
+                timeout=60,  # Increased timeout
+                proxies={}  # Explicitly disable proxies
             )
             
             self.logger.debug(f"API Request: {method} {url} - Status: {response.status_code}")
@@ -45,6 +50,8 @@ class SesameAPI:
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Request failed: {str(e)}")
             return None
+        finally:
+            session.close()
 
     def get_token_info(self) -> Optional[Dict]:
         """Get information about the current token"""
