@@ -9,12 +9,16 @@
 
                 <!-- Connection Status -->
                 <div class="mb-4">
-                    <div class="d-flex gap-2 mb-2">
-                        <button type="button" class="btn btn-outline-info" id="testConnectionBtn">
+                    <div class="d-flex gap-2 mb-2" id="connectionButtons">
+                        <button type="button" class="btn btn-outline-primary" id="configureTokenBtn">
+                            <i class="fas fa-cog me-2"></i>
+                            Configurar Token API
+                        </button>
+                        <button type="button" class="btn btn-outline-info" id="testConnectionBtn" style="display: none;">
                             <i class="fas fa-wifi me-2"></i>
                             Probar Conexión API
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" id="showTokenBtn">
+                        <button type="button" class="btn btn-outline-secondary" id="showTokenBtn" style="display: none;">
                             <i class="fas fa-key me-2"></i>
                             Ver Token Actual
                         </button>
@@ -23,7 +27,12 @@
                             Cerrar Conexión
                         </button>
                     </div>
-                    <div id="connectionStatus" class="mt-2"></div>
+                    <div id="connectionStatus" class="mt-2">
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No hay token configurado. Haz clic en "Configurar Token API" para empezar.
+                        </div>
+                    </div>
                     <div id="tokenInput" class="mt-3" style="display: none;">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
@@ -213,6 +222,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const configureTokenBtn = document.getElementById('configureTokenBtn');
     const testConnectionBtn = document.getElementById('testConnectionBtn');
     const showTokenBtn = document.getElementById('showTokenBtn');
     const resetConnectionBtn = document.getElementById('resetConnectionBtn');
@@ -231,6 +241,58 @@ document.addEventListener('DOMContentLoaded', function() {
     const reportForm = document.getElementById('reportForm');
     const generateBtn = document.getElementById('generateBtn');
     const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    
+    // Check for existing token on page load
+    checkTokenStatus();
+    
+    // Function to check token status and configure UI
+    function checkTokenStatus() {
+        fetch('/get-current-token')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Token exists - show management buttons
+                    configureTokenBtn.style.display = 'none';
+                    testConnectionBtn.style.display = 'inline-block';
+                    showTokenBtn.style.display = 'inline-block';
+                    resetConnectionBtn.style.display = 'inline-block';
+                    
+                    connectionStatus.innerHTML = `
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Token configurado correctamente. Región: ${data.region}
+                        </div>
+                    `;
+                } else {
+                    // No token - show configure button only
+                    configureTokenBtn.style.display = 'inline-block';
+                    testConnectionBtn.style.display = 'none';
+                    showTokenBtn.style.display = 'none';
+                    resetConnectionBtn.style.display = 'none';
+                    
+                    connectionStatus.innerHTML = `
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No hay token configurado. Haz clic en "Configurar Token API" para empezar.
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error checking token status:', error);
+                // Show configure button on error
+                configureTokenBtn.style.display = 'inline-block';
+                testConnectionBtn.style.display = 'none';
+                showTokenBtn.style.display = 'none';
+                resetConnectionBtn.style.display = 'none';
+            });
+    }
+    
+    // Configure token button - show token input form
+    configureTokenBtn.addEventListener('click', function() {
+        tokenInput.style.display = 'block';
+        newTokenInput.focus();
+    });
 
     // Handle date range selection
     dateRangeSelect.addEventListener('change', function() {
@@ -425,7 +487,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 Conexión cerrada. Puedes introducir un nuevo token para conectar con otra cuenta.
             </div>
         `;
+        
+        // Update button visibility
+        configureTokenBtn.style.display = 'inline-block';
+        testConnectionBtn.style.display = 'none';
+        showTokenBtn.style.display = 'none';
         resetConnectionBtn.style.display = 'none';
+        
         tokenInput.style.display = 'block';
         employeeSelect.innerHTML = '<option value="">Todos los empleados</option>';
         officeSelect.innerHTML = '<option value="">Todos los centros</option>';
@@ -468,7 +536,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
                 tokenInput.style.display = 'none';
+                
+                // Update button visibility after successful token application
+                configureTokenBtn.style.display = 'none';
+                testConnectionBtn.style.display = 'inline-block';
+                showTokenBtn.style.display = 'inline-block';
                 resetConnectionBtn.style.display = 'inline-block';
+                
                 loadEmployees();
                 loadOffices();
                 loadDepartments();
@@ -499,12 +573,8 @@ document.addEventListener('DOMContentLoaded', function() {
     cancelTokenBtn.addEventListener('click', function() {
         tokenInput.style.display = 'none';
         newTokenInput.value = '';
-        connectionStatus.innerHTML = `
-            <div class="alert alert-info mb-0">
-                <i class="fas fa-info-circle me-2"></i>
-                Haz clic en "Probar Conexión API" para verificar la conexión actual.
-            </div>
-        `;
+        // Check token status again to restore correct state
+        checkTokenStatus();
     });
 
     // Load employees
