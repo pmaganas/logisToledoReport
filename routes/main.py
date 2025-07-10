@@ -100,7 +100,8 @@ def apply_token():
     try:
         data = request.get_json()
         new_token = data.get('token')
-        description = data.get('description', 'Token aplicado desde interfaz web')
+        region = data.get('region', 'eu1')
+        description = data.get('description', f'Token aplicado desde interfaz web - Región: {region}')
         
         if not new_token:
             return jsonify({
@@ -108,31 +109,34 @@ def apply_token():
                 "message": "Token is required"
             }), 400
         
-        # Test the token first
+        # Test the token first by creating a temporary API instance
         from services.sesame_api import SesameAPI
-        api = SesameAPI()
         
-        # Temporarily set the token for testing
-        api.token = new_token
-        api.headers["Authorization"] = f"Bearer {new_token}"
+        # Create a temporary API instance for testing
+        test_api = SesameAPI()
+        test_api.token = new_token
+        test_api.region = region
+        test_api.base_url = f"https://api-{region}.sesametime.com"
+        test_api.headers["Authorization"] = f"Bearer {new_token}"
         
         # Test the token
-        result = api.get_token_info()
+        result = test_api.get_token_info()
         
         if result:
             # Save the token to database
             from models import SesameToken
-            SesameToken.set_active_token(new_token, description)
+            SesameToken.set_active_token(new_token, description, region)
             
             return jsonify({
                 "status": "success",
                 "message": "Token aplicado correctamente y guardado en base de datos",
-                "company": result.get('company', 'Unknown')
+                "company": result.get('company', 'Unknown'),
+                "region": region
             })
         else:
             return jsonify({
                 "status": "error",
-                "message": "Token inválido"
+                "message": "Token inválido o región incorrecta"
             }), 400
             
     except Exception as e:
@@ -170,6 +174,7 @@ def get_current_token():
             "token_preview": token_preview,
             "token_length": len(token_value),
             "description": active_token.description,
+            "region": active_token.region,
             "created_at": active_token.created_at.isoformat() if active_token.created_at else None
         })
     except Exception as e:

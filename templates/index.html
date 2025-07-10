@@ -29,6 +29,14 @@
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>Configurar Token API:</strong> Introduce el token de Sesame para conectar con la API. El token se guardará de forma segura en la base de datos.
                         </div>
+                        <div class="mb-3">
+                            <label for="regionSelect" class="form-label">Región del API</label>
+                            <select class="form-select" id="regionSelect">
+                                <option value="eu1">Europa (eu1)</option>
+                                <option value="us1">Estados Unidos (us1)</option>
+                                <option value="ap1">Asia-Pacífico (ap1)</option>
+                            </select>
+                        </div>
                         <div class="input-group">
                             <input type="password" class="form-control" id="newTokenInput" placeholder="Introduce el token de Sesame API">
                             <button class="btn btn-success" type="button" id="applyTokenBtn">
@@ -371,9 +379,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     connectionStatus.innerHTML = `
                         <div class="alert alert-info mb-0">
                             <i class="fas fa-key me-2"></i>
-                            <strong>Token Actual:</strong> ${data.token_preview} (${data.token_length} caracteres)
+                            <strong>Token Actual:</strong> ${data.token_preview} (${data.token_length} caracteres)<br>
+                            <small><i class="fas fa-globe me-1"></i>Región: ${data.region} | ${data.description || 'Sin descripción'}</small>
                         </div>
                     `;
+                    // Show new token input button
+                    tokenInput.style.display = 'block';
                 } else {
                     connectionStatus.innerHTML = `
                         <div class="alert alert-warning mb-0">
@@ -381,6 +392,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${data.message}
                         </div>
                     `;
+                    // Show token input when no token exists
+                    tokenInput.style.display = 'block';
                 }
             })
             .catch(error => {
@@ -426,12 +439,18 @@ document.addEventListener('DOMContentLoaded', function() {
         applyTokenBtn.disabled = true;
         applyTokenBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Aplicando...';
 
+        const region = document.getElementById('regionSelect').value;
+        
         fetch('/apply-token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ token: newToken })
+            body: JSON.stringify({ 
+                token: newToken,
+                region: region,
+                description: `Token configurado para región ${region}`
+            })
         })
         .then(response => response.json())
         .then(data => {

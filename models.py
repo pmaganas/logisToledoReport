@@ -8,6 +8,7 @@ class SesameToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String(255), nullable=True)
+    region = db.Column(db.String(10), default='eu1')  # eu1, us1, etc.
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -21,13 +22,13 @@ class SesameToken(db.Model):
         return cls.query.filter_by(is_active=True).first()
     
     @classmethod
-    def set_active_token(cls, token, description=None):
+    def set_active_token(cls, token, description=None, region='eu1'):
         """Set a new active token, deactivating all others"""
         # Deactivate all existing tokens
         cls.query.update({cls.is_active: False})
         
         # Create new active token
-        new_token = cls(token=token, description=description, is_active=True)
+        new_token = cls(token=token, description=description, region=region, is_active=True)
         db.session.add(new_token)
         db.session.commit()
         
