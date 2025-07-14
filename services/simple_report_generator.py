@@ -25,9 +25,8 @@ class SimpleReportGenerator:
                 employee_response = self.sesame_api.get_employee_details(employee_id)
                 employees = [employee_response.get('data')] if employee_response else []
             else:
-                # Get limited employee data to avoid timeout
-                employees_response = self.sesame_api.get_employees(page=1, per_page=50)
-                all_employees = employees_response.get('data', []) if employees_response else []
+                # Get all employees data with complete pagination
+                all_employees = self.sesame_api.get_all_employees_data()
                 
                 employees = []
                 for employee in all_employees:
@@ -47,10 +46,6 @@ class SimpleReportGenerator:
                     
                     if include_employee:
                         employees.append(employee)
-                        
-                    # Limit to 20 employees for stability
-                    if len(employees) >= 20:
-                        break
             
             if not employees:
                 self.logger.warning("No employees found")
@@ -82,15 +77,12 @@ class SimpleReportGenerator:
                 self.logger.info(f"Processing employee {i}/{len(employees)}: {emp_name}")
                 
                 try:
-                    # Get limited time tracking data
-                    time_response = self.sesame_api.get_time_tracking(
+                    # Get all time tracking data with complete pagination
+                    time_entries = self.sesame_api.get_all_time_tracking_data(
                         employee_id=emp_id,
                         from_date=from_date,
-                        to_date=to_date,
-                        page=1,
-                        limit=30  # Reduced limit
+                        to_date=to_date
                     )
-                    time_entries = time_response.get('data', []) if time_response else []
                     
                     if time_entries:
                         # Group by date and calculate hours
