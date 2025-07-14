@@ -111,7 +111,15 @@ class SimpleReportGenerator:
                             work_out = entry.get('workEntryOut', {})
                             
                             # Parse date and times
-                            date_str = entry.get('date', 'Unknown')
+                            date_str = "Unknown"
+                            if work_in and work_in.get('date'):
+                                try:
+                                    parsed_date = self._parse_datetime(work_in.get('date'))
+                                    if parsed_date:
+                                        date_str = parsed_date.strftime('%Y-%m-%d')
+                                except Exception:
+                                    date_str = "Error en fecha"
+                            
                             start_time = self._parse_datetime(work_in.get('date'))
                             end_time = self._parse_datetime(work_out.get('date'))
                             
@@ -229,7 +237,19 @@ class SimpleReportGenerator:
 
     def _get_employee_identification(self, employee: Dict) -> tuple:
         """Extract employee identification type and number"""
-        identification = employee.get('identification', {})
-        if identification:
-            return identification.get('type', 'Sin tipo'), identification.get('number', 'Sin número')
-        return 'Sin tipo', 'Sin número'
+        # Try different possible field names for identification
+        identification_number = (
+            employee.get('nid') or
+            employee.get('identificationNumber') or
+            employee.get('code') or
+            str(employee.get('pin')) if employee.get('pin') else None or
+            employee.get('id', 'Sin número')
+        )
+        
+        identification_type = (
+            employee.get('identityNumberType') or
+            employee.get('identificationType') or
+            'DNI'
+        )
+        
+        return identification_type, str(identification_number)
