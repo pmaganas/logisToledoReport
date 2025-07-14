@@ -346,3 +346,41 @@ class SesameAPI:
                 break
         
         return all_departments
+
+    def get_check_types(self, company_id: str = None, page: int = 1, per_page: int = 100) -> Optional[Dict]:
+        """Get list of check types"""
+        params = {
+            'page': page,
+            'per_page': per_page
+        }
+        
+        if company_id:
+            params['companyId'] = company_id
+        
+        return self._make_request("/schedule/v1/check-types", params=params)
+
+    def get_all_check_types_data(self, company_id: str = None) -> List[Dict]:
+        """Get all check types with pagination"""
+        all_check_types = []
+        page = 1
+        
+        while True:
+            try:
+                result = self.get_check_types(company_id=company_id, page=page, per_page=100)
+                if not result or not result.get('data'):
+                    break
+                
+                all_check_types.extend(result['data'])
+                
+                # Check if there are more pages
+                meta = result.get('meta', {})
+                if page >= meta.get('lastPage', 1):
+                    break
+                
+                page += 1
+                
+            except Exception as e:
+                self.logger.error(f"Error getting check types data page {page}: {str(e)}")
+                break
+        
+        return all_check_types

@@ -154,11 +154,19 @@ def preview_report():
                 "headers": []
             })
             
+        # Get check types for activity name resolution
+        check_types_data = api.get_all_check_types_data()
+        check_types_map = {}
+        if check_types_data:
+            for check_type in check_types_data:
+                check_types_map[check_type.get('id')] = check_type.get('name', 'Actividad no especificada')
+        
         # Get complete time tracking data with pagination and break handling
         preview_data = []
         headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Original", "Tiempo Descanso", "Tiempo Final", "Procesado"]
         
         logger.info(f"Processing {len(employees_data)} employees for preview")
+        logger.info(f"Loaded {len(check_types_map)} check types")
         
         for employee in employees_data[:5]:  # Limit to first 5 employees for preview
             logger.info(f"Processing employee: {employee.get('name', 'Unknown')}")
@@ -240,21 +248,16 @@ def preview_report():
                             logger.error(f"Error parsing entry date: {e}")
                             entry_date = "Error en fecha"
                     
-                    # Try different possible structures for activity info
-                    activity_name = (
-                        entry.get('activity', {}).get('name') or
-                        entry.get('activityName') or
-                        entry.get('type') or
-                        entry.get('description') or
-                        'Actividad no especificada'
-                    )
+                    # Get activity name from workCheckTypeId using check types mapping
+                    activity_name = "Actividad no especificada"
+                    work_check_type_id = entry.get('workCheckTypeId')
+                    if work_check_type_id and work_check_type_id in check_types_map:
+                        activity_name = check_types_map[work_check_type_id]
+                    elif entry.get('workEntryType'):
+                        activity_name = entry.get('workEntryType', 'Actividad no especificada')
                     
-                    group_name = (
-                        entry.get('activity', {}).get('group', {}).get('name') or
-                        entry.get('groupName') or
-                        entry.get('group') or
-                        'Sin grupo'
-                    )
+                    # For now, set group name to the same as activity name
+                    group_name = activity_name
                     
                     # Extract times from workEntryIn and workEntryOut
                     start_time = "No disponible"
