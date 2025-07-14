@@ -180,30 +180,81 @@ def preview_report():
             if all_time_data:
                 logger.info(f"Found {len(all_time_data)} time entries and {len(all_break_data)} break entries")
                 
+                # Debug: log employee structure
+                logger.debug(f"Employee structure: {employee}")
+                
+                # Debug: log first time entry structure
+                if all_time_data:
+                    logger.debug(f"First time entry structure: {all_time_data[0]}")
+                
                 # Process break time redistribution
                 processed_entries = _process_break_redistribution(all_time_data, all_break_data)
                 
-                # Extract employee identification
+                # Extract employee identification with better mapping
                 identification_type = "No especificado"
                 identification_number = "No especificado"
                 
-                if employee.get('identificationNumber'):
-                    identification_number = employee['identificationNumber']
-                    identification_type = employee.get('identificationType', 'DNI')
+                # Try different possible field names for identification
+                identification_number = (
+                    employee.get('identificationNumber') or
+                    employee.get('nid') or
+                    employee.get('code') or
+                    employee.get('id', 'No especificado')
+                )
+                
+                identification_type = (
+                    employee.get('identificationType') or
+                    employee.get('identityNumberType') or
+                    'DNI'
+                )
                 
                 # Show processed entries (limit to 10 for preview)
                 for entry in processed_entries[:10]:
-                    # Format entry data
-                    entry_date = entry.get('date', 'No especificado')
+                    # Debug: log entry structure
+                    logger.debug(f"Processing entry: {entry}")
+                    
+                    # Format entry data with multiple possible field names
+                    entry_date = (
+                        entry.get('date') or
+                        entry.get('entryDate') or
+                        entry.get('workDate') or
+                        entry.get('created_at', 'No especificado')
+                    )
                     if entry_date and 'T' in entry_date:
                         entry_date = entry_date.split('T')[0]
                     
-                    activity_name = entry.get('activity', {}).get('name', 'Actividad no especificada')
-                    group_name = entry.get('activity', {}).get('group', {}).get('name', 'Sin grupo')
+                    # Try different possible structures for activity info
+                    activity_name = (
+                        entry.get('activity', {}).get('name') or
+                        entry.get('activityName') or
+                        entry.get('type') or
+                        entry.get('description') or
+                        'Actividad no especificada'
+                    )
                     
-                    # Format times
-                    start_time = entry.get('timeIn', 'No especificado')
-                    end_time = entry.get('timeOut', 'No especificado')
+                    group_name = (
+                        entry.get('activity', {}).get('group', {}).get('name') or
+                        entry.get('groupName') or
+                        entry.get('group') or
+                        'Sin grupo'
+                    )
+                    
+                    # Format times with multiple possible field names
+                    start_time = (
+                        entry.get('timeIn') or
+                        entry.get('startTime') or
+                        entry.get('clockIn') or
+                        entry.get('entrada') or
+                        'No especificado'
+                    )
+                    
+                    end_time = (
+                        entry.get('timeOut') or
+                        entry.get('endTime') or
+                        entry.get('clockOut') or
+                        entry.get('salida') or
+                        'No especificado'
+                    )
                     
                     if start_time and 'T' in start_time:
                         start_time = start_time.split('T')[1][:8]
@@ -296,8 +347,16 @@ def _process_break_redistribution(time_entries, break_entries):
     # Add explicit break entries from break endpoint
     for break_entry in break_entries:
         break_entries_to_process.append(break_entry)
-        break_activity_name = break_entry.get('activity', {}).get('name', 'Unknown Break')
+        # Try different possible structures for activity name
+        break_activity_name = (
+            break_entry.get('activity', {}).get('name') or
+            break_entry.get('activityName') or
+            break_entry.get('type') or
+            break_entry.get('description') or
+            'Descanso'
+        )
         logger.info(f"Found break entry from breaks endpoint: {break_activity_name}")
+        logger.debug(f"Break entry structure: {break_entry}")
     
     # Sort entries by date and time
     processed_entries.sort(key=lambda x: x.get('timeIn', ''))
