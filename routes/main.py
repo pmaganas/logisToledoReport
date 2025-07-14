@@ -168,9 +168,9 @@ def preview_report():
         logger.info(f"Processing {len(employees_data)} employees for preview")
         logger.info(f"Loaded {len(check_types_map)} check types")
         
-        # Process first 3 employees for preview to focus on pagination debugging
+        # Process first 5 employees for preview 
         processed_count = 0
-        for employee in employees_data[:3]:
+        for employee in employees_data[:5]:
             employee_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
             logger.info(f"Processing employee: {employee_name} (ID: {employee.get('id')})")
             
@@ -347,9 +347,9 @@ def preview_report():
                         processing_status
                     ])
             
-            # Limit preview to 3 employees with data for pagination debugging
-            if processed_count >= 3:
-                logger.info(f"Reached preview limit of 3 employees with data. Stopping processing.")
+            # Limit preview to 5 employees with data
+            if processed_count >= 5:
+                logger.info(f"Reached preview limit of 5 employees with data. Stopping processing.")
                 break
         
         return jsonify({

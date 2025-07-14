@@ -110,3 +110,13 @@ Preferred communication style: Simple, everyday language.
 - Responsive design with Bootstrap grid system
 - Modular service architecture for easy testing and maintenance
 - Comprehensive error logging for debugging
+
+## Recent Changes (July 2025)
+
+- **RESOLVED**: Fixed critical pagination issue - API was returning correct data (1177 records across 12 pages) but metadata field inconsistency caused incorrect logging
+- Enhanced loading modal with progress bar and real-time status updates
+- Improved debugging with detailed pagination logs showing page-by-page progress
+- Corrected API response parsing to use "total" field instead of "totalItems" for accurate record counting
+- Completed full application redesign with Tailwind CSS, Figtree typography, and Tabler Icons
+- Implemented activity name resolution using workCheckTypeId with /schedule/v1/check-types endpoint lookup
+- Overhauled break redistribution logic to redistribute non-work/remote activity time to adjacent work entries and eliminate pause lines from final output

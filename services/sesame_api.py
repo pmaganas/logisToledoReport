@@ -225,10 +225,15 @@ class SesameAPI:
                 meta = response.get("meta", {})
                 current_page = meta.get("currentPage", page)
                 last_page = meta.get("lastPage", 1)
-                total_items = meta.get("totalItems", 0)
+                total_items = meta.get("total", meta.get("totalItems", 0))
                 
                 self.logger.info(f"WORK-ENTRIES: Page {current_page} of {last_page}, total items: {total_items}")
                 
+                # Si no hay más entradas en esta página, terminamos
+                if len(entries) == 0:
+                    self.logger.info(f"WORK-ENTRIES: No entries in page {page}, stopping pagination")
+                    break
+                    
                 if current_page >= last_page:
                     self.logger.info(f"WORK-ENTRIES: Reached last page ({last_page}), stopping pagination")
                     break
