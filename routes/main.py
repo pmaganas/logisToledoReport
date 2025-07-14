@@ -230,15 +230,15 @@ def preview_report():
                         employee_nid = entry['employee'].get('nid', 'No disponible')
                         employee_id_type = entry['employee'].get('identityNumberType', 'DNI')
                     
-                    # Format entry data with multiple possible field names
-                    entry_date = (
-                        entry.get('date') or
-                        entry.get('entryDate') or
-                        entry.get('workDate') or
-                        entry.get('created_at', 'No especificado')
-                    )
-                    if entry_date and 'T' in entry_date:
-                        entry_date = entry_date.split('T')[0]
+                    # Extract date from workEntryIn.date
+                    entry_date = "No disponible"
+                    if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                        try:
+                            entry_datetime = datetime.fromisoformat(entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                            entry_date = entry_datetime.strftime('%Y-%m-%d')
+                        except Exception as e:
+                            logger.error(f"Error parsing entry date: {e}")
+                            entry_date = "Error en fecha"
                     
                     # Try different possible structures for activity info
                     activity_name = (
@@ -256,37 +256,51 @@ def preview_report():
                         'Sin grupo'
                     )
                     
-                    # Format times with multiple possible field names
-                    start_time = (
-                        entry.get('timeIn') or
-                        entry.get('startTime') or
-                        entry.get('clockIn') or
-                        entry.get('entrada') or
-                        'No especificado'
-                    )
+                    # Extract times from workEntryIn and workEntryOut
+                    start_time = "No disponible"
+                    end_time = "No disponible"
                     
-                    end_time = (
-                        entry.get('timeOut') or
-                        entry.get('endTime') or
-                        entry.get('clockOut') or
-                        entry.get('salida') or
-                        'No especificado'
-                    )
+                    if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                        try:
+                            start_datetime = datetime.fromisoformat(entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                            start_time = start_datetime.strftime('%H:%M:%S')
+                        except Exception as e:
+                            logger.error(f"Error parsing start time: {e}")
+                            start_time = "Error en hora"
                     
-                    if start_time and 'T' in start_time:
-                        start_time = start_time.split('T')[1][:8]
-                    if end_time and 'T' in end_time:
-                        end_time = end_time.split('T')[1][:8]
+                    if entry.get('workEntryOut') and entry['workEntryOut'].get('date'):
+                        try:
+                            end_datetime = datetime.fromisoformat(entry['workEntryOut']['date'].replace('Z', '+00:00'))
+                            end_time = end_datetime.strftime('%H:%M:%S')
+                        except Exception as e:
+                            logger.error(f"Error parsing end time: {e}")
+                            end_time = "Error en hora"
                     
                     # Calculate durations
-                    original_duration = "No calculado"
-                    break_time = "0:00:00"
-                    final_duration = "No calculado"
+                    original_duration = "No disponible"
+                    break_time = "00:00:00"
+                    final_duration = "No disponible"
                     
-                    if entry.get('timeIn') and entry.get('timeOut'):
+                    if entry.get('workedSeconds') is not None:
                         try:
-                            start_dt = datetime.fromisoformat(entry['timeIn'].replace('Z', '+00:00'))
-                            end_dt = datetime.fromisoformat(entry['timeOut'].replace('Z', '+00:00'))
+                            original_seconds = entry['workedSeconds']
+                            original_duration = _format_duration(timedelta(seconds=original_seconds))
+                            
+                            # Break time added
+                            break_seconds = entry.get('added_break_time', 0)
+                            if break_seconds > 0:
+                                break_time = _format_duration(timedelta(seconds=break_seconds))
+                            
+                            # Final duration
+                            final_seconds = original_seconds + break_seconds
+                            final_duration = _format_duration(timedelta(seconds=final_seconds))
+                        except Exception as e:
+                            logger.error(f"Error calculating duration: {e}")
+                            final_duration = "Error en cálculo"
+                    elif entry.get('workEntryIn') and entry.get('workEntryOut'):
+                        try:
+                            start_dt = datetime.fromisoformat(entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                            end_dt = datetime.fromisoformat(entry['workEntryOut']['date'].replace('Z', '+00:00'))
                             duration_td = end_dt - start_dt
                             original_duration = _format_duration(duration_td)
                             
@@ -297,7 +311,8 @@ def preview_report():
                                 final_duration = _format_duration(duration_td + timedelta(seconds=added_break_time))
                             else:
                                 final_duration = original_duration
-                        except:
+                        except Exception as e:
+                            logger.error(f"Error calculating duration from dates: {e}")
                             original_duration = "Error en cálculo"
                             final_duration = "Error en cálculo"
                     
