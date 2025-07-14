@@ -76,6 +76,7 @@ Preferred communication style: Simple, everyday language.
 1. **Advanced Date Range Filtering**: Predefined date ranges with custom option
    - Today, Yesterday, Current/Last Week, Current/Last Month
    - Current Quarter, Current/Last Year, Custom range selection
+   - Default selection: Current Month for optimal user experience
 2. **Employee Filtering**: Optional employee ID specification
 3. **Office/Center Filtering**: Filter employees by office/center
 4. **Department Filtering**: Filter employees by department
