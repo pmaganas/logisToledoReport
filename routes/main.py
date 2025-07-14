@@ -268,8 +268,8 @@ def preview_report():
                     elif entry.get('workEntryType'):
                         activity_name = entry.get('workEntryType', 'Actividad no especificada')
                     
-                    # For now, set group name to the same as activity name
-                    group_name = activity_name
+                    # Group name left empty as requested - no information available yet
+                    group_name = ""
                     
                     # Extract times from workEntryIn and workEntryOut
                     start_time = "No disponible"
