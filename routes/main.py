@@ -163,7 +163,7 @@ def preview_report():
         
         # Get complete time tracking data with pagination and break handling
         preview_data = []
-        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Original", "Tiempo Descanso", "Tiempo Final", "Procesado"]
+        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
         
         logger.info(f"Processing {len(employees_data)} employees for preview")
         logger.info(f"Loaded {len(check_types_map)} check types")
@@ -342,10 +342,7 @@ def preview_report():
                         group_name,
                         start_time,
                         end_time,
-                        original_duration,
-                        break_time,
-                        final_duration,
-                        processing_status
+                        final_duration
                     ])
                     
                     record_count += 1
