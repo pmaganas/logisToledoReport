@@ -1,36 +1,56 @@
 <!DOCTYPE html>
-<html lang="es" data-bs-theme="dark">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Generador de Informe Grupos y tipos de fichaje{% endblock %}</title>
     
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Font Awesome for icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Figtree Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tabler Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-latest/icons-sprite.svg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons@latest/tabler-icons.min.css">
     
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'figtree': ['Figtree', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <i class="fas fa-file-excel me-2"></i>
-                Generador de Informe Grupos y tipos de fichaje
-            </a>
+<body class="font-figtree bg-gray-50 min-h-screen">
+    <nav class="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-7xl">
+            <div class="flex h-16 items-center">
+                <a href="{{ url_for('main.index') }}" class="flex items-center text-gray-900 hover:text-indigo-500 transition-colors">
+                    <i class="ti ti-file-spreadsheet text-xl mr-2"></i>
+                    <span class="text-lg font-semibold">Generador de Informe Grupos y tipos de fichaje</span>
+                </a>
+            </div>
         </div>
     </nav>
 
-    <main class="container mt-4">
+    <main class="mx-4 sm:mx-14 lg:mx-30 mt-8">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else 'info' }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div class="mb-4 rounded-xl border-l-4 {{ 'border-red-500 bg-red-50' if category == 'error' else 'border-blue-500 bg-blue-50' }} p-4">
+                        <div class="flex items-center">
+                            <i class="ti ti-{{ 'alert-circle text-red-500' if category == 'error' else 'info-circle text-blue-500' }} mr-2"></i>
+                            <p class="text-sm {{ 'text-red-700' if category == 'error' else 'text-blue-700' }}">{{ message }}</p>
+                        </div>
                     </div>
                 {% endfor %}
             {% endif %}
@@ -39,14 +59,11 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="bg-dark text-light py-3 mt-5">
-        <div class="container text-center">
-            <p class="mb-0">© 2025 Generador de Informe Grupos y tipos de fichaje</p>
+    <footer class="mt-16 bg-gray-800 py-8">
+        <div class="mx-4 sm:mx-14 lg:mx-30 text-center">
+            <p class="text-sm text-gray-300">© 2025 Generador de Informe Grupos y tipos de fichaje</p>
         </div>
     </footer>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     {% block scripts %}{% endblock %}
 </body>

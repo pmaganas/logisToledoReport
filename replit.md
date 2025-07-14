@@ -11,10 +11,12 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend Architecture
-- **Framework**: Basic HTML templates with Bootstrap 5 dark theme
+- **Framework**: Basic HTML templates with Tailwind CSS framework
 - **UI Components**: Single-page application with form-based interactions
-- **Styling**: Bootstrap CSS with custom overrides for dark theme consistency
+- **Styling**: Tailwind CSS with Figtree typography and Tabler Icons
 - **JavaScript**: Minimal client-side logic for form validation and API testing
+- **Design System**: Indigo-500 as primary color, 32px button/input height, 12px border-radius
+- **Responsive Design**: 120px margins (desktop), 56px (tablet), 16px (mobile)
 
 ### Backend Architecture
 - **Framework**: Flask (Python web framework)
@@ -54,8 +56,9 @@ Preferred communication style: Simple, everyday language.
 - **datetime**: Date/time processing
 
 ### Frontend Dependencies
-- **Bootstrap 5**: UI framework with dark theme
-- **Font Awesome**: Icon library
+- **Tailwind CSS**: Utility-first CSS framework
+- **Figtree**: Google Fonts typography
+- **Tabler Icons**: Modern icon library
 - **CDN-delivered**: No local frontend build process
 
 ## Authentication & Configuration
