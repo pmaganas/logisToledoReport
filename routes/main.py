@@ -214,14 +214,21 @@ def preview_report():
                     # Debug: log entry structure
                     logger.debug(f"Processing entry: {entry}")
                     
-                    # Extract employee name from work-entries data
+                    # Extract employee name and identification from work-entries data
                     employee_name = "Nombre no disponible"
+                    employee_nid = "No disponible"
+                    employee_id_type = "DNI"
+                    
                     if entry.get('employee'):
                         first_name = entry['employee'].get('firstName', '')
                         last_name = entry['employee'].get('lastName', '')
                         employee_name = f"{first_name} {last_name}".strip()
                         if not employee_name:
                             employee_name = "Nombre no disponible"
+                        
+                        # Extract nid and identification type from employee object
+                        employee_nid = entry['employee'].get('nid', 'No disponible')
+                        employee_id_type = entry['employee'].get('identityNumberType', 'DNI')
                     
                     # Format entry data with multiple possible field names
                     entry_date = (
@@ -298,8 +305,8 @@ def preview_report():
                     
                     preview_data.append([
                         employee_name,
-                        identification_type,
-                        identification_number,
+                        employee_id_type,
+                        employee_nid,
                         entry_date,
                         activity_name,
                         group_name,
