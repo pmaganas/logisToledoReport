@@ -129,9 +129,19 @@ class SimpleReportGenerator:
                 )
                 
                 if time_entries:
+                    # Get break entries for redistribution
+                    break_entries = self.sesame_api.get_all_breaks_data(
+                        employee_id=emp_id,
+                        from_date=from_date,
+                        to_date=to_date
+                    )
+                    
+                    # Process break time redistribution
+                    processed_entries = self._process_break_redistribution(time_entries, break_entries)
+                    
                     # Group entries by date
                     entries_by_date = {}
-                    for entry in time_entries:
+                    for entry in processed_entries:
                         work_in = entry.get('workEntryIn', {})
                         if work_in and work_in.get('date'):
                             try:
@@ -308,3 +318,116 @@ class SimpleReportGenerator:
         )
         
         return identification_type, str(identification_number)
+    
+    def _process_break_redistribution(self, time_entries, break_entries):
+        """Process break time redistribution based on workEntryType"""
+        if not break_entries:
+            return time_entries
+        
+        # Convert time entries to a mutable list and sort by start time
+        processed_entries = []
+        for entry in time_entries:
+            work_in = entry.get('workEntryIn', {})
+            if work_in and work_in.get('date'):
+                try:
+                    start_time = self._parse_datetime(work_in.get('date'))
+                    if start_time:
+                        processed_entries.append((start_time, entry))
+                except Exception:
+                    continue
+        
+        # Sort by start time
+        processed_entries.sort(key=lambda x: x[0])
+        
+        # Group break entries by date for processing
+        breaks_by_date = {}
+        for break_entry in break_entries:
+            if break_entry.get('date'):
+                try:
+                    break_date = self._parse_datetime(break_entry.get('date'))
+                    if break_date:
+                        date_key = break_date.strftime('%Y-%m-%d')
+                        if date_key not in breaks_by_date:
+                            breaks_by_date[date_key] = []
+                        breaks_by_date[date_key].append(break_entry)
+                except Exception:
+                    continue
+        
+        # Process each date's entries
+        final_entries = []
+        current_date = None
+        date_entries = []
+        
+        for start_time, entry in processed_entries:
+            entry_date = start_time.strftime('%Y-%m-%d')
+            
+            # If we're on a new date, process the previous date's entries
+            if current_date and current_date != entry_date:
+                final_entries.extend(self._redistribute_break_time_for_date(
+                    date_entries, breaks_by_date.get(current_date, [])
+                ))
+                date_entries = []
+            
+            current_date = entry_date
+            date_entries.append(entry)
+        
+        # Process the last date's entries
+        if date_entries:
+            final_entries.extend(self._redistribute_break_time_for_date(
+                date_entries, breaks_by_date.get(current_date, [])
+            ))
+        
+        return final_entries
+    
+    def _redistribute_break_time_for_date(self, date_entries, date_breaks):
+        """Redistribute break time for a specific date"""
+        if not date_breaks:
+            return date_entries
+        
+        # Filter out pause entries and collect their durations
+        work_entries = []
+        pause_duration_total = timedelta()
+        
+        for entry in date_entries:
+            work_entry_type = entry.get('workEntryType', '').lower()
+            
+            # Check if this is a pause entry (contains "pausa", "descanso", "break", etc.)
+            is_pause = any(pause_word in work_entry_type for pause_word in 
+                          ['pausa', 'descanso', 'break', 'lunch', 'comida', 'almuerzo'])
+            
+            if is_pause:
+                # Calculate pause duration and add to total
+                work_in = entry.get('workEntryIn', {})
+                work_out = entry.get('workEntryOut', {})
+                if work_in and work_out:
+                    try:
+                        start_time = self._parse_datetime(work_in.get('date'))
+                        end_time = self._parse_datetime(work_out.get('date'))
+                        if start_time and end_time:
+                            pause_duration_total += (end_time - start_time)
+                    except Exception:
+                        continue
+                # Skip adding this entry to work_entries
+            else:
+                work_entries.append(entry)
+        
+        # If we have pause time to redistribute and work entries to distribute it to
+        if pause_duration_total.total_seconds() > 0 and work_entries:
+            # Distribute pause time evenly among work entries
+            pause_per_entry = pause_duration_total.total_seconds() / len(work_entries)
+            
+            # Modify work entries to include redistributed time
+            for entry in work_entries:
+                work_out = entry.get('workEntryOut', {})
+                if work_out and work_out.get('date'):
+                    try:
+                        original_end_time = self._parse_datetime(work_out.get('date'))
+                        if original_end_time:
+                            # Add redistributed pause time to the end time
+                            new_end_time = original_end_time + timedelta(seconds=pause_per_entry)
+                            # Update the workEntryOut date
+                            entry['workEntryOut']['date'] = new_end_time.isoformat() + 'Z'
+                    except Exception:
+                        continue
+        
+        return work_entries
