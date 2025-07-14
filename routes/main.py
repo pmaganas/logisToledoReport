@@ -154,28 +154,45 @@ def preview_report():
                 "headers": []
             })
             
-        # Get time tracking data for preview (limit to first 100 records)
+        # Get complete time tracking data with pagination and break handling
         preview_data = []
-        headers = ["Empleado", "Tipo de Identificación", "Nº de Identificación", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo registrado"]
+        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Original", "Tiempo Descanso", "Tiempo Final", "Procesado"]
         
-        for employee in employees_data[:10]:  # Limit to first 10 employees for preview
-            # Get time tracking data for this employee
-            time_data = api.get_all_time_tracking_data(
+        logger.info(f"Processing {len(employees_data)} employees for preview")
+        
+        for employee in employees_data[:5]:  # Limit to first 5 employees for preview
+            logger.info(f"Processing employee: {employee.get('name', 'Unknown')}")
+            
+            # Get ALL time tracking data with complete pagination
+            all_time_data = api.get_all_time_tracking_data(
                 employee_id=employee['id'],
                 from_date=from_date,
                 to_date=to_date
             )
             
-            if time_data:
-                for entry in time_data[:5]:  # Limit to 5 entries per employee for preview
-                    # Extract employee identification
-                    identification_type = "No especificado"
-                    identification_number = "No especificado"
-                    
-                    if employee.get('identificationNumber'):
-                        identification_number = employee['identificationNumber']
-                        identification_type = employee.get('identificationType', 'DNI')
-                    
+            # Get ALL break data with complete pagination
+            all_break_data = api.get_all_breaks_data(
+                employee_id=employee['id'],
+                from_date=from_date,
+                to_date=to_date
+            )
+            
+            if all_time_data:
+                logger.info(f"Found {len(all_time_data)} time entries and {len(all_break_data)} break entries")
+                
+                # Process break time redistribution
+                processed_entries = _process_break_redistribution(all_time_data, all_break_data)
+                
+                # Extract employee identification
+                identification_type = "No especificado"
+                identification_number = "No especificado"
+                
+                if employee.get('identificationNumber'):
+                    identification_number = employee['identificationNumber']
+                    identification_type = employee.get('identificationType', 'DNI')
+                
+                # Show processed entries (limit to 10 for preview)
+                for entry in processed_entries[:10]:
                     # Format entry data
                     entry_date = entry.get('date', 'No especificado')
                     if entry_date and 'T' in entry_date:
@@ -193,17 +210,30 @@ def preview_report():
                     if end_time and 'T' in end_time:
                         end_time = end_time.split('T')[1][:8]
                     
-                    # Calculate duration
-                    duration = "No calculado"
+                    # Calculate durations
+                    original_duration = "No calculado"
+                    break_time = "0:00:00"
+                    final_duration = "No calculado"
+                    
                     if entry.get('timeIn') and entry.get('timeOut'):
                         try:
                             start_dt = datetime.fromisoformat(entry['timeIn'].replace('Z', '+00:00'))
                             end_dt = datetime.fromisoformat(entry['timeOut'].replace('Z', '+00:00'))
                             duration_td = end_dt - start_dt
-                            hours = duration_td.total_seconds() / 3600
-                            duration = f"{hours:.2f} horas"
+                            original_duration = _format_duration(duration_td)
+                            
+                            # Add break time if any
+                            added_break_time = entry.get('added_break_time', 0)
+                            if added_break_time > 0:
+                                break_time = _format_duration(timedelta(seconds=added_break_time))
+                                final_duration = _format_duration(duration_td + timedelta(seconds=added_break_time))
+                            else:
+                                final_duration = original_duration
                         except:
-                            duration = "Error en cálculo"
+                            original_duration = "Error en cálculo"
+                            final_duration = "Error en cálculo"
+                    
+                    processing_status = "Procesado" if entry.get('processed', False) else "Original"
                     
                     preview_data.append([
                         employee.get('name', 'Nombre no disponible'),
@@ -214,7 +244,10 @@ def preview_report():
                         group_name,
                         start_time,
                         end_time,
-                        duration
+                        original_duration,
+                        break_time,
+                        final_duration,
+                        processing_status
                     ])
         
         return jsonify({
@@ -232,6 +265,109 @@ def preview_report():
             "status": "error",
             "message": f"Error al generar la vista previa: {str(e)}"
         }), 500
+
+def _process_break_redistribution(time_entries, break_entries):
+    """Process break time redistribution to adjacent activities"""
+    logger.info(f"Processing break redistribution: {len(time_entries)} time entries, {len(break_entries)} break entries")
+    
+    # Create a copy of time entries to modify
+    processed_entries = []
+    break_entries_to_process = []
+    
+    # Separate break activities from regular activities
+    for entry in time_entries:
+        activity_name = entry.get('activity', {}).get('name', '').lower()
+        group_name = entry.get('activity', {}).get('group', {}).get('name', '').lower()
+        
+        # Check if this is a break activity (contains words like "descanso", "break", "pausa")
+        is_break = any(keyword in activity_name or keyword in group_name for keyword in 
+                      ['descanso', 'break', 'pausa', 'breakfast', 'lunch', 'almuerzo', 'comida'])
+        
+        if is_break:
+            break_entries_to_process.append(entry)
+            logger.info(f"Found break activity in time entries: {activity_name}")
+        else:
+            processed_entries.append({
+                **entry,
+                'added_break_time': 0,
+                'processed': False
+            })
+    
+    # Add explicit break entries from break endpoint
+    for break_entry in break_entries:
+        break_entries_to_process.append(break_entry)
+        break_activity_name = break_entry.get('activity', {}).get('name', 'Unknown Break')
+        logger.info(f"Found break entry from breaks endpoint: {break_activity_name}")
+    
+    # Sort entries by date and time
+    processed_entries.sort(key=lambda x: x.get('timeIn', ''))
+    
+    # Process each break entry
+    for break_entry in break_entries_to_process:
+        if not break_entry.get('timeIn') or not break_entry.get('timeOut'):
+            continue
+            
+        try:
+            break_start = datetime.fromisoformat(break_entry['timeIn'].replace('Z', '+00:00'))
+            break_end = datetime.fromisoformat(break_entry['timeOut'].replace('Z', '+00:00'))
+            break_duration = (break_end - break_start).total_seconds()
+            
+            break_activity_name = break_entry.get('activity', {}).get('name', 'Unknown Break')
+            logger.info(f"Processing break: {break_activity_name}, duration: {break_duration:.0f}s")
+            
+            # Find adjacent activities
+            previous_entry = None
+            next_entry = None
+            
+            for i, entry in enumerate(processed_entries):
+                if not entry.get('timeOut'):
+                    continue
+                    
+                entry_end = datetime.fromisoformat(entry['timeOut'].replace('Z', '+00:00'))
+                
+                # Check if this is the previous activity (ends before break starts)
+                if entry_end <= break_start:
+                    previous_entry = entry
+                
+                # Check if this is the next activity (starts after break ends)  
+                if entry.get('timeIn'):
+                    entry_start = datetime.fromisoformat(entry['timeIn'].replace('Z', '+00:00'))
+                    if entry_start >= break_end and next_entry is None:
+                        next_entry = entry
+                        break
+            
+            # Redistribute break time (prefer previous, then next)
+            if previous_entry:
+                previous_entry['added_break_time'] += break_duration
+                previous_entry['processed'] = True
+                prev_activity = previous_entry.get('activity', {}).get('name', 'Unknown')
+                logger.info(f"Added {break_duration:.0f}s break time ({break_activity_name}) to previous activity: {prev_activity}")
+            elif next_entry:
+                next_entry['added_break_time'] += break_duration
+                next_entry['processed'] = True
+                next_activity = next_entry.get('activity', {}).get('name', 'Unknown')
+                logger.info(f"Added {break_duration:.0f}s break time ({break_activity_name}) to next activity: {next_activity}")
+            else:
+                logger.warning(f"Could not redistribute break time of {break_duration:.0f}s ({break_activity_name}) - no adjacent activities found")
+                
+        except Exception as e:
+            logger.error(f"Error processing break entry: {str(e)}")
+            continue
+    
+    return processed_entries
+
+def _format_duration(duration):
+    """Format duration as HH:MM:SS"""
+    if isinstance(duration, timedelta):
+        total_seconds = int(duration.total_seconds())
+    else:
+        total_seconds = int(duration)
+    
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 @main_bp.route('/apply-token', methods=['POST'])
 def apply_token():
