@@ -229,15 +229,15 @@ class SesameAPI:
                 
                 self.logger.info(f"WORK-ENTRIES: Page {current_page} of {last_page}, total items: {total_items}")
                 
-                if page >= last_page:
+                if current_page >= last_page:
                     self.logger.info(f"WORK-ENTRIES: Reached last page ({last_page}), stopping pagination")
                     break
                     
                 page += 1
                 
-                # Safety check to avoid infinite loops
-                if page > 100:  # Max 10000 entries
-                    self.logger.warning(f"Reached safety limit of 100 pages, stopping pagination")
+                # Safety check to avoid infinite loops - increased to handle large datasets
+                if page > 200:  # Max 20000 entries
+                    self.logger.warning(f"WORK-ENTRIES: Reached safety limit of 200 pages, stopping pagination")
                     break
                     
             except Exception as e:
