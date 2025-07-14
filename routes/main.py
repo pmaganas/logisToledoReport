@@ -168,8 +168,15 @@ def preview_report():
         logger.info(f"Processing {len(employees_data)} employees for preview")
         logger.info(f"Loaded {len(check_types_map)} check types")
         
-        for employee in employees_data[:5]:  # Limit to first 5 employees for preview
-            logger.info(f"Processing employee: {employee.get('name', 'Unknown')}")
+        # Process first 10 employees for preview, but show info about all
+        processed_count = 0
+        for employee in employees_data:
+            employee_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
+            logger.info(f"Processing employee: {employee_name} (ID: {employee.get('id')})")
+            
+            # Special check for the specific employee mentioned
+            if "IGNACIO GARRIDO SALINAS" in employee_name.upper():
+                logger.info(f"*** FOUND IGNACIO GARRIDO SALINAS - Processing data for this employee ***")
             
             # Get ALL time tracking data with complete pagination
             all_time_data = api.get_all_time_tracking_data(
@@ -185,7 +192,11 @@ def preview_report():
                 to_date=to_date
             )
             
+            # Always log the count for each employee
+            logger.info(f"Employee {employee_name}: {len(all_time_data)} time entries, {len(all_break_data)} break entries")
+            
             if all_time_data:
+                processed_count += 1
                 logger.info(f"Found {len(all_time_data)} time entries and {len(all_break_data)} break entries")
                 
                 # Debug: log employee structure
@@ -335,6 +346,11 @@ def preview_report():
                         final_duration,
                         processing_status
                     ])
+            
+            # Limit preview to 10 employees with data
+            if processed_count >= 10:
+                logger.info(f"Reached preview limit of 10 employees with data. Stopping processing.")
+                break
         
         return jsonify({
             "status": "success",
