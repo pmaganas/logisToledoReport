@@ -168,9 +168,9 @@ def preview_report():
         logger.info(f"Processing {len(employees_data)} employees for preview")
         logger.info(f"Loaded {len(check_types_map)} check types")
         
-        # Process first 5 employees for preview 
+        # Process first 15 employees for preview 
         processed_count = 0
-        for employee in employees_data[:5]:
+        for employee in employees_data[:15]:
             employee_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
             logger.info(f"Processing employee: {employee_name} (ID: {employee.get('id')})")
             
@@ -347,18 +347,20 @@ def preview_report():
                         processing_status
                     ])
             
-            # Limit preview to 5 employees with data
-            if processed_count >= 5:
-                logger.info(f"Reached preview limit of 5 employees with data. Stopping processing.")
+            # Limit preview to 15 employees with data
+            if processed_count >= 15:
+                logger.info(f"Reached preview limit of 15 employees with data. Stopping processing.")
                 break
         
         return jsonify({
             "status": "success",
-            "message": f"Vista previa mostrando {len(preview_data)} registros",
+            "message": f"Vista previa: {len(preview_data)} registros de {processed_count} empleados (Total disponible: {len(employees_data)} empleados)",
             "data": preview_data,
             "headers": headers,
             "total_employees": len(employees_data),
-            "note": "Esta es una vista previa limitada. El informe completo tendrá todos los registros."
+            "processed_employees": processed_count,
+            "preview_records": len(preview_data),
+            "note": "Esta es una vista previa limitada. El informe completo tendrá todos los registros de todos los empleados."
         })
         
     except Exception as e:
