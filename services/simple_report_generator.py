@@ -64,7 +64,7 @@ class SimpleReportGenerator:
             ws.title = "Reporte Simplificado"
             
             # Headers
-            headers = ["Empleado", "Tipo ID", "Número ID", "Fecha", "Horas Trabajadas", "Estado"]
+            headers = ["Empleado", "Tipo ID", "Número ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
             for col, header in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col, value=header)
                 cell.font = Font(bold=True)
@@ -113,14 +113,34 @@ class SimpleReportGenerator:
                                     hours = duration.total_seconds() / 3600
                                     date_hours[date_key] += hours
                         
-                        # Add rows for each date
-                        for date_str, hours in date_hours.items():
+                        # Add rows for each date with detailed entry info
+                        for entry in time_entries:
+                            work_in = entry.get('workEntryIn', {})
+                            work_out = entry.get('workEntryOut', {})
+                            
+                            # Parse date and times
+                            date_str = entry.get('date', 'Unknown')
+                            start_time = self._parse_datetime(work_in.get('date'))
+                            end_time = self._parse_datetime(work_out.get('date'))
+                            
+                            # Calculate duration
+                            duration_str = "00:00:00"
+                            if start_time and end_time:
+                                duration = end_time - start_time
+                                hours = int(duration.total_seconds() // 3600)
+                                minutes = int((duration.total_seconds() % 3600) // 60)
+                                seconds = int(duration.total_seconds() % 60)
+                                duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                            
                             ws.cell(row=current_row, column=1, value=emp_name)
                             ws.cell(row=current_row, column=2, value=identity_type)
                             ws.cell(row=current_row, column=3, value=identity_number)
                             ws.cell(row=current_row, column=4, value=date_str)
-                            ws.cell(row=current_row, column=5, value=f"{hours:.2f}")
-                            ws.cell(row=current_row, column=6, value="Procesado")
+                            ws.cell(row=current_row, column=5, value=entry.get('workEntryType', 'Trabajo'))
+                            ws.cell(row=current_row, column=6, value="")  # Group column empty
+                            ws.cell(row=current_row, column=7, value=start_time.strftime("%H:%M:%S") if start_time else "N/A")
+                            ws.cell(row=current_row, column=8, value=end_time.strftime("%H:%M:%S") if end_time else "N/A")
+                            ws.cell(row=current_row, column=9, value=duration_str)
                             current_row += 1
                     else:
                         # No data for this employee
@@ -128,8 +148,11 @@ class SimpleReportGenerator:
                         ws.cell(row=current_row, column=2, value=identity_type)
                         ws.cell(row=current_row, column=3, value=identity_number)
                         ws.cell(row=current_row, column=4, value="Sin datos")
-                        ws.cell(row=current_row, column=5, value="0.00")
-                        ws.cell(row=current_row, column=6, value="Sin registros")
+                        ws.cell(row=current_row, column=5, value="N/A")
+                        ws.cell(row=current_row, column=6, value="")
+                        ws.cell(row=current_row, column=7, value="N/A")
+                        ws.cell(row=current_row, column=8, value="N/A")
+                        ws.cell(row=current_row, column=9, value="00:00:00")
                         current_row += 1
                         
                 except Exception as e:
@@ -139,8 +162,11 @@ class SimpleReportGenerator:
                     ws.cell(row=current_row, column=2, value=identity_type)
                     ws.cell(row=current_row, column=3, value=identity_number)
                     ws.cell(row=current_row, column=4, value="Error")
-                    ws.cell(row=current_row, column=5, value="0.00")
-                    ws.cell(row=current_row, column=6, value="Error al procesar")
+                    ws.cell(row=current_row, column=5, value="Error")
+                    ws.cell(row=current_row, column=6, value="")
+                    ws.cell(row=current_row, column=7, value="Error")
+                    ws.cell(row=current_row, column=8, value="Error")
+                    ws.cell(row=current_row, column=9, value="00:00:00")
                     current_row += 1
             
             # Auto-adjust column widths

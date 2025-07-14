@@ -296,7 +296,7 @@ class ReportGenerator:
                         'identity_number': identity_number,
                         'date': date_key,
                         'activity': entry.get('workEntryType', 'Trabajo'),
-                        'group': 'Actividad Principal',
+                        'group': '',
                         'start_time': start_time.strftime("%H:%M:%S") if start_time else "N/A",
                         'end_time': end_time.strftime("%H:%M:%S") if end_time else "N/A",
                         'duration': duration,
@@ -416,7 +416,7 @@ class ReportGenerator:
                         'identity_number': identity_number,
                         'date': start_time.strftime("%Y-%m-%d"),
                         'activity': fichaje_type,
-                        'group': 'Actividad Principal',
+                        'group': '',
                         'start_time': start_time.strftime("%H:%M:%S") if start_time else "N/A",
                         'end_time': end_time.strftime("%H:%M:%S") if end_time else "N/A",
                         'duration': duration,
@@ -538,8 +538,8 @@ class ReportGenerator:
                     else:
                         duration = timedelta(0)
 
-                    # Try to get group from activity or use default
-                    group = 'Actividad Principal'
+                    # Try to get group from activity or leave empty
+                    group = ''
                     if entry.get('activity', {}).get('group', {}).get('name'):
                         group = entry['activity']['group']['name']
                     
