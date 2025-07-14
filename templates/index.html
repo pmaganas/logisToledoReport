@@ -145,13 +145,49 @@
                     </div>
                 </div>
 
-                <div class="mb-6">
+                <div class="mb-6 space-y-3">
+                    <button type="button" class="w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-indigo-600 bg-white border border-indigo-300 rounded-xl hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors" id="previewBtn">
+                        <i class="ti ti-eye mr-2"></i>
+                        Vista Previa del Informe
+                    </button>
                     <button type="submit" class="w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors" id="generateBtn">
                         <i class="ti ti-file-spreadsheet mr-2"></i>
                         Generar Reporte XLSX
                     </button>
                 </div>
             </form>
+
+            <!-- Preview Table Container -->
+            <div id="previewContainer" class="mb-6 hidden">
+                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900">Vista Previa del Informe</h3>
+                            <button type="button" class="text-gray-400 hover:text-gray-600 focus:outline-none" id="closePreview">
+                                <i class="ti ti-x text-lg"></i>
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1" id="previewInfo"></p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200" id="previewTable">
+                            <thead class="bg-gray-50">
+                                <tr id="previewTableHeader">
+                                    <!-- Headers will be populated dynamically -->
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="previewTableBody">
+                                <!-- Data will be populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                        <p class="text-xs text-gray-600 text-center" id="previewNote">
+                            Esta es una vista previa limitada. El informe completo tendrá todos los registros.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             <!-- Report Information -->
             <div class="mt-6">
@@ -251,6 +287,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const toDateInput = document.getElementById('to_date');
     const reportForm = document.getElementById('reportForm');
     const generateBtn = document.getElementById('generateBtn');
+    const previewBtn = document.getElementById('previewBtn');
+    const previewContainer = document.getElementById('previewContainer');
+    const closePreview = document.getElementById('closePreview');
+    const previewInfo = document.getElementById('previewInfo');
+    const previewTableHeader = document.getElementById('previewTableHeader');
+    const previewTableBody = document.getElementById('previewTableBody');
+    const previewNote = document.getElementById('previewNote');
     const loadingModal = document.getElementById('loadingModal');
     
     // Check for existing token on page load
@@ -653,6 +696,130 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading departments:', error);
             });
     }
+
+    // Preview button functionality
+    previewBtn.addEventListener('click', function() {
+        // Get form data
+        const formData = {
+            from_date: fromDateInput.value,
+            to_date: toDateInput.value,
+            employee_id: employeeSelect.value,
+            office_id: officeSelect.value,
+            department_id: departmentSelect.value,
+            report_type: document.getElementById('report_type').value
+        };
+
+        // Process date range if not custom
+        const dateRange = dateRangeSelect.value;
+        if (dateRange !== 'custom') {
+            const dates = calculateDateRange(dateRange);
+            formData.from_date = dates.from;
+            formData.to_date = dates.to;
+        }
+
+        // Disable preview button and show loading
+        previewBtn.disabled = true;
+        previewBtn.innerHTML = '<i class="ti ti-loader animate-spin mr-2"></i>Generando Vista Previa...';
+
+        // Make API call
+        fetch('/preview-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                displayPreview(data);
+            } else {
+                // Show error message
+                connectionStatus.innerHTML = `
+                    <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
+                        <i class="ti ti-alert-circle text-red-600 mr-2"></i>
+                        <p class="text-sm text-red-800">Error en vista previa: ${data.message}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            // Show error message
+            connectionStatus.innerHTML = `
+                <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <i class="ti ti-alert-circle text-red-600 mr-2"></i>
+                    <p class="text-sm text-red-800">Error al generar vista previa: ${error.message}</p>
+                </div>
+            `;
+        })
+        .finally(() => {
+            // Re-enable preview button
+            previewBtn.disabled = false;
+            previewBtn.innerHTML = '<i class="ti ti-eye mr-2"></i>Vista Previa del Informe';
+        });
+    });
+
+    // Display preview data in table
+    function displayPreview(data) {
+        // Show preview container
+        previewContainer.classList.remove('hidden');
+        
+        // Update info text
+        previewInfo.textContent = `${data.message} (${data.total_employees} empleados total)`;
+        
+        // Clear existing table content
+        previewTableHeader.innerHTML = '';
+        previewTableBody.innerHTML = '';
+        
+        // Add table headers
+        if (data.headers && data.headers.length > 0) {
+            data.headers.forEach(header => {
+                const th = document.createElement('th');
+                th.className = 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
+                th.textContent = header;
+                previewTableHeader.appendChild(th);
+            });
+        }
+        
+        // Add table data
+        if (data.data && data.data.length > 0) {
+            data.data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                
+                row.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-900';
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                
+                previewTableBody.appendChild(tr);
+            });
+        } else {
+            // Show no data message
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.className = 'px-6 py-4 text-center text-sm text-gray-500';
+            td.colSpan = data.headers ? data.headers.length : 1;
+            td.textContent = 'No se encontraron datos para mostrar';
+            tr.appendChild(td);
+            previewTableBody.appendChild(tr);
+        }
+        
+        // Update note
+        if (data.note) {
+            previewNote.textContent = data.note;
+        }
+        
+        // Scroll to preview table
+        previewContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Close preview functionality
+    closePreview.addEventListener('click', function() {
+        previewContainer.classList.add('hidden');
+    });
 
     // Form submission
     reportForm.addEventListener('submit', function(e) {

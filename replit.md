@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 11. **Database Token Storage**: Secure token management in PostgreSQL database
 12. **Multi-Region Support**: Support for all Sesame API regions (eu1-eu5, br1-br2, mx1, demo1)
 13. **Simplified Report Generation**: Optimized processing for stability and performance
+14. **Report Preview**: Table format preview of report data before Excel generation
 
 ## Deployment Strategy
 

@@ -94,6 +94,145 @@ def generate_report():
         flash(f'Error al generar el reporte: {str(e)}', 'error')
         return redirect(url_for('main.index'))
 
+@main_bp.route('/preview-report', methods=['POST'])
+def preview_report():
+    """Preview report data in table format"""
+    try:
+        # Get form data
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        employee_id = data.get('employee_id')
+        office_id = data.get('office_id')
+        department_id = data.get('department_id')
+        report_type = data.get('report_type', 'by_employee')
+        
+        # Validate dates
+        if from_date:
+            try:
+                datetime.strptime(from_date, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({
+                    "status": "error",
+                    "message": "Fecha de inicio inválida"
+                }), 400
+                
+        if to_date:
+            try:
+                datetime.strptime(to_date, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({
+                    "status": "error",
+                    "message": "Fecha de fin inválida"
+                }), 400
+
+        # Get preview data using the API
+        from services.sesame_api import SesameAPI
+        api = SesameAPI()
+        
+        # Get employees data
+        employees_data = api.get_all_employees_data()
+        if not employees_data:
+            return jsonify({
+                "status": "error",
+                "message": "No se pudo obtener la información de empleados"
+            }), 400
+            
+        # Filter employees if needed
+        if employee_id:
+            employees_data = [emp for emp in employees_data if emp.get('id') == employee_id]
+        if office_id:
+            employees_data = [emp for emp in employees_data if emp.get('officeId') == office_id]
+        if department_id:
+            employees_data = [emp for emp in employees_data if emp.get('departmentId') == department_id]
+            
+        if not employees_data:
+            return jsonify({
+                "status": "success",
+                "message": "No se encontraron empleados con los filtros aplicados",
+                "data": [],
+                "headers": []
+            })
+            
+        # Get time tracking data for preview (limit to first 100 records)
+        preview_data = []
+        headers = ["Empleado", "Tipo de Identificación", "Nº de Identificación", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo registrado"]
+        
+        for employee in employees_data[:10]:  # Limit to first 10 employees for preview
+            # Get time tracking data for this employee
+            time_data = api.get_all_time_tracking_data(
+                employee_id=employee['id'],
+                from_date=from_date,
+                to_date=to_date
+            )
+            
+            if time_data:
+                for entry in time_data[:5]:  # Limit to 5 entries per employee for preview
+                    # Extract employee identification
+                    identification_type = "No especificado"
+                    identification_number = "No especificado"
+                    
+                    if employee.get('identificationNumber'):
+                        identification_number = employee['identificationNumber']
+                        identification_type = employee.get('identificationType', 'DNI')
+                    
+                    # Format entry data
+                    entry_date = entry.get('date', 'No especificado')
+                    if entry_date and 'T' in entry_date:
+                        entry_date = entry_date.split('T')[0]
+                    
+                    activity_name = entry.get('activity', {}).get('name', 'Actividad no especificada')
+                    group_name = entry.get('activity', {}).get('group', {}).get('name', 'Sin grupo')
+                    
+                    # Format times
+                    start_time = entry.get('timeIn', 'No especificado')
+                    end_time = entry.get('timeOut', 'No especificado')
+                    
+                    if start_time and 'T' in start_time:
+                        start_time = start_time.split('T')[1][:8]
+                    if end_time and 'T' in end_time:
+                        end_time = end_time.split('T')[1][:8]
+                    
+                    # Calculate duration
+                    duration = "No calculado"
+                    if entry.get('timeIn') and entry.get('timeOut'):
+                        try:
+                            start_dt = datetime.fromisoformat(entry['timeIn'].replace('Z', '+00:00'))
+                            end_dt = datetime.fromisoformat(entry['timeOut'].replace('Z', '+00:00'))
+                            duration_td = end_dt - start_dt
+                            hours = duration_td.total_seconds() / 3600
+                            duration = f"{hours:.2f} horas"
+                        except:
+                            duration = "Error en cálculo"
+                    
+                    preview_data.append([
+                        employee.get('name', 'Nombre no disponible'),
+                        identification_type,
+                        identification_number,
+                        entry_date,
+                        activity_name,
+                        group_name,
+                        start_time,
+                        end_time,
+                        duration
+                    ])
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Vista previa mostrando {len(preview_data)} registros",
+            "data": preview_data,
+            "headers": headers,
+            "total_employees": len(employees_data),
+            "note": "Esta es una vista previa limitada. El informe completo tendrá todos los registros."
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating preview: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error al generar la vista previa: {str(e)}"
+        }), 500
+
 @main_bp.route('/apply-token', methods=['POST'])
 def apply_token():
     """Apply new API token"""
