@@ -18,9 +18,9 @@ class SimpleReportGenerator:
         """Generate a simplified XLSX report with reduced API calls"""
         
         try:
-            self.logger.info(f"Starting simple report generation - Type: {report_type}")
+            self.logger.info(f"PASO 1/6: Iniciando generación de reporte - Tipo: {report_type}")
             
-            # Get employees data
+            # Step 1: Get employees data
             if employee_id:
                 employee_response = self.sesame_api.get_employee_details(employee_id)
                 employees = [employee_response.get('data')] if employee_response else []
@@ -51,16 +51,62 @@ class SimpleReportGenerator:
                 self.logger.warning("No employees found")
                 return self._create_empty_report()
             
-            self.logger.info(f"Processing {len(employees)} employees")
+            self.logger.info(f"PASO 2/6: Encontrados {len(employees)} empleados")
             
-            # Get check types for activity name resolution
+            # Step 2: Load all time tracking data in memory
+            self.logger.info("PASO 3/6: Cargando todos los registros de tiempo...")
+            all_employee_data = {}
+            for i, employee in enumerate(employees, 1):
+                emp_id = employee.get('id')
+                emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
+                
+                self.logger.info(f"PASO 3/6: Cargando datos del empleado {i}/{len(employees)}: {emp_name}")
+                
+                # Load time entries
+                time_entries = self.sesame_api.get_all_time_tracking_data(
+                    employee_id=emp_id,
+                    from_date=from_date,
+                    to_date=to_date
+                )
+                
+                # Load break entries
+                break_entries = self.sesame_api.get_all_breaks_data(
+                    employee_id=emp_id,
+                    from_date=from_date,
+                    to_date=to_date
+                )
+                
+                all_employee_data[emp_id] = {
+                    'employee': employee,
+                    'time_entries': time_entries or [],
+                    'break_entries': break_entries or []
+                }
+            
+            self.logger.info("PASO 4/6: Procesando redistribución de pausas...")
+            
+            # Step 3: Process break redistribution for all employees
+            for emp_id, data in all_employee_data.items():
+                emp_name = f"{data['employee'].get('firstName', '')} {data['employee'].get('lastName', '')}".strip()
+                self.logger.info(f"PASO 4/6: Procesando pausas para {emp_name}")
+                
+                processed_entries = self._process_break_redistribution(
+                    data['time_entries'], 
+                    data['break_entries']
+                )
+                data['processed_entries'] = processed_entries
+            
+            self.logger.info("PASO 5/6: Obteniendo tipos de actividad...")
+            
+            # Step 4: Get check types for activity name resolution
             check_types_data = self.sesame_api.get_all_check_types_data()
             check_types_map = {}
             if check_types_data:
                 for check_type in check_types_data:
                     check_types_map[check_type.get('id')] = check_type.get('name', 'Actividad no especificada')
             
-            # Create workbook and worksheet
+            self.logger.info("PASO 6/6: Generando archivo Excel...")
+            
+            # Step 5: Create workbook and worksheet
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Reporte Simplificado"
@@ -75,16 +121,16 @@ class SimpleReportGenerator:
             
             current_row = 2
             
-            # Process based on report type
+            # Step 6: Process based on report type
             if report_type == "by_employee":
-                current_row = self._generate_by_employee_report(ws, employees, from_date, to_date, check_types_map, current_row)
+                current_row = self._generate_by_employee_report_from_memory(ws, all_employee_data, check_types_map, current_row)
             elif report_type == "by_type":
-                current_row = self._generate_by_type_report(ws, employees, from_date, to_date, check_types_map, current_row)
+                current_row = self._generate_by_type_report_from_memory(ws, all_employee_data, check_types_map, current_row)
             elif report_type == "by_group":
-                current_row = self._generate_by_group_report(ws, employees, from_date, to_date, check_types_map, current_row)
+                current_row = self._generate_by_group_report_from_memory(ws, all_employee_data, check_types_map, current_row)
             else:
                 # Default to by_employee
-                current_row = self._generate_by_employee_report(ws, employees, from_date, to_date, check_types_map, current_row)
+                current_row = self._generate_by_employee_report_from_memory(ws, all_employee_data, check_types_map, current_row)
             
             # Auto-adjust column widths
             for column in ws.columns:
@@ -104,12 +150,128 @@ class SimpleReportGenerator:
             wb.save(output)
             output.seek(0)
             
-            self.logger.info("Simple report generated successfully")
+            self.logger.info("✓ Reporte generado exitosamente")
             return output.getvalue()
             
         except Exception as e:
             self.logger.error(f"Error generating simple report: {str(e)}")
             return self._create_error_report(str(e))
+
+    def _generate_by_employee_report_from_memory(self, ws, all_employee_data, check_types_map, current_row):
+        """Generate report grouped by employee with daily totals using pre-loaded data"""
+        for emp_id, data in all_employee_data.items():
+            employee = data['employee']
+            processed_entries = data['processed_entries']
+            
+            emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
+            identity_type, identity_number = self._get_employee_identification(employee)
+            
+            self.logger.info(f"PASO 6/6: Procesando empleado {emp_name}")
+            
+            if processed_entries:
+                # Group entries by date
+                entries_by_date = {}
+                for entry in processed_entries:
+                    work_in = entry.get('workEntryIn', {})
+                    if work_in and work_in.get('date'):
+                        try:
+                            parsed_date = self._parse_datetime(work_in.get('date'))
+                            if parsed_date:
+                                date_key = parsed_date.strftime('%Y-%m-%d')
+                                if date_key not in entries_by_date:
+                                    entries_by_date[date_key] = []
+                                entries_by_date[date_key].append(entry)
+                        except Exception:
+                            continue
+                
+                # Process each date in chronological order
+                for date_key in sorted(entries_by_date.keys()):
+                    date_entries = entries_by_date[date_key]
+                    daily_total_seconds = 0
+                    activity_types = {}
+                    
+                    # Add individual entries for this date
+                    for entry in date_entries:
+                        work_in = entry.get('workEntryIn', {})
+                        work_out = entry.get('workEntryOut', {})
+                        
+                        start_time = self._parse_datetime(work_in.get('date'))
+                        end_time = self._parse_datetime(work_out.get('date'))
+                        
+                        # Calculate duration
+                        duration_str = "00:00:00"
+                        entry_seconds = 0
+                        if start_time and end_time:
+                            duration = end_time - start_time
+                            entry_seconds = duration.total_seconds()
+                            daily_total_seconds += entry_seconds
+                            hours = int(entry_seconds // 3600)
+                            minutes = int((entry_seconds % 3600) // 60)
+                            seconds = int(entry_seconds % 60)
+                            duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                        
+                        # Get activity name
+                        activity_name = "Trabajo"
+                        work_check_type_id = entry.get('workCheckTypeId')
+                        if work_check_type_id and work_check_type_id in check_types_map:
+                            activity_name = check_types_map[work_check_type_id]
+                        elif entry.get('workEntryType'):
+                            activity_name = entry.get('workEntryType')
+                        
+                        # Track activity types for totals
+                        if activity_name not in activity_types:
+                            activity_types[activity_name] = 0
+                        activity_types[activity_name] += entry_seconds
+                        
+                        # Add row for this entry
+                        ws.cell(row=current_row, column=1, value=emp_name)
+                        ws.cell(row=current_row, column=2, value=identity_type)
+                        ws.cell(row=current_row, column=3, value=identity_number)
+                        ws.cell(row=current_row, column=4, value=date_key)
+                        ws.cell(row=current_row, column=5, value=activity_name)
+                        ws.cell(row=current_row, column=6, value="")  # Group column empty
+                        ws.cell(row=current_row, column=7, value=start_time.strftime("%H:%M:%S") if start_time else "N/A")
+                        ws.cell(row=current_row, column=8, value=end_time.strftime("%H:%M:%S") if end_time else "N/A")
+                        ws.cell(row=current_row, column=9, value=duration_str)
+                        current_row += 1
+                    
+                    # Add total row for this date
+                    activity_summary = ", ".join([f"{activity}: {int(seconds//3600):02d}:{int((seconds%3600)//60):02d}:{int(seconds%60):02d}" 
+                                                 for activity, seconds in activity_types.items()])
+                    
+                    daily_total_hours = int(daily_total_seconds // 3600)
+                    daily_total_minutes = int((daily_total_seconds % 3600) // 60)
+                    daily_total_secs = int(daily_total_seconds % 60)
+                    daily_total_str = f"{daily_total_hours:02d}:{daily_total_minutes:02d}:{daily_total_secs:02d}"
+                    
+                    # Add TOTAL row
+                    ws.cell(row=current_row, column=1, value="TOTAL")
+                    ws.cell(row=current_row, column=2, value="")
+                    ws.cell(row=current_row, column=3, value="")
+                    ws.cell(row=current_row, column=4, value="")
+                    ws.cell(row=current_row, column=5, value=activity_summary)
+                    ws.cell(row=current_row, column=6, value="")
+                    ws.cell(row=current_row, column=7, value="")
+                    ws.cell(row=current_row, column=8, value="")
+                    ws.cell(row=current_row, column=9, value=daily_total_str)
+                    
+                    # Style the TOTAL row
+                    for col in range(1, 10):
+                        cell = ws.cell(row=current_row, column=col)
+                        cell.font = Font(bold=True)
+                        cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+                    
+                    current_row += 1
+        
+        return current_row
+    
+    def _generate_by_type_report_from_memory(self, ws, all_employee_data, check_types_map, current_row):
+        """Generate report grouped by type of fichaje using pre-loaded data"""
+        return self._generate_by_employee_report_from_memory(ws, all_employee_data, check_types_map, current_row)
+    
+    def _generate_by_group_report_from_memory(self, ws, all_employee_data, check_types_map, current_row):
+        """Generate report grouped by groups using pre-loaded data"""
+        return self._generate_by_employee_report_from_memory(ws, all_employee_data, check_types_map, current_row)
 
     def _generate_by_employee_report(self, ws, employees, from_date, to_date, check_types_map, current_row):
         """Generate report grouped by employee with daily totals"""
