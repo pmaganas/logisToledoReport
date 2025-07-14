@@ -1,291 +1,219 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Stats Grid -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-    <!-- Active Courses Card -->
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-medium text-gray-600">Configuración API</h3>
-            <i class="ti ti-settings text-gray-400"></i>
-        </div>
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-2xl font-semibold text-gray-900" id="tokenStatusText">No configurado</p>
-                <p class="text-sm text-red-500 mt-1" id="tokenStatusSubtext">Token no configurado</p>
-            </div>
-        </div>
-    </div>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
 
-    <!-- Completion Rate Card -->
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-medium text-gray-600">Estado de Conexión</h3>
-            <i class="ti ti-wifi text-gray-400"></i>
-        </div>
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-2xl font-semibold text-gray-900" id="connectionStatusText">Desconectado</p>
-                <p class="text-sm text-red-500 mt-1" id="connectionStatusSubtext">No hay conexión activa</p>
-            </div>
-        </div>
-    </div>
 
-    <!-- Reports Generated Card -->
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-medium text-gray-600">Reportes Generados</h3>
-            <i class="ti ti-file-analytics text-gray-400"></i>
-        </div>
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-2xl font-semibold text-gray-900">0</p>
-                <p class="text-sm text-gray-500 mt-1">En esta sesión</p>
-            </div>
-        </div>
-    </div>
-</div>
+                <!-- Connection Status -->
+                <div class="mb-4">
+                    <div class="d-flex gap-2 mb-2" id="connectionButtons">
+                        <button type="button" class="btn btn-outline-primary" id="configureTokenBtn">
+                            <i class="fas fa-cog me-2"></i>
+                            Configurar Token API
+                        </button>
+                        <button type="button" class="btn btn-outline-info" id="testConnectionBtn" style="display: none;">
+                            <i class="fas fa-wifi me-2"></i>
+                            Probar Conexión API
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="showTokenBtn" style="display: none;">
+                            <i class="fas fa-key me-2"></i>
+                            Ver Token Actual
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" id="resetConnectionBtn" style="display: none;">
+                            <i class="fas fa-sign-out-alt me-2"></i>
+                            Cerrar Conexión
+                        </button>
+                    </div>
+                    <div id="connectionStatus" class="mt-2">
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No hay token configurado. Haz clic en "Configurar Token API" para empezar.
+                        </div>
+                    </div>
+                    <div id="tokenInput" class="mt-3" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Configurar Token API:</strong> Introduce el token de Sesame para conectar con la API. El token se guardará de forma segura en la base de datos.
+                        </div>
+                        <div class="mb-3">
+                            <label for="regionSelect" class="form-label">Región del API</label>
+                            <select class="form-select" id="regionSelect">
+                                <option value="eu1">Europa 1 (eu1)</option>
+                                <option value="eu2">Europa 2 (eu2)</option>
+                                <option value="eu3">Europa 3 (eu3)</option>
+                                <option value="eu4">Europa 4 (eu4)</option>
+                                <option value="eu5">Europa 5 (eu5)</option>
+                                <option value="br1">Brasil 1 (br1)</option>
+                                <option value="br2">Brasil 2 (br2)</option>
+                                <option value="mx1">México 1 (mx1)</option>
+                                <option value="demo1">Demo 1 (demo1)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="newTokenInput" placeholder="Introduce el token de Sesame API">
+                            <button class="btn btn-success" type="button" id="applyTokenBtn">
+                                <i class="fas fa-check me-2"></i>
+                                Aplicar Token
+                            </button>
+                            <button class="btn btn-secondary" type="button" id="cancelTokenBtn">
+                                <i class="fas fa-times me-2"></i>
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-<!-- Connection Management -->
-<div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8">
-    <div class="flex items-center justify-between mb-6">
-        <h3 class="text-lg font-semibold text-gray-900">Gestión de Conexión API</h3>
-        <div class="flex gap-2" id="connectionButtons">
-            <button id="configureTokenBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-xl transition-all duration-200">
-                <i class="ti ti-settings mr-2"></i>
-                Configurar Token API
-            </button>
-            <button id="testConnectionBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 rounded-xl transition-all duration-200 hidden">
-                <i class="ti ti-wifi mr-2"></i>
-                Probar Conexión
-            </button>
-            <button id="showTokenBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 rounded-xl transition-all duration-200 hidden">
-                <i class="ti ti-key mr-2"></i>
-                Ver Token
-            </button>
-            <button id="resetConnectionBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-xl transition-all duration-200 hidden">
-                <i class="ti ti-logout mr-2"></i>
-                Cerrar Conexión
-            </button>
-        </div>
-    </div>
-    
-    <div id="connectionStatus" class="mb-4">
-        <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <div class="flex items-center">
-                <i class="ti ti-info-circle text-amber-500 mr-2"></i>
-                <span class="text-sm text-amber-700">No hay token configurado. Haz clic en "Configurar Token API" para empezar.</span>
-            </div>
-        </div>
-    </div>
+                <!-- Report Generation Form -->
+                <form method="POST" action="{{ url_for('main.generate_report') }}" id="reportForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_range" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    Selector de fechas
+                                </label>
+                                <select class="form-select" id="date_range" name="date_range">
+                                    <option value="today">Hoy</option>
+                                    <option value="yesterday">Ayer</option>
+                                    <option value="current_week">Semana actual</option>
+                                    <option value="last_week">Semana pasada</option>
+                                    <option value="current_month">Mes actual</option>
+                                    <option value="last_month">Mes pasado</option>
+                                    <option value="current_quarter">Trimestre actual</option>
+                                    <option value="current_year">Año actual</option>
+                                    <option value="last_year">Año pasado</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                                <div class="form-text">Seleccione un rango de fechas predefinido</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="custom_date_range" style="display: none;">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="mb-3">
+                                        <label for="from_date" class="form-label">Fecha de Inicio</label>
+                                        <input type="date" class="form-control" id="from_date" name="from_date">
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="mb-3">
+                                        <label for="to_date" class="form-label">Fecha de Fin</label>
+                                        <input type="date" class="form-control" id="to_date" name="to_date">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    <!-- Token Configuration Form -->
-    <div id="tokenInput" class="hidden mt-6 p-6 bg-gray-50 rounded-xl">
-        <h4 class="text-md font-medium text-gray-900 mb-4">Configuración del Token API</h4>
-        <p class="text-sm text-gray-600 mb-4">Introduce tu token de Sesame para conectar con la API. El token se guardará de forma segura en la base de datos.</p>
-        
-        <div class="space-y-4">
-            <div>
-                <label for="regionSelect" class="block text-sm font-medium text-gray-700 mb-2">Región del API</label>
-                <select id="regionSelect" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-                    <option value="eu1">Europa 1 (eu1)</option>
-                    <option value="eu2">Europa 2 (eu2)</option>
-                    <option value="eu3">Europa 3 (eu3)</option>
-                    <option value="eu4">Europa 4 (eu4)</option>
-                    <option value="eu5">Europa 5 (eu5)</option>
-                    <option value="br1">Brasil 1 (br1)</option>
-                    <option value="br2">Brasil 2 (br2)</option>
-                    <option value="mx1">México 1 (mx1)</option>
-                    <option value="demo1">Demo 1 (demo1)</option>
-                </select>
-            </div>
-            
-            <div>
-                <label for="newTokenInput" class="block text-sm font-medium text-gray-700 mb-2">Token de API</label>
-                <input type="password" id="newTokenInput" placeholder="Introduce el token de Sesame API" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-            </div>
-            
-            <div class="flex gap-2">
-                <button id="applyTokenBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-xl transition-all duration-200">
-                    <i class="ti ti-check mr-2"></i>
-                    Aplicar Token
-                </button>
-                <button id="cancelTokenBtn" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 rounded-xl transition-all duration-200">
-                    <i class="ti ti-x mr-2"></i>
-                    Cancelar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+                    <div class="mb-3">
+                        <label for="report_type" class="form-label">
+                            <i class="fas fa-chart-bar me-1"></i>
+                            Tipo de informe
+                        </label>
+                        <select class="form-select" id="report_type" name="report_type">
+                            <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
+                            <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
+                            <option value="by_group">Grupos y tipos de fichaje por grupos</option>
+                        </select>
+                        <div class="form-text">Seleccione el tipo de agrupación para el informe</div>
+                    </div>
 
-<!-- Report Generation -->
-<div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-    <div class="flex items-center justify-between mb-6">
-        <h3 class="text-lg font-semibold text-gray-900">Generación de Reportes</h3>
-        <i class="ti ti-file-analytics text-gray-400"></i>
-    </div>
-    
-    <form method="POST" action="{{ url_for('main.generate_report') }}" id="reportForm">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <!-- Date Range -->
-            <div>
-                <label for="date_range" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="ti ti-calendar mr-1"></i>
-                    Rango de Fechas
-                </label>
-                <select id="date_range" name="date_range" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-                    <option value="today">Hoy</option>
-                    <option value="yesterday">Ayer</option>
-                    <option value="current_week">Semana actual</option>
-                    <option value="last_week">Semana pasada</option>
-                    <option value="current_month">Mes actual</option>
-                    <option value="last_month">Mes pasado</option>
-                    <option value="current_quarter">Trimestre actual</option>
-                    <option value="current_year">Año actual</option>
-                    <option value="last_year">Año pasado</option>
-                    <option value="custom">Personalizado</option>
-                </select>
-            </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="employee_id" class="form-label">
+                                    <i class="fas fa-user me-1"></i>
+                                    Empleado
+                                </label>
+                                <select class="form-select" id="employee_id" name="employee_id">
+                                    <option value="">Todos los empleados</option>
+                                </select>
+                                <div class="form-text">Opcional: Seleccione un empleado específico</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="office_id" class="form-label">
+                                    <i class="fas fa-building me-1"></i>
+                                    Centro
+                                </label>
+                                <select class="form-select" id="office_id" name="office_id">
+                                    <option value="">Todos los centros</option>
+                                </select>
+                                <div class="form-text">Opcional: Seleccione un centro específico</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="department_id" class="form-label">
+                                    <i class="fas fa-users me-1"></i>
+                                    Departamento
+                                </label>
+                                <select class="form-select" id="department_id" name="department_id">
+                                    <option value="">Todos los departamentos</option>
+                                </select>
+                                <div class="form-text">Opcional: Seleccione un departamento específico</div>
+                            </div>
+                        </div>
+                    </div>
 
-            <!-- Report Type -->
-            <div>
-                <label for="report_type" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="ti ti-chart-bar mr-1"></i>
-                    Tipo de Reporte
-                </label>
-                <select id="report_type" name="report_type" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-                    <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
-                    <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
-                    <option value="by_group">Grupos y tipos de fichaje por grupos</option>
-                </select>
-            </div>
-        </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="generateBtn">
+                            <i class="fas fa-file-excel me-2"></i>
+                            Generar Reporte XLSX
+                        </button>
+                    </div>
+                </form>
 
-        <!-- Custom Date Range -->
-        <div id="custom_date_range" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 hidden">
-            <div>
-                <label for="from_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
-                <input type="date" id="from_date" name="from_date" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-            </div>
-            <div>
-                <label for="to_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin</label>
-                <input type="date" id="to_date" name="to_date" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-            </div>
-        </div>
+                <!-- Report Information -->
+                <div class="mt-4">
+                    <h5>Información del Reporte</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Columnas incluidas:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-user text-primary me-2"></i>Empleado</li>
+                                <li><i class="fas fa-id-card text-primary me-2"></i>Tipo de Identificación</li>
+                                <li><i class="fas fa-hashtag text-primary me-2"></i>Nº de Identificación</li>
+                                <li><i class="fas fa-calendar text-primary me-2"></i>Fecha</li>
+                                <li><i class="fas fa-tasks text-primary me-2"></i>Actividad</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Columnas adicionales:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-layer-group text-primary me-2"></i>Grupo</li>
+                                <li><i class="fas fa-clock text-primary me-2"></i>Entrada</li>
+                                <li><i class="fas fa-clock text-primary me-2"></i>Salida</li>
+                                <li><i class="fas fa-stopwatch text-primary me-2"></i>Tiempo registrado</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Filters -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div>
-                <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="ti ti-user mr-1"></i>
-                    Empleado
-                </label>
-                <select id="employee_id" name="employee_id" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-                    <option value="">Todos los empleados</option>
-                </select>
-            </div>
-
-            <div>
-                <label for="office_id" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="ti ti-building mr-1"></i>
-                    Centro
-                </label>
-                <select id="office_id" name="office_id" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-                    <option value="">Todos los centros</option>
-                </select>
-            </div>
-
-            <div>
-                <label for="department_id" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="ti ti-users mr-1"></i>
-                    Departamento
-                </label>
-                <select id="department_id" name="department_id" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
-                    <option value="">Todos los departamentos</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="flex justify-end">
-            <button type="submit" id="generateBtn" class="inline-flex items-center px-6 py-3 text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-xl transition-all duration-200">
-                <i class="ti ti-file-spreadsheet mr-2"></i>
-                Generar Reporte XLSX
-            </button>
-        </div>
-    </form>
-</div>
-
-<!-- Report Information -->
-<div class="mt-8 bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">Información del Reporte</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-            <h4 class="text-sm font-medium text-gray-700 mb-3">Columnas principales:</h4>
-            <ul class="space-y-2 text-sm text-gray-600">
-                <li class="flex items-center">
-                    <i class="ti ti-user text-indigo-500 mr-2"></i>
-                    Empleado
-                </li>
-                <li class="flex items-center">
-                    <i class="ti ti-id text-indigo-500 mr-2"></i>
-                    Tipo de Identificación
-                </li>
-                <li class="flex items-center">
-                    <i class="ti ti-hash text-indigo-500 mr-2"></i>
-                    Nº de Identificación
-                </li>
-                <li class="flex items-center">
-                    <i class="ti ti-calendar text-indigo-500 mr-2"></i>
-                    Fecha
-                </li>
-                <li class="flex items-center">
-                    <i class="ti ti-activity text-indigo-500 mr-2"></i>
-                    Actividad
-                </li>
-            </ul>
-        </div>
-        <div>
-            <h4 class="text-sm font-medium text-gray-700 mb-3">Columnas adicionales:</h4>
-            <ul class="space-y-2 text-sm text-gray-600">
-                <li class="flex items-center">
-                    <i class="ti ti-layers text-indigo-500 mr-2"></i>
-                    Grupo
-                </li>
-                <li class="flex items-center">
-                    <i class="ti ti-clock text-indigo-500 mr-2"></i>
-                    Entrada
-                </li>
-                <li class="flex items-center">
-                    <i class="ti ti-clock text-indigo-500 mr-2"></i>
-                    Salida
-                </li>
-                <li class="flex items-center">
-                    <i class="ti ti-hourglass text-indigo-500 mr-2"></i>
-                    Tiempo registrado
-                </li>
-            </ul>
-        </div>
-    </div>
-    
-    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-        <div class="flex items-start">
-            <i class="ti ti-info-circle text-blue-500 mr-2 mt-0.5"></i>
-            <div>
-                <h4 class="text-sm font-medium text-blue-900">Característica especial</h4>
-                <p class="text-sm text-blue-700 mt-1">Los descansos de desayuno se incluyen automáticamente en las actividades adyacentes, asegurando que las 8 horas de trabajo se reflejen correctamente para la facturación.</p>
+                <!-- Feature Highlight -->
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Característica especial:</strong> Los descansos de desayuno se incluyen automáticamente en las actividades adyacentes, asegurando que las 8 horas de trabajo se reflejen correctamente para la facturación.
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Loading Modal -->
-<div id="loadingModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-2xl p-6 max-w-sm mx-4">
-        <div class="text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-            <p class="text-gray-900 font-medium">Generando reporte...</p>
-            <p class="text-gray-600 text-sm mt-1">Por favor, espera mientras procesamos los datos.</p>
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mb-0">Generando reporte...</p>
+            </div>
         </div>
     </div>
 </div>
@@ -312,13 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const toDateInput = document.getElementById('to_date');
     const reportForm = document.getElementById('reportForm');
     const generateBtn = document.getElementById('generateBtn');
-    const loadingModal = document.getElementById('loadingModal');
-
-    // Status elements
-    const tokenStatusText = document.getElementById('tokenStatusText');
-    const tokenStatusSubtext = document.getElementById('tokenStatusSubtext');
-    const connectionStatusText = document.getElementById('connectionStatusText');
-    const connectionStatusSubtext = document.getElementById('connectionStatusSubtext');
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
     
     // Check for existing token on page load
     checkTokenStatus();
@@ -330,44 +252,28 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.status === 'success') {
                     // Token exists - show management buttons
-                    configureTokenBtn.classList.add('hidden');
-                    testConnectionBtn.classList.remove('hidden');
-                    showTokenBtn.classList.remove('hidden');
-                    resetConnectionBtn.classList.remove('hidden');
-                    
-                    // Update status cards
-                    tokenStatusText.textContent = 'Configurado';
-                    tokenStatusSubtext.textContent = `Región: ${data.region}`;
-                    tokenStatusSubtext.classList.remove('text-red-500');
-                    tokenStatusSubtext.classList.add('text-green-500');
+                    configureTokenBtn.style.display = 'none';
+                    testConnectionBtn.style.display = 'inline-block';
+                    showTokenBtn.style.display = 'inline-block';
+                    resetConnectionBtn.style.display = 'inline-block';
                     
                     connectionStatus.innerHTML = `
-                        <div class="p-4 bg-green-50 border border-green-200 rounded-xl">
-                            <div class="flex items-center">
-                                <i class="ti ti-check text-green-500 mr-2"></i>
-                                <span class="text-sm text-green-700">Token configurado correctamente. Región: ${data.region}</span>
-                            </div>
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Token configurado correctamente. Región: ${data.region}
                         </div>
                     `;
                 } else {
                     // No token - show configure button only
-                    configureTokenBtn.classList.remove('hidden');
-                    testConnectionBtn.classList.add('hidden');
-                    showTokenBtn.classList.add('hidden');
-                    resetConnectionBtn.classList.add('hidden');
-                    
-                    // Update status cards
-                    tokenStatusText.textContent = 'No configurado';
-                    tokenStatusSubtext.textContent = 'Token no configurado';
-                    tokenStatusSubtext.classList.remove('text-green-500');
-                    tokenStatusSubtext.classList.add('text-red-500');
+                    configureTokenBtn.style.display = 'inline-block';
+                    testConnectionBtn.style.display = 'none';
+                    showTokenBtn.style.display = 'none';
+                    resetConnectionBtn.style.display = 'none';
                     
                     connectionStatus.innerHTML = `
-                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                            <div class="flex items-center">
-                                <i class="ti ti-info-circle text-amber-500 mr-2"></i>
-                                <span class="text-sm text-amber-700">No hay token configurado. Haz clic en "Configurar Token API" para empezar.</span>
-                            </div>
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No hay token configurado. Haz clic en "Configurar Token API" para empezar.
                         </div>
                     `;
                 }
@@ -375,175 +281,220 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error checking token status:', error);
                 // Show configure button on error
-                configureTokenBtn.classList.remove('hidden');
-                testConnectionBtn.classList.add('hidden');
-                showTokenBtn.classList.add('hidden');
-                resetConnectionBtn.classList.add('hidden');
+                configureTokenBtn.style.display = 'inline-block';
+                testConnectionBtn.style.display = 'none';
+                showTokenBtn.style.display = 'none';
+                resetConnectionBtn.style.display = 'none';
             });
     }
     
     // Configure token button - show token input form
     configureTokenBtn.addEventListener('click', function() {
-        tokenInput.classList.remove('hidden');
+        tokenInput.style.display = 'block';
         newTokenInput.focus();
     });
 
     // Handle date range selection
     dateRangeSelect.addEventListener('change', function() {
         if (this.value === 'custom') {
-            customDateRange.classList.remove('hidden');
+            customDateRange.style.display = 'block';
         } else {
-            customDateRange.classList.add('hidden');
+            customDateRange.style.display = 'none';
+            // Clear custom date inputs when not using custom range
             fromDateInput.value = '';
             toDateInput.value = '';
         }
     });
 
+    // Function to calculate date ranges
+    function calculateDateRange(rangeType) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        switch (rangeType) {
+            case 'today':
+                return {
+                    from: today.toISOString().split('T')[0],
+                    to: today.toISOString().split('T')[0]
+                };
+            
+            case 'yesterday':
+                const yesterday = new Date(today);
+                yesterday.setDate(today.getDate() - 1);
+                return {
+                    from: yesterday.toISOString().split('T')[0],
+                    to: yesterday.toISOString().split('T')[0]
+                };
+            
+            case 'current_week':
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday
+                return {
+                    from: startOfWeek.toISOString().split('T')[0],
+                    to: endOfWeek.toISOString().split('T')[0]
+                };
+            
+            case 'last_week':
+                const lastWeekStart = new Date(today);
+                lastWeekStart.setDate(today.getDate() - today.getDay() - 6); // Last Monday
+                const lastWeekEnd = new Date(lastWeekStart);
+                lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Last Sunday
+                return {
+                    from: lastWeekStart.toISOString().split('T')[0],
+                    to: lastWeekEnd.toISOString().split('T')[0]
+                };
+            
+            case 'current_month':
+                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                return {
+                    from: startOfMonth.toISOString().split('T')[0],
+                    to: endOfMonth.toISOString().split('T')[0]
+                };
+            
+            case 'last_month':
+                const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+                return {
+                    from: lastMonthStart.toISOString().split('T')[0],
+                    to: lastMonthEnd.toISOString().split('T')[0]
+                };
+            
+            case 'current_quarter':
+                const quarter = Math.floor(today.getMonth() / 3);
+                const quarterStart = new Date(today.getFullYear(), quarter * 3, 1);
+                const quarterEnd = new Date(today.getFullYear(), quarter * 3 + 3, 0);
+                return {
+                    from: quarterStart.toISOString().split('T')[0],
+                    to: quarterEnd.toISOString().split('T')[0]
+                };
+            
+            case 'current_year':
+                const yearStart = new Date(today.getFullYear(), 0, 1);
+                const yearEnd = new Date(today.getFullYear(), 11, 31);
+                return {
+                    from: yearStart.toISOString().split('T')[0],
+                    to: yearEnd.toISOString().split('T')[0]
+                };
+            
+            case 'last_year':
+                const lastYearStart = new Date(today.getFullYear() - 1, 0, 1);
+                const lastYearEnd = new Date(today.getFullYear() - 1, 11, 31);
+                return {
+                    from: lastYearStart.toISOString().split('T')[0],
+                    to: lastYearEnd.toISOString().split('T')[0]
+                };
+            
+            default:
+                return { from: '', to: '' };
+        }
+    }
+
     // Test connection
     testConnectionBtn.addEventListener('click', function() {
-        const originalText = testConnectionBtn.innerHTML;
         testConnectionBtn.disabled = true;
-        testConnectionBtn.innerHTML = '<i class="ti ti-loader-2 animate-spin mr-2"></i>Probando...';
+        testConnectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Probando...';
         
         fetch('/test-connection')
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    connectionStatusText.textContent = 'Conectado';
-                    connectionStatusSubtext.textContent = data.company || 'Conexión activa';
-                    connectionStatusSubtext.classList.remove('text-red-500');
-                    connectionStatusSubtext.classList.add('text-green-500');
-                    
                     connectionStatus.innerHTML = `
-                        <div class="p-4 bg-green-50 border border-green-200 rounded-xl">
-                            <div class="flex items-center">
-                                <i class="ti ti-check text-green-500 mr-2"></i>
-                                <span class="text-sm text-green-700">Conexión exitosa. Empresa: ${data.company}</span>
-                            </div>
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Conexión exitosa. Empresa: ${data.company}
                         </div>
                     `;
-                    
+                    resetConnectionBtn.style.display = 'inline-block';
                     loadEmployees();
                     loadOffices();
                     loadDepartments();
                 } else {
-                    connectionStatusText.textContent = 'Error';
-                    connectionStatusSubtext.textContent = data.message || 'Error de conexión';
-                    connectionStatusSubtext.classList.remove('text-green-500');
-                    connectionStatusSubtext.classList.add('text-red-500');
-                    
                     connectionStatus.innerHTML = `
-                        <div class="p-4 bg-red-50 border border-red-200 rounded-xl">
-                            <div class="flex items-center">
-                                <i class="ti ti-x text-red-500 mr-2"></i>
-                                <span class="text-sm text-red-700">${data.message}</span>
-                            </div>
+                        <div class="alert alert-danger mb-0">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            ${data.message}
                         </div>
                     `;
+                    resetConnectionBtn.style.display = 'none';
                 }
             })
             .catch(error => {
-                connectionStatusText.textContent = 'Error';
-                connectionStatusSubtext.textContent = 'Error de conexión';
-                connectionStatusSubtext.classList.remove('text-green-500');
-                connectionStatusSubtext.classList.add('text-red-500');
-                
                 connectionStatus.innerHTML = `
-                    <div class="p-4 bg-red-50 border border-red-200 rounded-xl">
-                        <div class="flex items-center">
-                            <i class="ti ti-x text-red-500 mr-2"></i>
-                            <span class="text-sm text-red-700">Error de conexión: ${error.message}</span>
-                        </div>
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Error de conexión: ${error.message}
                     </div>
                 `;
             })
             .finally(() => {
                 testConnectionBtn.disabled = false;
-                testConnectionBtn.innerHTML = originalText;
+                testConnectionBtn.innerHTML = '<i class="fas fa-wifi me-2"></i>Probar Conexión API';
             });
     });
 
     // Show current token
     showTokenBtn.addEventListener('click', function() {
-        const originalText = showTokenBtn.innerHTML;
         showTokenBtn.disabled = true;
-        showTokenBtn.innerHTML = '<i class="ti ti-loader-2 animate-spin mr-2"></i>Consultando...';
+        showTokenBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Consultando...';
         
         fetch('/get-current-token')
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     connectionStatus.innerHTML = `
-                        <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                            <div class="flex items-center">
-                                <i class="ti ti-key text-blue-500 mr-2"></i>
-                                <div>
-                                    <p class="text-sm text-blue-700"><strong>Token:</strong> ${data.token_preview} (${data.token_length} caracteres)</p>
-                                    <p class="text-sm text-blue-600 mt-1"><strong>Región:</strong> ${data.region} | ${data.description || 'Sin descripción'}</p>
-                                </div>
-                            </div>
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-key me-2"></i>
+                            <strong>Token Actual:</strong> ${data.token_preview} (${data.token_length} caracteres)<br>
+                            <small><i class="fas fa-globe me-1"></i>Región: ${data.region} | ${data.description || 'Sin descripción'}</small>
                         </div>
                     `;
-                    tokenInput.classList.remove('hidden');
+                    // Show new token input button
+                    tokenInput.style.display = 'block';
                 } else {
                     connectionStatus.innerHTML = `
-                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                            <div class="flex items-center">
-                                <i class="ti ti-alert-triangle text-amber-500 mr-2"></i>
-                                <span class="text-sm text-amber-700">${data.message}</span>
-                            </div>
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${data.message}
                         </div>
                     `;
-                    tokenInput.classList.remove('hidden');
+                    // Show token input when no token exists
+                    tokenInput.style.display = 'block';
                 }
             })
             .catch(error => {
                 connectionStatus.innerHTML = `
-                    <div class="p-4 bg-red-50 border border-red-200 rounded-xl">
-                        <div class="flex items-center">
-                            <i class="ti ti-x text-red-500 mr-2"></i>
-                            <span class="text-sm text-red-700">Error al obtener información del token: ${error.message}</span>
-                        </div>
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Error al obtener información del token: ${error.message}
                     </div>
                 `;
             })
             .finally(() => {
                 showTokenBtn.disabled = false;
-                showTokenBtn.innerHTML = originalText;
+                showTokenBtn.innerHTML = '<i class="fas fa-key me-2"></i>Ver Token Actual';
             });
     });
 
     // Reset connection
     resetConnectionBtn.addEventListener('click', function() {
         resetConnectionBtn.disabled = true;
-        
-        // Update status cards
-        tokenStatusText.textContent = 'No configurado';
-        tokenStatusSubtext.textContent = 'Token no configurado';
-        tokenStatusSubtext.classList.remove('text-green-500');
-        tokenStatusSubtext.classList.add('text-red-500');
-        
-        connectionStatusText.textContent = 'Desconectado';
-        connectionStatusSubtext.textContent = 'No hay conexión activa';
-        connectionStatusSubtext.classList.remove('text-green-500');
-        connectionStatusSubtext.classList.add('text-red-500');
-        
         connectionStatus.innerHTML = `
-            <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                <div class="flex items-center">
-                    <i class="ti ti-info-circle text-amber-500 mr-2"></i>
-                    <span class="text-sm text-amber-700">Conexión cerrada. Puedes introducir un nuevo token para conectar con otra cuenta.</span>
-                </div>
+            <div class="alert alert-warning mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                Conexión cerrada. Puedes introducir un nuevo token para conectar con otra cuenta.
             </div>
         `;
         
         // Update button visibility
-        configureTokenBtn.classList.remove('hidden');
-        testConnectionBtn.classList.add('hidden');
-        showTokenBtn.classList.add('hidden');
-        resetConnectionBtn.classList.add('hidden');
+        configureTokenBtn.style.display = 'inline-block';
+        testConnectionBtn.style.display = 'none';
+        showTokenBtn.style.display = 'none';
+        resetConnectionBtn.style.display = 'none';
         
-        tokenInput.classList.remove('hidden');
+        tokenInput.style.display = 'block';
         employeeSelect.innerHTML = '<option value="">Todos los empleados</option>';
         officeSelect.innerHTML = '<option value="">Todos los centros</option>';
         departmentSelect.innerHTML = '<option value="">Todos los departamentos</option>';
@@ -559,9 +510,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const originalText = applyTokenBtn.innerHTML;
         applyTokenBtn.disabled = true;
-        applyTokenBtn.innerHTML = '<i class="ti ti-loader-2 animate-spin mr-2"></i>Aplicando...';
+        applyTokenBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Aplicando...';
 
         const region = document.getElementById('regionSelect').value;
         
@@ -579,62 +529,51 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                // Update status cards
-                tokenStatusText.textContent = 'Configurado';
-                tokenStatusSubtext.textContent = `Región: ${data.region}`;
-                tokenStatusSubtext.classList.remove('text-red-500');
-                tokenStatusSubtext.classList.add('text-green-500');
-                
                 connectionStatus.innerHTML = `
-                    <div class="p-4 bg-green-50 border border-green-200 rounded-xl">
-                        <div class="flex items-center">
-                            <i class="ti ti-check text-green-500 mr-2"></i>
-                            <span class="text-sm text-green-700">Token aplicado correctamente. Empresa: ${data.company}</span>
-                        </div>
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Token aplicado correctamente. Empresa: ${data.company}
                     </div>
                 `;
-                tokenInput.classList.add('hidden');
+                tokenInput.style.display = 'none';
                 
                 // Update button visibility after successful token application
-                configureTokenBtn.classList.add('hidden');
-                testConnectionBtn.classList.remove('hidden');
-                showTokenBtn.classList.remove('hidden');
-                resetConnectionBtn.classList.remove('hidden');
+                configureTokenBtn.style.display = 'none';
+                testConnectionBtn.style.display = 'inline-block';
+                showTokenBtn.style.display = 'inline-block';
+                resetConnectionBtn.style.display = 'inline-block';
                 
                 loadEmployees();
                 loadOffices();
                 loadDepartments();
             } else {
                 connectionStatus.innerHTML = `
-                    <div class="p-4 bg-red-50 border border-red-200 rounded-xl">
-                        <div class="flex items-center">
-                            <i class="ti ti-x text-red-500 mr-2"></i>
-                            <span class="text-sm text-red-700">Error al aplicar el token: ${data.message}</span>
-                        </div>
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Error al aplicar el token: ${data.message}
                     </div>
                 `;
             }
         })
         .catch(error => {
             connectionStatus.innerHTML = `
-                <div class="p-4 bg-red-50 border border-red-200 rounded-xl">
-                    <div class="flex items-center">
-                        <i class="ti ti-x text-red-500 mr-2"></i>
-                        <span class="text-sm text-red-700">Error al conectar: ${error.message}</span>
-                    </div>
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Error al conectar: ${error.message}
                 </div>
             `;
         })
         .finally(() => {
             applyTokenBtn.disabled = false;
-            applyTokenBtn.innerHTML = originalText;
+            applyTokenBtn.innerHTML = '<i class="fas fa-check me-2"></i>Aplicar Token';
         });
     });
 
     // Cancel token input
     cancelTokenBtn.addEventListener('click', function() {
-        tokenInput.classList.add('hidden');
+        tokenInput.style.display = 'none';
         newTokenInput.value = '';
+        // Check token status again to restore correct state
         checkTokenStatus();
     });
 
@@ -698,118 +637,40 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // Handle form submission
+    // Form submission
     reportForm.addEventListener('submit', function(e) {
-        e.preventDefault();
+        // Process date range before submission
+        const dateRange = dateRangeSelect.value;
+        if (dateRange !== 'custom') {
+            const dates = calculateDateRange(dateRange);
+            fromDateInput.value = dates.from;
+            toDateInput.value = dates.to;
+        }
         
-        const formData = new FormData(reportForm);
-        const params = new URLSearchParams(formData);
-        
-        // Show loading modal
-        loadingModal.classList.remove('hidden');
-        
-        // Submit form
-        fetch('/generate-report', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.blob();
-            }
-            throw new Error('Error generating report');
-        })
-        .then(blob => {
-            // Create download link
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `reporte_sesame_${new Date().toISOString().split('T')[0]}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al generar el reporte. Por favor, inténtalo de nuevo.');
-        })
-        .finally(() => {
-            loadingModal.classList.add('hidden');
-        });
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando...';
+        loadingModal.show();
+
+        // Reset button state after a delay (in case of errors)
+        setTimeout(() => {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<i class="fas fa-file-excel me-2"></i>Generar Reporte XLSX';
+            loadingModal.hide();
+        }, 30000); // 30 seconds timeout
     });
 
-    // Function to calculate date ranges
-    function calculateDateRange(rangeType) {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        switch (rangeType) {
-            case 'today':
-                return {
-                    from: today.toISOString().split('T')[0],
-                    to: today.toISOString().split('T')[0]
-                };
-            case 'yesterday':
-                const yesterday = new Date(today);
-                yesterday.setDate(today.getDate() - 1);
-                return {
-                    from: yesterday.toISOString().split('T')[0],
-                    to: yesterday.toISOString().split('T')[0]
-                };
-            case 'current_week':
-                const startOfWeek = new Date(today);
-                startOfWeek.setDate(today.getDate() - today.getDay() + 1);
-                return {
-                    from: startOfWeek.toISOString().split('T')[0],
-                    to: today.toISOString().split('T')[0]
-                };
-            case 'last_week':
-                const lastWeekStart = new Date(today);
-                lastWeekStart.setDate(today.getDate() - today.getDay() - 6);
-                const lastWeekEnd = new Date(lastWeekStart);
-                lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
-                return {
-                    from: lastWeekStart.toISOString().split('T')[0],
-                    to: lastWeekEnd.toISOString().split('T')[0]
-                };
-            case 'current_month':
-                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                return {
-                    from: startOfMonth.toISOString().split('T')[0],
-                    to: today.toISOString().split('T')[0]
-                };
-            case 'last_month':
-                const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
-                return {
-                    from: lastMonth.toISOString().split('T')[0],
-                    to: lastMonthEnd.toISOString().split('T')[0]
-                };
-            case 'current_quarter':
-                const quarterStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1);
-                return {
-                    from: quarterStart.toISOString().split('T')[0],
-                    to: today.toISOString().split('T')[0]
-                };
-            case 'current_year':
-                const yearStart = new Date(today.getFullYear(), 0, 1);
-                return {
-                    from: yearStart.toISOString().split('T')[0],
-                    to: today.toISOString().split('T')[0]
-                };
-            case 'last_year':
-                const lastYearStart = new Date(today.getFullYear() - 1, 0, 1);
-                const lastYearEnd = new Date(today.getFullYear() - 1, 11, 31);
-                return {
-                    from: lastYearStart.toISOString().split('T')[0],
-                    to: lastYearEnd.toISOString().split('T')[0]
-                };
-            default:
-                return null;
-        }
-    }
+    // Set default dates (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    document.getElementById('from_date').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('to_date').value = today.toISOString().split('T')[0];
+
+    // Auto-test connection on page load
+    setTimeout(() => {
+        testConnectionBtn.click();
+    }, 1000);
 });
 </script>
 {% endblock %}
