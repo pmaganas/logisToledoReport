@@ -190,6 +190,8 @@ class SesameAPI:
         all_entries = []
         page = 1
         
+        self.logger.info(f"Starting time tracking data fetch for employee {employee_id} from {from_date} to {to_date}")
+        
         while True:
             try:
                 response = self.get_time_tracking(
@@ -202,29 +204,41 @@ class SesameAPI:
                 )
                 
                 if not response or not response.get("data"):
+                    self.logger.info(f"No more data on page {page}, stopping pagination")
                     break
                     
                 entries = response["data"]
                 if isinstance(entries, list):
                     all_entries.extend(entries)
+                    self.logger.info(f"Fetched page {page}, got {len(entries)} entries, total so far: {len(all_entries)}")
                 else:
                     all_entries.append(entries)
+                    self.logger.info(f"Fetched page {page}, got 1 entry, total so far: {len(all_entries)}")
                 
                 # Check if there are more pages
                 meta = response.get("meta", {})
-                if page >= meta.get("lastPage", 1):
+                current_page = meta.get("currentPage", page)
+                last_page = meta.get("lastPage", 1)
+                total_items = meta.get("totalItems", 0)
+                
+                self.logger.info(f"Page {current_page} of {last_page}, total items: {total_items}")
+                
+                if page >= last_page:
+                    self.logger.info(f"Reached last page ({last_page}), stopping pagination")
                     break
                     
                 page += 1
                 
                 # Safety check to avoid infinite loops
                 if page > 100:  # Max 10000 entries
+                    self.logger.warning(f"Reached safety limit of 100 pages, stopping pagination")
                     break
                     
             except Exception as e:
                 self.logger.error(f"Error fetching time tracking data page {page}: {str(e)}")
                 break
-                
+        
+        self.logger.info(f"Completed time tracking data fetch: {len(all_entries)} total entries")
         return all_entries
 
     def get_all_breaks_data(self, employee_id: str = None, company_id: str = None,
@@ -233,32 +247,55 @@ class SesameAPI:
         all_breaks = []
         page = 1
         
+        self.logger.info(f"Starting break data fetch for employee {employee_id} from {from_date} to {to_date}")
+        
         while True:
-            response = self.get_breaks(
-                employee_id=employee_id,
-                company_id=company_id,
-                from_date=from_date,
-                to_date=to_date,
-                page=page,
-                limit=100
-            )
-            
-            if not response or not response.get("data"):
-                break
+            try:
+                response = self.get_breaks(
+                    employee_id=employee_id,
+                    company_id=company_id,
+                    from_date=from_date,
+                    to_date=to_date,
+                    page=page,
+                    limit=100
+                )
                 
-            breaks = response["data"]
-            if isinstance(breaks, list):
-                all_breaks.extend(breaks)
-            else:
-                all_breaks.append(breaks)
-            
-            # Check if there are more pages
-            meta = response.get("meta", {})
-            if page >= meta.get("lastPage", 1):
-                break
+                if not response or not response.get("data"):
+                    self.logger.info(f"No more break data on page {page}, stopping pagination")
+                    break
+                    
+                breaks = response["data"]
+                if isinstance(breaks, list):
+                    all_breaks.extend(breaks)
+                    self.logger.info(f"Fetched break page {page}, got {len(breaks)} breaks, total so far: {len(all_breaks)}")
+                else:
+                    all_breaks.append(breaks)
+                    self.logger.info(f"Fetched break page {page}, got 1 break, total so far: {len(all_breaks)}")
                 
-            page += 1
-            
+                # Check if there are more pages
+                meta = response.get("meta", {})
+                current_page = meta.get("currentPage", page)
+                last_page = meta.get("lastPage", 1)
+                total_items = meta.get("totalItems", 0)
+                
+                self.logger.info(f"Break page {current_page} of {last_page}, total items: {total_items}")
+                
+                if page >= last_page:
+                    self.logger.info(f"Reached last break page ({last_page}), stopping pagination")
+                    break
+                    
+                page += 1
+                
+                # Safety check to avoid infinite loops
+                if page > 100:
+                    self.logger.warning(f"Reached safety limit of 100 break pages, stopping pagination")
+                    break
+                    
+            except Exception as e:
+                self.logger.error(f"Error fetching break data page {page}: {str(e)}")
+                break
+        
+        self.logger.info(f"Completed break data fetch: {len(all_breaks)} total breaks")
         return all_breaks
 
     def get_offices(self, company_id: str = None, page: int = 1, per_page: int = 100) -> Optional[Dict]:
