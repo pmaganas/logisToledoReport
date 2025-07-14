@@ -168,7 +168,7 @@ def preview_report():
         logger.info(f"Processing {len(employees_data)} employees for preview")
         logger.info(f"Loaded {len(check_types_map)} check types")
         
-        # Process employees for preview - showing ALL records
+        # Process employees for preview - limited to 10 records for fast loading
         processed_count = 0
         record_count = 0
         for employee in employees_data:
@@ -346,12 +346,19 @@ def preview_report():
                     ])
                     
                     record_count += 1
+                    
+                    # Limit preview to 10 records total
+                    if record_count >= 10:
+                        logger.info(f"Reached preview limit of 10 records. Stopping processing.")
+                        break
             
-            # Continue processing all employees
+            # Break if we've reached our record limit
+            if record_count >= 10:
+                break
         
         return jsonify({
             "status": "success",
-            "message": f"Vista previa: {len(preview_data)} registros de {len(employees_data)} empleados totales",
+            "message": f"Vista previa: {len(preview_data)} registros (limitada a 10 líneas) de {len(employees_data)} empleados totales",
             "data": preview_data,
             "headers": headers,
             "total_employees": len(employees_data),

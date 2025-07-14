@@ -121,6 +121,6 @@ Preferred communication style: Simple, everyday language.
 - Implemented activity name resolution using workCheckTypeId with /schedule/v1/check-types endpoint lookup
 - Overhauled break redistribution logic to redistribute non-work/remote activity time to adjacent work entries and eliminate pause lines from final output
 - **Column Structure Simplification**: Replaced 4 columns (Tiempo Original, Tiempo Descanso, Tiempo Final, Procesado) with single "Tiempo Registrado" column for cleaner preview and Excel reports
-- **Complete Data Display**: Removed all record limitations - now shows ALL available records in both preview and Excel reports
+- **Preview Optimization**: Limited preview to 10 records for faster loading, while Excel reports contain all data
 - **Group Column**: Set to empty as group information is not yet available from API
 - **Excel Report Consistency**: Updated both ReportGenerator and SimpleReportGenerator to use same 9-column structure as preview with complete data pagination
