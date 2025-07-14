@@ -353,102 +353,111 @@ def preview_report():
         }), 500
 
 def _process_break_redistribution(time_entries, break_entries):
-    """Process break time redistribution to adjacent activities"""
+    """Process break time redistribution based on workEntryType"""
     logger.info(f"Processing break redistribution: {len(time_entries)} time entries, {len(break_entries)} break entries")
     
-    # Create a copy of time entries to modify
-    processed_entries = []
-    break_entries_to_process = []
+    # Separate work/remote entries from break/pause entries
+    work_entries = []
+    break_entries_to_redistribute = []
     
-    # Separate break activities from regular activities
     for entry in time_entries:
-        activity_name = entry.get('activity', {}).get('name', '').lower()
-        group_name = entry.get('activity', {}).get('group', {}).get('name', '').lower()
+        work_entry_type = entry.get('workEntryType', '').lower()
         
-        # Check if this is a break activity (contains words like "descanso", "break", "pausa")
-        is_break = any(keyword in activity_name or keyword in group_name for keyword in 
-                      ['descanso', 'break', 'pausa', 'breakfast', 'lunch', 'almuerzo', 'comida'])
-        
-        if is_break:
-            break_entries_to_process.append(entry)
-            logger.info(f"Found break activity in time entries: {activity_name}")
-        else:
-            processed_entries.append({
+        # Keep only 'work' and 'remote' entries as final results
+        if work_entry_type in ['work', 'remote']:
+            work_entries.append({
                 **entry,
                 'added_break_time': 0,
                 'processed': False
             })
+        else:
+            # Everything else (pause, break, etc.) gets redistributed
+            break_entries_to_redistribute.append(entry)
+            logger.info(f"Found break/pause entry to redistribute: {work_entry_type}")
     
     # Add explicit break entries from break endpoint
     for break_entry in break_entries:
-        break_entries_to_process.append(break_entry)
-        # Try different possible structures for activity name
-        break_activity_name = (
-            break_entry.get('activity', {}).get('name') or
-            break_entry.get('activityName') or
-            break_entry.get('type') or
-            break_entry.get('description') or
-            'Descanso'
-        )
-        logger.info(f"Found break entry from breaks endpoint: {break_activity_name}")
-        logger.debug(f"Break entry structure: {break_entry}")
+        break_entries_to_redistribute.append(break_entry)
+        logger.info(f"Found break entry from breaks endpoint")
     
-    # Sort entries by date and time
-    processed_entries.sort(key=lambda x: x.get('timeIn', ''))
+    # Sort work entries by date and time for redistribution
+    work_entries.sort(key=lambda x: x.get('workEntryIn', {}).get('date', ''))
     
-    # Process each break entry
-    for break_entry in break_entries_to_process:
-        if not break_entry.get('timeIn') or not break_entry.get('timeOut'):
+    # Process each break entry for redistribution
+    for break_entry in break_entries_to_redistribute:
+        break_start_date = None
+        break_end_date = None
+        break_duration = 0
+        
+        # Try to get break timing from different possible structures
+        if break_entry.get('workEntryIn') and break_entry.get('workEntryOut'):
+            try:
+                break_start_date = break_entry['workEntryIn']['date']
+                break_end_date = break_entry['workEntryOut']['date']
+                break_start = datetime.fromisoformat(break_start_date.replace('Z', '+00:00'))
+                break_end = datetime.fromisoformat(break_end_date.replace('Z', '+00:00'))
+                break_duration = (break_end - break_start).total_seconds()
+            except Exception as e:
+                logger.error(f"Error parsing break entry timing: {e}")
+                continue
+        elif break_entry.get('workedSeconds'):
+            break_duration = break_entry['workedSeconds']
+        else:
+            logger.warning(f"Could not determine break duration for entry")
             continue
             
-        try:
-            break_start = datetime.fromisoformat(break_entry['timeIn'].replace('Z', '+00:00'))
-            break_end = datetime.fromisoformat(break_entry['timeOut'].replace('Z', '+00:00'))
-            break_duration = (break_end - break_start).total_seconds()
+        if break_duration <= 0:
+            continue
             
-            break_activity_name = break_entry.get('activity', {}).get('name', 'Unknown Break')
-            logger.info(f"Processing break: {break_activity_name}, duration: {break_duration:.0f}s")
+        break_type = break_entry.get('workEntryType', 'pause')
+        logger.info(f"Processing break: {break_type}, duration: {break_duration:.0f}s")
+        
+        # Find adjacent work/remote activities
+        previous_work_entry = None
+        next_work_entry = None
+        
+        if break_start_date:
+            break_start_dt = datetime.fromisoformat(break_start_date.replace('Z', '+00:00'))
             
-            # Find adjacent activities
-            previous_entry = None
-            next_entry = None
-            
-            for i, entry in enumerate(processed_entries):
-                if not entry.get('timeOut'):
+            for i, work_entry in enumerate(work_entries):
+                if not work_entry.get('workEntryOut'):
                     continue
                     
-                entry_end = datetime.fromisoformat(entry['timeOut'].replace('Z', '+00:00'))
-                
-                # Check if this is the previous activity (ends before break starts)
-                if entry_end <= break_start:
-                    previous_entry = entry
-                
-                # Check if this is the next activity (starts after break ends)  
-                if entry.get('timeIn'):
-                    entry_start = datetime.fromisoformat(entry['timeIn'].replace('Z', '+00:00'))
-                    if entry_start >= break_end and next_entry is None:
-                        next_entry = entry
-                        break
-            
-            # Redistribute break time (prefer previous, then next)
-            if previous_entry:
-                previous_entry['added_break_time'] += break_duration
-                previous_entry['processed'] = True
-                prev_activity = previous_entry.get('activity', {}).get('name', 'Unknown')
-                logger.info(f"Added {break_duration:.0f}s break time ({break_activity_name}) to previous activity: {prev_activity}")
-            elif next_entry:
-                next_entry['added_break_time'] += break_duration
-                next_entry['processed'] = True
-                next_activity = next_entry.get('activity', {}).get('name', 'Unknown')
-                logger.info(f"Added {break_duration:.0f}s break time ({break_activity_name}) to next activity: {next_activity}")
-            else:
-                logger.warning(f"Could not redistribute break time of {break_duration:.0f}s ({break_activity_name}) - no adjacent activities found")
-                
-        except Exception as e:
-            logger.error(f"Error processing break entry: {str(e)}")
-            continue
+                try:
+                    work_end_dt = datetime.fromisoformat(work_entry['workEntryOut']['date'].replace('Z', '+00:00'))
+                    
+                    # Check if this is the previous work activity (ends before break starts)
+                    if work_end_dt <= break_start_dt:
+                        previous_work_entry = work_entry
+                    
+                    # Check if this is the next work activity (starts after break ends)  
+                    if work_entry.get('workEntryIn'):
+                        work_start_dt = datetime.fromisoformat(work_entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                        if break_end_date:
+                            break_end_dt = datetime.fromisoformat(break_end_date.replace('Z', '+00:00'))
+                            if work_start_dt >= break_end_dt and next_work_entry is None:
+                                next_work_entry = work_entry
+                                break
+                except Exception as e:
+                    logger.error(f"Error comparing work entry timing: {e}")
+                    continue
+        
+        # Redistribute break time (prefer previous, then next)
+        if previous_work_entry:
+            previous_work_entry['added_break_time'] += break_duration
+            previous_work_entry['processed'] = True
+            prev_type = previous_work_entry.get('workEntryType', 'work')
+            logger.info(f"Added {break_duration:.0f}s break time ({break_type}) to previous {prev_type} entry")
+        elif next_work_entry:
+            next_work_entry['added_break_time'] += break_duration
+            next_work_entry['processed'] = True
+            next_type = next_work_entry.get('workEntryType', 'work')
+            logger.info(f"Added {break_duration:.0f}s break time ({break_type}) to next {next_type} entry")
+        else:
+            logger.warning(f"Could not redistribute break time of {break_duration:.0f}s ({break_type}) - no adjacent work/remote activities found")
     
-    return processed_entries
+    logger.info(f"Final result: {len(work_entries)} work/remote entries (filtered from {len(time_entries)} total entries)")
+    return work_entries
 
 def _format_duration(duration):
     """Format duration as HH:MM:SS"""
