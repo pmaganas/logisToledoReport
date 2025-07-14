@@ -161,7 +161,18 @@ def preview_report():
         logger.info(f"Processing {len(employees_data)} employees for preview")
         
         for employee in employees_data[:5]:  # Limit to first 5 employees for preview
-            logger.info(f"Processing employee: {employee.get('name', 'Unknown')}")
+            # Get employee details if name is not available
+            employee_name = employee.get('name') or employee.get('firstName', '') + ' ' + employee.get('lastName', '')
+            if not employee_name.strip():
+                # Fetch employee details using the endpoint
+                employee_details = api.get_employee_details(employee['id'])
+                if employee_details and employee_details.get('data'):
+                    employee_data = employee_details['data']
+                    employee_name = employee_data.get('name') or (employee_data.get('firstName', '') + ' ' + employee_data.get('lastName', '')).strip()
+                    # Update employee object with fetched data
+                    employee.update(employee_data)
+                
+            logger.info(f"Processing employee: {employee_name or 'Unknown'}")
             
             # Get ALL time tracking data with complete pagination
             all_time_data = api.get_all_time_tracking_data(
@@ -199,6 +210,7 @@ def preview_report():
                     employee.get('identificationNumber') or
                     employee.get('nid') or
                     employee.get('code') or
+                    str(employee.get('pin')) if employee.get('pin') else None or
                     employee.get('id', 'No especificado')
                 )
                 
@@ -287,7 +299,7 @@ def preview_report():
                     processing_status = "Procesado" if entry.get('processed', False) else "Original"
                     
                     preview_data.append([
-                        employee.get('name', 'Nombre no disponible'),
+                        employee_name or 'Nombre no disponible',
                         identification_type,
                         identification_number,
                         entry_date,
