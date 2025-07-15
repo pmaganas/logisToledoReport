@@ -592,25 +592,52 @@ def get_current_token():
 def get_employees():
     """Get list of employees for dropdown"""
     try:
-        report_generator = ReportGenerator()
-        employees = report_generator.sesame_api.get_all_employees_data()
+        from services.sesame_api import SesameAPI
+        api = SesameAPI()
         
+        # Get employees with better error handling - limit to reasonable amount for dropdown
         employee_list = []
-        for employee in employees:
-            employee_list.append({
-                'id': employee.get('id'),
-                'name': f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
-            })
+        page = 1
+        max_pages = 10  # Limit to first 1000 employees for dropdown performance
+        
+        while page <= max_pages:
+            try:
+                response = api.get_employees(page=page, per_page=100)
+                if not response or not response.get("data"):
+                    break
+                    
+                employees = response["data"]
+                if isinstance(employees, list):
+                    for employee in employees:
+                        employee_list.append({
+                            'id': employee.get('id'),
+                            'name': f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
+                        })
+                
+                # Check if there are more pages
+                meta = response.get("meta", {})
+                if page >= meta.get("lastPage", 1):
+                    break
+                    
+                page += 1
+                
+            except Exception as e:
+                logger.error(f"Error fetching employees page {page}: {str(e)}")
+                # Continue with what we have so far
+                break
+        
+        logger.info(f"Successfully loaded {len(employee_list)} employees for dropdown")
         
         return jsonify({
             "status": "success",
             "employees": employee_list
         })
+        
     except Exception as e:
         logger.error(f"Error getting employees: {str(e)}")
         return jsonify({
             "status": "error",
-            "message": f"Error getting employees: {str(e)}"
+            "message": f"Error cargando empleados: {str(e)}"
         }), 500
 
 @main_bp.route('/get-offices')

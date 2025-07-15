@@ -61,7 +61,7 @@ class SesameAPI:
                 headers=self.headers,
                 params=params,
                 json=data,
-                timeout=(5, 15),  # Much shorter timeouts
+                timeout=(3, 8),  # Reduced timeouts for initial load
                 proxies={},  # Explicitly disable proxies
                 verify=True  # Verify SSL certificates
             )

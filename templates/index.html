@@ -737,10 +737,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.textContent = employee.name;
                         employeeSelect.appendChild(option);
                     });
+                } else {
+                    // Show error but still enable functionality
+                    employeeSelect.innerHTML = '<option value="">Error cargando empleados - Usar reporte completo</option>';
                 }
             })
             .catch(error => {
                 console.error('Error loading employees:', error);
+                // Fallback: Show error message but keep functionality
+                employeeSelect.innerHTML = '<option value="">Error de conexión - Usar reporte completo</option>';
             });
     }
 
