@@ -598,25 +598,36 @@ def get_employees():
         # Get employees with better error handling - limit to reasonable amount for dropdown
         employee_list = []
         page = 1
-        max_pages = 10  # Limit to first 1000 employees for dropdown performance
+        max_pages = 50  # Increased limit to load more employees
         
         while page <= max_pages:
             try:
+                logger.info(f"Loading employees page {page}...")
                 response = api.get_employees(page=page, per_page=100)
                 if not response or not response.get("data"):
+                    logger.warning(f"No data received for page {page}")
                     break
                     
                 employees = response["data"]
                 if isinstance(employees, list):
+                    page_count = len(employees)
                     for employee in employees:
                         employee_list.append({
                             'id': employee.get('id'),
                             'name': f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
                         })
+                    logger.info(f"Page {page}: Added {page_count} employees, total: {len(employee_list)}")
                 
                 # Check if there are more pages
                 meta = response.get("meta", {})
-                if page >= meta.get("lastPage", 1):
+                current_page = meta.get("currentPage", page)
+                last_page = meta.get("lastPage", 1)
+                total_items = meta.get("total", 0)
+                
+                logger.info(f"Pagination info - Current: {current_page}, Last: {last_page}, Total items: {total_items}")
+                
+                if page >= last_page:
+                    logger.info(f"Reached last page ({last_page}), stopping")
                     break
                     
                 page += 1
