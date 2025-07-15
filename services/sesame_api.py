@@ -191,13 +191,15 @@ class SesameAPI:
                 page += 1
                 
                 # Safety check to avoid infinite loops
-                if page > 50:  # Max 5000 employees
+                if page > 100:  # Max 10000 employees
+                    self.logger.warning(f"Hit safety limit of 100 pages. Total employees loaded: {len(all_employees)}")
                     break
                     
             except Exception as e:
                 self.logger.error(f"Error fetching employees page {page}: {str(e)}")
                 break
-                
+        
+        self.logger.info(f"TOTAL EMPLOYEES LOADED: {len(all_employees)} employees across {page-1} pages")
         return all_employees
 
     def get_all_time_tracking_data(self, employee_id: str = None, company_id: str = None,
