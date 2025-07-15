@@ -37,11 +37,11 @@ class NoBreaksReportGenerator:
                 all_work_entries.extend(first_page['data'])
                 self.logger.info(f"Got {len(first_page['data'])} entries from first page")
                 
-                # Only get more pages if we have less than 100 entries (to avoid SSL timeout)
+                # Get more pages if available (increased limit since SSL is working)
                 total_pages = first_page.get('meta', {}).get('totalPages', 1)
                 if total_pages > 1 and len(first_page['data']) == 100:
-                    # Limit to maximum 3 pages to avoid SSL timeout
-                    max_pages = min(total_pages, 3)
+                    # Increased to 20 pages since SSL is working properly
+                    max_pages = min(total_pages, 20)
                     for page in range(2, max_pages + 1):
                         try:
                             page_data = self.sesame_api.get_time_tracking(
@@ -61,11 +61,11 @@ class NoBreaksReportGenerator:
             if not all_work_entries:
                 return self._create_empty_report()
 
-            # Get check types for activity name resolution
-            check_types_data = self.sesame_api.get_all_check_types_data()
+            # Get check types for activity name resolution (limit to first 100 to save API calls)
+            check_types_response = self.sesame_api.get_check_types(page=1, per_page=100)
             check_types_map = {}
-            if check_types_data:
-                for check_type in check_types_data:
+            if check_types_response and check_types_response.get('data'):
+                for check_type in check_types_response['data']:
                     check_types_map[check_type.get('id')] = check_type.get(
                         'name', 'Actividad no especificada')
 
