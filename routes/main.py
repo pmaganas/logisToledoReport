@@ -58,11 +58,11 @@ def generate_report():
                 flash('Fecha de fin inválida', 'error')
                 return redirect(url_for('main.index'))
 
-        # Use NO-BREAKS report generator without work-breaks API calls
+        # Use NO-BREAKS report generator with SSL error handling
+        report_data = None
+        
         try:
-            logger.info(
-                f"Starting NO-BREAKS report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}"
-            )
+            logger.info(f"Starting NO-BREAKS report generation - Type: {report_type}")
             no_breaks_generator = NoBreaksReportGenerator()
             report_data = no_breaks_generator.generate_report(
                 from_date=from_date,
@@ -73,11 +73,25 @@ def generate_report():
                 report_type=report_type)
             logger.info("NO-BREAKS report generation completed successfully")
         except Exception as no_breaks_error:
-            logger.error(
-                f"NO-BREAKS report generator failed: {str(no_breaks_error)}")
-            flash(f'Error en generador NO-BREAKS: {str(no_breaks_error)}',
-                  'error')
-            return redirect(url_for('main.index'))
+            logger.error(f"NO-BREAKS report generator failed: {str(no_breaks_error)}")
+            
+            # Try ultra-basic fallback for SSL issues
+            try:
+                logger.info("Trying ULTRA-BASIC fallback for SSL issues...")
+                from services.ultra_basic_report_generator import UltraBasicReportGenerator
+                ultra_basic_generator = UltraBasicReportGenerator()
+                report_data = ultra_basic_generator.generate_ultra_basic_report(
+                    from_date=from_date,
+                    to_date=to_date,
+                    employee_id=employee_id,
+                    office_id=office_id,
+                    department_id=department_id,
+                    report_type=report_type)
+                logger.info("ULTRA-BASIC fallback completed successfully")
+            except Exception as fallback_error:
+                logger.error(f"ULTRA-BASIC fallback also failed: {str(fallback_error)}")
+                flash(f'Error SSL persistente. Intente con un rango de fechas más corto: {str(fallback_error)}', 'error')
+                return redirect(url_for('main.index'))
 
         if report_data:
             # Create filename with timestamp

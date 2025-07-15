@@ -89,7 +89,20 @@ class BasicReportGenerator:
                         employee_id=emp_id,
                         from_date=from_date,
                         to_date=to_date,
-                        page=1,
+                        time_entries = []
+                        if time_response:
+                            meta = time_response.get('meta', {})
+                            last_page = meta.get('last_page', 1)
+                            for page in range(1, last_page + 1):
+                                page_response = self.sesame_api.get_work_entries(
+                                    employee_id=emp_id,
+                                    from_date=from_date,
+                                    to_date=to_date,
+                                    page=page,
+                                    limit=20
+                                )
+                                if page_response and page_response.get('data'):
+                                    time_entries.extend(page_response['data'])
                         limit=20  # Limit to 20 entries per employee
                     )
                     

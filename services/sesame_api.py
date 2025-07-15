@@ -45,11 +45,17 @@ class SesameAPI:
         session = requests.Session()
         session.trust_env = False  # Disable environment proxy settings
         
-        # Configure SSL and connection settings
+        # Configure SSL and connection settings for stability
+        retry_strategy = requests.adapters.Retry(
+            total=2,
+            backoff_factor=0.1,
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["GET", "POST"]
+        )
         adapter = requests.adapters.HTTPAdapter(
-            max_retries=3,
-            pool_connections=10,
-            pool_maxsize=10
+            max_retries=retry_strategy,
+            pool_connections=5,
+            pool_maxsize=5
         )
         session.mount('https://', adapter)
         session.mount('http://', adapter)
@@ -61,7 +67,7 @@ class SesameAPI:
                 headers=self.headers,
                 params=params,
                 json=data,
-                timeout=(3, 8),  # Reduced timeouts for initial load
+                timeout=(2, 5),  # Ultra-reduced timeouts to prevent SSL hangs
                 proxies={},  # Explicitly disable proxies
                 verify=True  # Verify SSL certificates
             )
