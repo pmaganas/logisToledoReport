@@ -5,6 +5,7 @@ import logging
 from services.report_generator import ReportGenerator
 from services.simple_report_generator import SimpleReportGenerator
 from services.basic_report_generator import BasicReportGenerator
+from services.ultra_basic_report_generator import UltraBasicReportGenerator
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -89,9 +90,25 @@ def generate_report():
                 )
                 logger.info("Basic report generation completed successfully")
             except Exception as basic_error:
-                logger.error(f"Both report generators failed. Simple: {str(simple_error)}, Basic: {str(basic_error)}")
-                flash(f'Error al generar el reporte: {str(basic_error)}', 'error')
-                return redirect(url_for('main.index'))
+                logger.warning(f"BasicReportGenerator also failed: {str(basic_error)}")
+                
+                # Third attempt: Use UltraBasicReportGenerator as last resort
+                try:
+                    logger.info("Attempting to generate ultra-basic report as last resort...")
+                    ultra_basic_generator = UltraBasicReportGenerator()
+                    report_data = ultra_basic_generator.generate_ultra_basic_report(
+                        from_date=from_date,
+                        to_date=to_date,
+                        employee_id=employee_id,
+                        office_id=office_id,
+                        department_id=department_id,
+                        report_type=report_type
+                    )
+                    logger.info("Ultra-basic report generation completed successfully")
+                except Exception as ultra_error:
+                    logger.error(f"All three report generators failed. Simple: {str(simple_error)}, Basic: {str(basic_error)}, Ultra: {str(ultra_error)}")
+                    flash(f'Error crítico al generar el reporte. Problema SSL persistente: {str(ultra_error)}', 'error')
+                    return redirect(url_for('main.index'))
         
         if report_data:
             # Create filename with timestamp

@@ -125,3 +125,11 @@ Preferred communication style: Simple, everyday language.
 - **Group Column**: Set to empty as group information is not yet available from API
 - **Excel Report Consistency**: Updated both ReportGenerator and SimpleReportGenerator to use same 9-column structure as preview with complete data pagination
 - **Break Time Redistribution**: Implemented elimination of pause entries with redistribution of pause time to adjacent work entries for cleaner reports
+- **CRITICAL SSL ISSUE**: Persistent SSL connection timeouts during report generation causing "Internal Server Error"
+- **Triple Fallback System**: Implemented three-tier report generation system:
+  1. SimpleReportGenerator (full features)
+  2. BasicReportGenerator (limited API calls)
+  3. UltraBasicReportGenerator (minimal API calls, employee info only)
+- **SSL Optimization**: Reduced API timeouts from (30,60) to (10,30) to (5,15) seconds
+- **Connection Management**: Added connection pooling, retry logic, and proper session cleanup
+- **Error Diagnostics**: Enhanced error reporting with specific SSL troubleshooting information
