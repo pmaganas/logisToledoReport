@@ -133,3 +133,4 @@ Preferred communication style: Simple, everyday language.
 - **SSL Optimization**: Reduced API timeouts from (30,60) to (10,30) to (5,15) seconds
 - **Connection Management**: Added connection pooling, retry logic, and proper session cleanup
 - **Error Diagnostics**: Enhanced error reporting with specific SSL troubleshooting information
+- **UI Simplification**: Removed employee selector due to SSL performance issues when loading 3000+ employees

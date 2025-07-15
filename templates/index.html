@@ -112,17 +112,7 @@
                     <p class="mt-1 text-xs text-gray-600">Seleccione el tipo de agrupación para el informe</p>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div>
-                        <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="ti ti-user mr-1"></i>
-                            Empleado
-                        </label>
-                        <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="employee_id" name="employee_id">
-                            <option value="">Todos los empleados</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-600">Opcional: Seleccione un empleado específico</p>
-                    </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
                         <label for="office_id" class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="ti ti-building mr-1"></i>
@@ -331,7 +321,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const newTokenInput = document.getElementById('newTokenInput');
     const applyTokenBtn = document.getElementById('applyTokenBtn');
     const cancelTokenBtn = document.getElementById('cancelTokenBtn');
-    const employeeSelect = document.getElementById('employee_id');
     const officeSelect = document.getElementById('office_id');
     const departmentSelect = document.getElementById('department_id');
     const dateRangeSelect = document.getElementById('date_range');
@@ -689,7 +678,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 previewBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-indigo-600 bg-white border border-indigo-300 rounded-xl hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
                 generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
                 
-                loadEmployees();
                 loadOffices();
                 loadDepartments();
             } else {
@@ -723,31 +711,7 @@ document.addEventListener('DOMContentLoaded', function() {
         checkTokenStatus();
     });
 
-    // Load employees
-    function loadEmployees() {
-        fetch('/get-employees')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const employeeCount = data.employees.length;
-                    employeeSelect.innerHTML = `<option value="">Todos los empleados (${employeeCount})</option>`;
-                    data.employees.forEach(employee => {
-                        const option = document.createElement('option');
-                        option.value = employee.id;
-                        option.textContent = employee.name;
-                        employeeSelect.appendChild(option);
-                    });
-                } else {
-                    // Show error but still enable functionality
-                    employeeSelect.innerHTML = '<option value="">Error cargando empleados - Usar reporte completo</option>';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading employees:', error);
-                // Fallback: Show error message but keep functionality
-                employeeSelect.innerHTML = '<option value="">Error de conexión - Usar reporte completo</option>';
-            });
-    }
+
 
     // Load offices
     function loadOffices() {
@@ -802,7 +766,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = {
             from_date: fromDateInput.value,
             to_date: toDateInput.value,
-            employee_id: employeeSelect.value,
             office_id: officeSelect.value,
             department_id: departmentSelect.value,
             report_type: document.getElementById('report_type').value
