@@ -51,16 +51,35 @@ class SimpleReportGenerator:
                 self.logger.warning("No employees found")
                 return self._create_empty_report()
             
+            # Limit employees to avoid SSL overload
+            max_employees = 10  # Process only 10 employees at a time
+            if len(employees) > max_employees:
+                self.logger.info(f"Limitando a {max_employees} empleados de {len(employees)} para evitar problemas SSL")
+                employees = employees[:max_employees]
+            
             self.logger.info(f"PASO 2/6: Encontrados {len(employees)} empleados")
             
-            # Step 2: Load all time tracking data in memory
-            self.logger.info("PASO 3/6: Cargando todos los registros de tiempo...")
+            # Step 2: Get check types once for all employees (they're the same for everyone)
+            self.logger.info("PASO 3/6: Obteniendo tipos de actividad...")
+            try:
+                check_types_response = self.sesame_api.get_check_types(page=1, per_page=100)
+                check_types_map = {}
+                if check_types_response and check_types_response.get('data'):
+                    for check_type in check_types_response['data']:
+                        check_types_map[check_type.get('id')] = check_type.get('name', 'Actividad no especificada')
+                    self.logger.info(f"✓ Cargados {len(check_types_map)} tipos de actividad")
+            except Exception as e:
+                self.logger.warning(f"Error loading check types: {str(e)}")
+                check_types_map = {}
+            
+            # Step 3: Load all time tracking data in memory
+            self.logger.info("PASO 4/6: Cargando todos los registros de tiempo...")
             all_employee_data = {}
             for i, employee in enumerate(employees, 1):
                 emp_id = employee.get('id')
                 emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
                 
-                self.logger.info(f"PASO 3/6: Cargando datos del empleado {i}/{len(employees)}: {emp_name}")
+                self.logger.info(f"PASO 4/6: Cargando datos del empleado {i}/{len(employees)}: {emp_name}")
                 
                 # Load time entries with single call (avoid pagination)
                 time_entries = []
@@ -82,9 +101,9 @@ class SimpleReportGenerator:
                     self.logger.warning(f"Error loading time entries for {emp_name}: {str(e)}")
                     time_entries = []
                 
-                # Add small delay between API calls
+                # Add longer delay between API calls to avoid SSL buildup
                 import time
-                time.sleep(0.5)
+                time.sleep(2)
                 
                 # Load break entries with single call (avoid pagination)
                 break_entries = []
@@ -112,16 +131,16 @@ class SimpleReportGenerator:
                     'break_entries': break_entries or []
                 }
                 
-                # Add delay between employees to avoid SSL connection buildup
+                # Add longer delay between employees to avoid SSL connection buildup
                 if i < len(employees):
-                    time.sleep(1)
+                    time.sleep(3)  # 3 second delay between employees
             
-            self.logger.info("PASO 4/6: Procesando redistribución de pausas...")
+            self.logger.info("PASO 5/6: Procesando redistribución de pausas...")
             
-            # Step 3: Process break redistribution for all employees
+            # Step 4: Process break redistribution for all employees
             for emp_id, data in all_employee_data.items():
                 emp_name = f"{data['employee'].get('firstName', '')} {data['employee'].get('lastName', '')}".strip()
-                self.logger.info(f"PASO 4/6: Procesando pausas para {emp_name}")
+                self.logger.info(f"PASO 5/6: Procesando pausas para {emp_name}")
                 
                 try:
                     processed_entries = self._process_break_redistribution(
@@ -132,20 +151,6 @@ class SimpleReportGenerator:
                 except Exception as e:
                     self.logger.warning(f"Error processing breaks for {emp_name}, using original entries: {str(e)}")
                     data['processed_entries'] = data['time_entries']
-            
-            self.logger.info("PASO 5/6: Obteniendo tipos de actividad...")
-            
-            # Step 4: Get check types for activity name resolution (single call)
-            try:
-                check_types_response = self.sesame_api.get_check_types(page=1, per_page=100)
-                check_types_map = {}
-                if check_types_response and check_types_response.get('data'):
-                    for check_type in check_types_response['data']:
-                        check_types_map[check_type.get('id')] = check_type.get('name', 'Actividad no especificada')
-                    self.logger.info(f"✓ Cargados {len(check_types_map)} tipos de actividad")
-            except Exception as e:
-                self.logger.warning(f"Error loading check types: {str(e)}")
-                check_types_map = {}
             
             self.logger.info("PASO 6/6: Generando archivo Excel...")
             
