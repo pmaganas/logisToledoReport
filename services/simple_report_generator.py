@@ -62,33 +62,46 @@ class SimpleReportGenerator:
                 
                 self.logger.info(f"PASO 3/6: Cargando datos del empleado {i}/{len(employees)}: {emp_name}")
                 
-                # Load time entries with retry logic
+                # Load time entries with single call (avoid pagination)
                 time_entries = []
-                for attempt in range(3):  # Retry up to 3 times
-                    try:
-                        self.logger.info(f"Intentando cargar datos de tiempo para {emp_name} (intento {attempt + 1}/3)")
-                        time_entries = self.sesame_api.get_all_time_tracking_data(
-                            employee_id=emp_id,
-                            from_date=from_date,
-                            to_date=to_date
-                        )
-                        break  # Success, exit retry loop
-                    except Exception as e:
-                        self.logger.warning(f"Error loading time entries for {emp_name} (attempt {attempt + 1}): {str(e)}")
-                        if attempt == 2:  # Last attempt
-                            self.logger.error(f"Failed to load time entries for {emp_name} after 3 attempts")
-                            time_entries = []
-                        else:
-                            import time
-                            time.sleep(2)  # Wait before retry
-                
-                # Load break entries with error handling
                 try:
-                    break_entries = self.sesame_api.get_all_breaks_data(
+                    self.logger.info(f"Cargando time entries para {emp_name}")
+                    time_response = self.sesame_api.get_work_entries(
                         employee_id=emp_id,
                         from_date=from_date,
-                        to_date=to_date
+                        to_date=to_date,
+                        page=1,
+                        limit=100  # Single call with higher limit
                     )
+                    if time_response and time_response.get('data'):
+                        time_entries = time_response['data']
+                        self.logger.info(f"✓ Cargados {len(time_entries)} time entries para {emp_name}")
+                    else:
+                        self.logger.info(f"No time entries found for {emp_name}")
+                except Exception as e:
+                    self.logger.warning(f"Error loading time entries for {emp_name}: {str(e)}")
+                    time_entries = []
+                
+                # Add small delay between API calls
+                import time
+                time.sleep(0.5)
+                
+                # Load break entries with single call (avoid pagination)
+                break_entries = []
+                try:
+                    self.logger.info(f"Cargando breaks para {emp_name}")
+                    break_response = self.sesame_api.get_breaks(
+                        employee_id=emp_id,
+                        from_date=from_date,
+                        to_date=to_date,
+                        page=1,
+                        limit=100  # Single call with higher limit
+                    )
+                    if break_response and break_response.get('data'):
+                        break_entries = break_response['data']
+                        self.logger.info(f"✓ Cargados {len(break_entries)} breaks para {emp_name}")
+                    else:
+                        self.logger.info(f"No breaks found for {emp_name}")
                 except Exception as e:
                     self.logger.warning(f"Error loading break entries for {emp_name}: {str(e)}")
                     break_entries = []
@@ -98,6 +111,10 @@ class SimpleReportGenerator:
                     'time_entries': time_entries or [],
                     'break_entries': break_entries or []
                 }
+                
+                # Add delay between employees to avoid SSL connection buildup
+                if i < len(employees):
+                    time.sleep(1)
             
             self.logger.info("PASO 4/6: Procesando redistribución de pausas...")
             
@@ -118,13 +135,14 @@ class SimpleReportGenerator:
             
             self.logger.info("PASO 5/6: Obteniendo tipos de actividad...")
             
-            # Step 4: Get check types for activity name resolution
+            # Step 4: Get check types for activity name resolution (single call)
             try:
-                check_types_data = self.sesame_api.get_all_check_types_data()
+                check_types_response = self.sesame_api.get_check_types(page=1, per_page=100)
                 check_types_map = {}
-                if check_types_data:
-                    for check_type in check_types_data:
+                if check_types_response and check_types_response.get('data'):
+                    for check_type in check_types_response['data']:
                         check_types_map[check_type.get('id')] = check_type.get('name', 'Actividad no especificada')
+                    self.logger.info(f"✓ Cargados {len(check_types_map)} tipos de actividad")
             except Exception as e:
                 self.logger.warning(f"Error loading check types: {str(e)}")
                 check_types_map = {}
