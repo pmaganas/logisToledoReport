@@ -20,43 +20,16 @@ class NoBreaksReportGenerator:
         try:
             self.logger.info("=== GENERANDO REPORTE SOLO CON FICHAJES ===")
             
-            # Get work entries with limited pagination to avoid SSL timeout
-            self.logger.info("Fetching work entries with limited pagination...")
-            all_work_entries = []
-            
-            # Get first page only to avoid SSL timeout
-            first_page = self.sesame_api.get_time_tracking(
+            # Get ALL work entries with complete pagination
+            self.logger.info("Fetching ALL work entries with complete pagination...")
+            all_work_entries = self.sesame_api.get_all_time_tracking_data(
                 employee_id=employee_id,
                 from_date=from_date,
-                to_date=to_date,
-                page=1,
-                limit=100
+                to_date=to_date
             )
             
-            if first_page and first_page.get('data'):
-                all_work_entries.extend(first_page['data'])
-                self.logger.info(f"Got {len(first_page['data'])} entries from first page")
-                
-                # Get more pages if available (increased limit since SSL is working)
-                total_pages = first_page.get('meta', {}).get('totalPages', 1)
-                if total_pages > 1 and len(first_page['data']) == 100:
-                    # Increased to 20 pages since SSL is working properly
-                    max_pages = min(total_pages, 20)
-                    for page in range(2, max_pages + 1):
-                        try:
-                            page_data = self.sesame_api.get_time_tracking(
-                                employee_id=employee_id,
-                                from_date=from_date,
-                                to_date=to_date,
-                                page=page,
-                                limit=100
-                            )
-                            if page_data and page_data.get('data'):
-                                all_work_entries.extend(page_data['data'])
-                                self.logger.info(f"Got {len(page_data['data'])} entries from page {page}")
-                        except Exception as page_error:
-                            self.logger.warning(f"Failed to get page {page}: {str(page_error)}")
-                            break  # Stop trying more pages if one fails
+            if all_work_entries:
+                self.logger.info(f"Got {len(all_work_entries)} total entries from all pages")
 
             if not all_work_entries:
                 return self._create_empty_report()
