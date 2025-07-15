@@ -62,19 +62,27 @@ class SimpleReportGenerator:
                 
                 self.logger.info(f"PASO 3/6: Cargando datos del empleado {i}/{len(employees)}: {emp_name}")
                 
-                # Load time entries
-                time_entries = self.sesame_api.get_all_time_tracking_data(
-                    employee_id=emp_id,
-                    from_date=from_date,
-                    to_date=to_date
-                )
+                # Load time entries with error handling
+                try:
+                    time_entries = self.sesame_api.get_all_time_tracking_data(
+                        employee_id=emp_id,
+                        from_date=from_date,
+                        to_date=to_date
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Error loading time entries for {emp_name}: {str(e)}")
+                    time_entries = []
                 
-                # Load break entries
-                break_entries = self.sesame_api.get_all_breaks_data(
-                    employee_id=emp_id,
-                    from_date=from_date,
-                    to_date=to_date
-                )
+                # Load break entries with error handling
+                try:
+                    break_entries = self.sesame_api.get_all_breaks_data(
+                        employee_id=emp_id,
+                        from_date=from_date,
+                        to_date=to_date
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Error loading break entries for {emp_name}: {str(e)}")
+                    break_entries = []
                 
                 all_employee_data[emp_id] = {
                     'employee': employee,
@@ -89,20 +97,28 @@ class SimpleReportGenerator:
                 emp_name = f"{data['employee'].get('firstName', '')} {data['employee'].get('lastName', '')}".strip()
                 self.logger.info(f"PASO 4/6: Procesando pausas para {emp_name}")
                 
-                processed_entries = self._process_break_redistribution(
-                    data['time_entries'], 
-                    data['break_entries']
-                )
-                data['processed_entries'] = processed_entries
+                try:
+                    processed_entries = self._process_break_redistribution(
+                        data['time_entries'], 
+                        data['break_entries']
+                    )
+                    data['processed_entries'] = processed_entries
+                except Exception as e:
+                    self.logger.warning(f"Error processing breaks for {emp_name}, using original entries: {str(e)}")
+                    data['processed_entries'] = data['time_entries']
             
             self.logger.info("PASO 5/6: Obteniendo tipos de actividad...")
             
             # Step 4: Get check types for activity name resolution
-            check_types_data = self.sesame_api.get_all_check_types_data()
-            check_types_map = {}
-            if check_types_data:
-                for check_type in check_types_data:
-                    check_types_map[check_type.get('id')] = check_type.get('name', 'Actividad no especificada')
+            try:
+                check_types_data = self.sesame_api.get_all_check_types_data()
+                check_types_map = {}
+                if check_types_data:
+                    for check_type in check_types_data:
+                        check_types_map[check_type.get('id')] = check_type.get('name', 'Actividad no especificada')
+            except Exception as e:
+                self.logger.warning(f"Error loading check types: {str(e)}")
+                check_types_map = {}
             
             self.logger.info("PASO 6/6: Generando archivo Excel...")
             
@@ -483,8 +499,8 @@ class SimpleReportGenerator:
     
     def _process_break_redistribution(self, time_entries, break_entries):
         """Process break time redistribution based on workEntryType"""
-        if not break_entries:
-            return time_entries
+        if not break_entries or not time_entries:
+            return time_entries or []
         
         # Convert time entries to a mutable list and sort by start time
         processed_entries = []

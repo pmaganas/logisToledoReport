@@ -45,6 +45,15 @@ class SesameAPI:
         session = requests.Session()
         session.trust_env = False  # Disable environment proxy settings
         
+        # Configure SSL and connection settings
+        adapter = requests.adapters.HTTPAdapter(
+            max_retries=3,
+            pool_connections=10,
+            pool_maxsize=10
+        )
+        session.mount('https://', adapter)
+        session.mount('http://', adapter)
+        
         try:
             response = session.request(
                 method=method,
@@ -52,8 +61,9 @@ class SesameAPI:
                 headers=self.headers,
                 params=params,
                 json=data,
-                timeout=60,  # Increased timeout
-                proxies={}  # Explicitly disable proxies
+                timeout=(30, 60),  # Connection timeout, read timeout
+                proxies={},  # Explicitly disable proxies
+                verify=True  # Verify SSL certificates
             )
             
             self.logger.debug(f"API Request: {method} {url} - Status: {response.status_code}")
@@ -67,11 +77,17 @@ class SesameAPI:
         except requests.exceptions.Timeout:
             self.logger.error(f"Request timeout for {url}")
             return None
-        except requests.exceptions.ConnectionError:
-            self.logger.error(f"Connection error for {url}")
+        except requests.exceptions.SSLError as e:
+            self.logger.error(f"SSL error for {url}: {str(e)}")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error for {url}: {str(e)}")
             return None
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Request failed: {str(e)}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Unexpected error for {url}: {str(e)}")
             return None
         finally:
             session.close()
