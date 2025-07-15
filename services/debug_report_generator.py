@@ -60,8 +60,8 @@ class DebugReportGenerator:
                     if include_employee:
                         employees.append(employee)
                 
-                # LIMIT TO 3 EMPLOYEES FOR TESTING
-                employees = employees[:3]
+                # LIMIT TO 5 EMPLOYEES FOR TESTING
+                employees = employees[:5]
             
             if not employees:
                 self.logger.warning("No employees found")
@@ -89,37 +89,77 @@ class DebugReportGenerator:
                 
                 self.logger.info(f"--- Procesando empleado {i}/{len(employees)}: {emp_name} ---")
                 
-                # Get time entries
-                self.log_api_call("get_work_entries", emp_name)
-                time_response = self.sesame_api.get_work_entries(
-                    employee_id=emp_id,
-                    from_date=from_date,
-                    to_date=to_date,
-                    page=1,
-                    limit=100
-                )
-                
+                # Get ALL time entries with pagination
                 time_entries = []
-                if time_response and time_response.get('data'):
-                    time_entries = time_response['data']
-                    self.logger.info(f"  ✓ {len(time_entries)} time entries")
+                page = 1
+                while True:
+                    self.log_api_call(f"get_work_entries (page {page})", emp_name)
+                    time_response = self.sesame_api.get_work_entries(
+                        employee_id=emp_id,
+                        from_date=from_date,
+                        to_date=to_date,
+                        page=page,
+                        limit=100
+                    )
+                    
+                    if not time_response or not time_response.get('data'):
+                        break
+                    
+                    page_entries = time_response['data']
+                    time_entries.extend(page_entries)
+                    
+                    # Check if there are more pages
+                    meta = time_response.get('meta', {})
+                    total_pages = meta.get('totalPages', 1)
+                    current_page = meta.get('page', 1)
+                    total_records = meta.get('total', len(page_entries))
+                    
+                    self.logger.info(f"  ✓ Página {current_page}/{total_pages}: {len(page_entries)} entries (Total acumulado: {len(time_entries)}/{total_records})")
+                    
+                    if current_page >= total_pages:
+                        break
+                    
+                    page += 1
+                
+                if time_entries:
+                    self.logger.info(f"  ✓ TOTAL: {len(time_entries)} time entries obtenidos")
                 else:
                     self.logger.info(f"  ✗ No time entries")
                 
-                # Get break entries
-                self.log_api_call("get_breaks", emp_name)
-                break_response = self.sesame_api.get_breaks(
-                    employee_id=emp_id,
-                    from_date=from_date,
-                    to_date=to_date,
-                    page=1,
-                    limit=100
-                )
-                
+                # Get ALL break entries with pagination
                 break_entries = []
-                if break_response and break_response.get('data'):
-                    break_entries = break_response['data']
-                    self.logger.info(f"  ✓ {len(break_entries)} break entries")
+                page = 1
+                while True:
+                    self.log_api_call(f"get_breaks (page {page})", emp_name)
+                    break_response = self.sesame_api.get_breaks(
+                        employee_id=emp_id,
+                        from_date=from_date,
+                        to_date=to_date,
+                        page=page,
+                        limit=100
+                    )
+                    
+                    if not break_response or not break_response.get('data'):
+                        break
+                    
+                    page_breaks = break_response['data']
+                    break_entries.extend(page_breaks)
+                    
+                    # Check if there are more pages
+                    meta = break_response.get('meta', {})
+                    total_pages = meta.get('totalPages', 1)
+                    current_page = meta.get('page', 1)
+                    total_records = meta.get('total', len(page_breaks))
+                    
+                    self.logger.info(f"  ✓ Página {current_page}/{total_pages}: {len(page_breaks)} breaks (Total acumulado: {len(break_entries)}/{total_records})")
+                    
+                    if current_page >= total_pages:
+                        break
+                    
+                    page += 1
+                
+                if break_entries:
+                    self.logger.info(f"  ✓ TOTAL: {len(break_entries)} break entries obtenidos")
                 else:
                     self.logger.info(f"  ✗ No break entries")
                 
