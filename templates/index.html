@@ -729,7 +729,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    employeeSelect.innerHTML = '<option value="">Todos los empleados</option>';
+                    const employeeCount = data.employees.length;
+                    employeeSelect.innerHTML = `<option value="">Todos los empleados (${employeeCount})</option>`;
                     data.employees.forEach(employee => {
                         const option = document.createElement('option');
                         option.value = employee.id;
@@ -749,7 +750,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    officeSelect.innerHTML = '<option value="">Todos los centros</option>';
+                    const officeCount = data.offices.length;
+                    officeSelect.innerHTML = `<option value="">Todos los centros (${officeCount})</option>`;
                     data.offices.forEach(office => {
                         const option = document.createElement('option');
                         option.value = office.id;
@@ -769,7 +771,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    departmentSelect.innerHTML = '<option value="">Todos los departamentos</option>';
+                    const departmentCount = data.departments.length;
+                    departmentSelect.innerHTML = `<option value="">Todos los departamentos (${departmentCount})</option>`;
                     data.departments.forEach(department => {
                         const option = document.createElement('option');
                         option.value = department.id;
