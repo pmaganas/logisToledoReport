@@ -62,16 +62,25 @@ class SimpleReportGenerator:
                 
                 self.logger.info(f"PASO 3/6: Cargando datos del empleado {i}/{len(employees)}: {emp_name}")
                 
-                # Load time entries with error handling
-                try:
-                    time_entries = self.sesame_api.get_all_time_tracking_data(
-                        employee_id=emp_id,
-                        from_date=from_date,
-                        to_date=to_date
-                    )
-                except Exception as e:
-                    self.logger.warning(f"Error loading time entries for {emp_name}: {str(e)}")
-                    time_entries = []
+                # Load time entries with retry logic
+                time_entries = []
+                for attempt in range(3):  # Retry up to 3 times
+                    try:
+                        self.logger.info(f"Intentando cargar datos de tiempo para {emp_name} (intento {attempt + 1}/3)")
+                        time_entries = self.sesame_api.get_all_time_tracking_data(
+                            employee_id=emp_id,
+                            from_date=from_date,
+                            to_date=to_date
+                        )
+                        break  # Success, exit retry loop
+                    except Exception as e:
+                        self.logger.warning(f"Error loading time entries for {emp_name} (attempt {attempt + 1}): {str(e)}")
+                        if attempt == 2:  # Last attempt
+                            self.logger.error(f"Failed to load time entries for {emp_name} after 3 attempts")
+                            time_entries = []
+                        else:
+                            import time
+                            time.sleep(2)  # Wait before retry
                 
                 # Load break entries with error handling
                 try:

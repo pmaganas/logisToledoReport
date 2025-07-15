@@ -4,6 +4,7 @@ import io
 import logging
 from services.report_generator import ReportGenerator
 from services.simple_report_generator import SimpleReportGenerator
+from services.basic_report_generator import BasicReportGenerator
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -55,7 +56,10 @@ def generate_report():
                 flash('Fecha de fin inválida', 'error')
                 return redirect(url_for('main.index'))
 
-        # Generate report with error handling - using simplified generator
+        # Generate report with fallback mechanism
+        report_data = None
+        
+        # First attempt: Use SimpleReportGenerator
         try:
             logger.info(f"Starting simplified report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}")
             simple_generator = SimpleReportGenerator()
@@ -68,10 +72,26 @@ def generate_report():
                 report_type=report_type
             )
             logger.info("Simplified report generation completed successfully")
-        except Exception as report_error:
-            logger.error(f"Error during simplified report generation: {str(report_error)}")
-            flash(f'Error al generar el reporte: {str(report_error)}', 'error')
-            return redirect(url_for('main.index'))
+        except Exception as simple_error:
+            logger.warning(f"SimpleReportGenerator failed: {str(simple_error)}")
+            
+            # Second attempt: Use BasicReportGenerator as fallback
+            try:
+                logger.info("Attempting to generate basic report as fallback...")
+                basic_generator = BasicReportGenerator()
+                report_data = basic_generator.generate_basic_report(
+                    from_date=from_date,
+                    to_date=to_date,
+                    employee_id=employee_id,
+                    office_id=office_id,
+                    department_id=department_id,
+                    report_type=report_type
+                )
+                logger.info("Basic report generation completed successfully")
+            except Exception as basic_error:
+                logger.error(f"Both report generators failed. Simple: {str(simple_error)}, Basic: {str(basic_error)}")
+                flash(f'Error al generar el reporte: {str(basic_error)}', 'error')
+                return redirect(url_for('main.index'))
         
         if report_data:
             # Create filename with timestamp
