@@ -7,7 +7,7 @@ from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment
 from services.sesame_api import SesameAPI
 
-class DebugReportGenerator:
+class OptimizedReportGenerator:
     def __init__(self):
         self.sesame_api = SesameAPI()
         self.logger = logging.getLogger(__name__)
@@ -22,16 +22,16 @@ class DebugReportGenerator:
         context = f" for {employee_name}" if employee_name else ""
         self.logger.info(f"API CALL #{self.api_calls}: {endpoint}{context} [Total time: {elapsed:.1f}s]")
 
-    def generate_debug_report(self, from_date: str = None, to_date: str = None, 
-                             employee_id: str = None, office_id: str = None, 
-                             department_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
-        """Generate report with detailed debugging info"""
+    def generate_optimized_report(self, from_date: str = None, to_date: str = None, 
+                                 employee_id: str = None, office_id: str = None, 
+                                 department_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
+        """Generate optimized report with complete pagination"""
         
         try:
-            self.logger.info("=== INICIANDO GENERACIÓN DE REPORTE DEBUG ===")
+            self.logger.info("=== INICIANDO GENERACIÓN DE REPORTE OPTIMIZADO ===")
             self.logger.info(f"Parámetros: from_date={from_date}, to_date={to_date}, employee_id={employee_id}")
             
-            # Step 1: Get employees - limit to 3 for testing
+            # Step 1: Get employees
             self.logger.info("PASO 1: Obteniendo empleados...")
             if employee_id:
                 self.log_api_call("get_employee_details", employee_id)
@@ -59,9 +59,6 @@ class DebugReportGenerator:
                     
                     if include_employee:
                         employees.append(employee)
-                
-                # LIMIT TO 5 EMPLOYEES FOR TESTING
-                employees = employees[:5]
             
             if not employees:
                 self.logger.warning("No employees found")
@@ -79,7 +76,7 @@ class DebugReportGenerator:
                     check_types_map[check_type.get('id')] = check_type.get('name', 'Actividad no especificada')
                 self.logger.info(f"✓ Cargados {len(check_types_map)} tipos de actividad")
             
-            # Step 3: Process each employee
+            # Step 3: Process each employee with complete pagination
             self.logger.info("PASO 3: Procesando empleados...")
             all_employee_data = {}
             
@@ -90,78 +87,24 @@ class DebugReportGenerator:
                 self.logger.info(f"--- Procesando empleado {i}/{len(employees)}: {emp_name} ---")
                 
                 # Get ALL time entries with pagination
-                time_entries = []
-                page = 1
-                while True:
-                    self.log_api_call(f"get_work_entries (page {page})", emp_name)
-                    time_response = self.sesame_api.get_work_entries(
-                        employee_id=emp_id,
-                        from_date=from_date,
-                        to_date=to_date,
-                        page=page,
-                        limit=100
-                    )
-                    
-                    if not time_response or not time_response.get('data'):
-                        break
-                    
-                    page_entries = time_response['data']
-                    time_entries.extend(page_entries)
-                    
-                    # Check if there are more pages
-                    meta = time_response.get('meta', {})
-                    total_pages = meta.get('totalPages', 1)
-                    current_page = meta.get('page', 1)
-                    total_records = meta.get('total', len(page_entries))
-                    
-                    self.logger.info(f"  ✓ Página {current_page}/{total_pages}: {len(page_entries)} entries (Total acumulado: {len(time_entries)}/{total_records})")
-                    
-                    if current_page >= total_pages:
-                        break
-                    
-                    page += 1
+                time_entries = self._get_all_paginated_data(
+                    endpoint_func=self.sesame_api.get_work_entries,
+                    employee_id=emp_id,
+                    from_date=from_date,
+                    to_date=to_date,
+                    data_type="time entries",
+                    employee_name=emp_name
+                )
                 
-                if time_entries:
-                    self.logger.info(f"  ✓ TOTAL: {len(time_entries)} time entries obtenidos")
-                else:
-                    self.logger.info(f"  ✗ No time entries")
-                
-                # Get ALL break entries with pagination
-                break_entries = []
-                page = 1
-                while True:
-                    self.log_api_call(f"get_breaks (page {page})", emp_name)
-                    break_response = self.sesame_api.get_breaks(
-                        employee_id=emp_id,
-                        from_date=from_date,
-                        to_date=to_date,
-                        page=page,
-                        limit=100
-                    )
-                    
-                    if not break_response or not break_response.get('data'):
-                        break
-                    
-                    page_breaks = break_response['data']
-                    break_entries.extend(page_breaks)
-                    
-                    # Check if there are more pages
-                    meta = break_response.get('meta', {})
-                    total_pages = meta.get('totalPages', 1)
-                    current_page = meta.get('page', 1)
-                    total_records = meta.get('total', len(page_breaks))
-                    
-                    self.logger.info(f"  ✓ Página {current_page}/{total_pages}: {len(page_breaks)} breaks (Total acumulado: {len(break_entries)}/{total_records})")
-                    
-                    if current_page >= total_pages:
-                        break
-                    
-                    page += 1
-                
-                if break_entries:
-                    self.logger.info(f"  ✓ TOTAL: {len(break_entries)} break entries obtenidos")
-                else:
-                    self.logger.info(f"  ✗ No break entries")
+                # Get ALL break entries with pagination  
+                break_entries = self._get_all_paginated_data(
+                    endpoint_func=self.sesame_api.get_breaks,
+                    employee_id=emp_id,
+                    from_date=from_date,
+                    to_date=to_date,
+                    data_type="break entries",
+                    employee_name=emp_name
+                )
                 
                 all_employee_data[emp_id] = {
                     'employee': employee,
@@ -173,7 +116,7 @@ class DebugReportGenerator:
             self.logger.info("PASO 4: Generando archivo Excel...")
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "Reporte Debug"
+            ws.title = "Reporte Optimizado"
             
             # Headers
             headers = ["Empleado", "Tipo ID", "Número ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
@@ -183,6 +126,7 @@ class DebugReportGenerator:
                 cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
             
             current_row = 2
+            total_records = 0
             
             # Process employee data
             for emp_id, data in all_employee_data.items():
@@ -211,14 +155,17 @@ class DebugReportGenerator:
                     # Process each date
                     for date_key in sorted(entries_by_date.keys()):
                         date_entries = entries_by_date[date_key]
-                        daily_total_seconds = 0
                         
                         for entry in date_entries:
-                            work_in = entry.get('workEntryIn', {})
+                            work_in = entry.get('workEntryIn', {}) if entry.get('workEntryIn') else {}
                             work_out = entry.get('workEntryOut', {}) if entry.get('workEntryOut') else {}
                             
                             start_time = self._parse_datetime(work_in.get('date')) if work_in else None
                             end_time = self._parse_datetime(work_out.get('date')) if work_out else None
+                            
+                            # Skip entries without start time
+                            if not start_time:
+                                continue
                             
                             # Calculate duration
                             duration_str = "00:00:00"
@@ -227,7 +174,6 @@ class DebugReportGenerator:
                             if start_time and end_time:
                                 duration = end_time - start_time
                                 entry_seconds = duration.total_seconds()
-                                daily_total_seconds += entry_seconds
                                 hours = int(entry_seconds // 3600)
                                 minutes = int((entry_seconds % 3600) // 60)
                                 seconds = int(entry_seconds % 60)
@@ -237,9 +183,6 @@ class DebugReportGenerator:
                                 # Si no hay hora de salida, mostrar guión
                                 duration_str = "--"
                                 end_time_str = "--"
-                            elif not start_time:
-                                # Si no hay hora de entrada, saltar este registro
-                                continue
                             
                             # Get activity name
                             activity_name = entry.get('workEntryType', 'Trabajo')
@@ -251,10 +194,11 @@ class DebugReportGenerator:
                             ws.cell(row=current_row, column=4, value=date_key)
                             ws.cell(row=current_row, column=5, value=activity_name)
                             ws.cell(row=current_row, column=6, value="")
-                            ws.cell(row=current_row, column=7, value=start_time.strftime("%H:%M:%S") if start_time else "--")
+                            ws.cell(row=current_row, column=7, value=start_time.strftime("%H:%M:%S"))
                             ws.cell(row=current_row, column=8, value=end_time_str)
                             ws.cell(row=current_row, column=9, value=duration_str)
                             current_row += 1
+                            total_records += 1
                 else:
                     # No time entries
                     ws.cell(row=current_row, column=1, value=emp_name)
@@ -269,9 +213,11 @@ class DebugReportGenerator:
                     current_row += 1
             
             # Add summary row
-            ws.cell(row=current_row, column=1, value="RESUMEN DEBUG")
-            ws.cell(row=current_row, column=5, value=f"Total API calls: {self.api_calls}")
-            ws.cell(row=current_row, column=6, value=f"Total time: {time.time() - self.start_time:.1f}s")
+            ws.cell(row=current_row, column=1, value="RESUMEN")
+            ws.cell(row=current_row, column=2, value=f"Empleados: {len(employees)}")
+            ws.cell(row=current_row, column=3, value=f"Registros: {total_records}")
+            ws.cell(row=current_row, column=4, value=f"API calls: {self.api_calls}")
+            ws.cell(row=current_row, column=5, value=f"Tiempo: {time.time() - self.start_time:.1f}s")
             
             # Auto-adjust columns
             for column in ws.columns:
@@ -292,18 +238,61 @@ class DebugReportGenerator:
             output.seek(0)
             
             total_time = time.time() - self.start_time
-            self.logger.info(f"=== REPORTE DEBUG COMPLETADO ===")
+            self.logger.info(f"=== REPORTE OPTIMIZADO COMPLETADO ===")
             self.logger.info(f"Total API calls: {self.api_calls}")
             self.logger.info(f"Total time: {total_time:.1f}s")
             self.logger.info(f"Empleados procesados: {len(employees)}")
+            self.logger.info(f"Registros generados: {total_records}")
             
             return output.getvalue()
             
         except Exception as e:
-            self.logger.error(f"Error generating debug report: {str(e)}")
+            self.logger.error(f"Error generating optimized report: {str(e)}")
             import traceback
             traceback.print_exc()
             return self._create_error_report(str(e))
+
+    def _get_all_paginated_data(self, endpoint_func, employee_id, from_date, to_date, data_type, employee_name):
+        """Get all paginated data for a specific endpoint"""
+        all_data = []
+        page = 1
+        
+        while True:
+            self.log_api_call(f"get_{data_type.replace(' ', '_')} (page {page})", employee_name)
+            
+            response = endpoint_func(
+                employee_id=employee_id,
+                from_date=from_date,
+                to_date=to_date,
+                page=page,
+                limit=100
+            )
+            
+            if not response or not response.get('data'):
+                break
+            
+            page_data = response['data']
+            all_data.extend(page_data)
+            
+            # Check if there are more pages
+            meta = response.get('meta', {})
+            total_pages = meta.get('totalPages', 1)
+            current_page = meta.get('page', 1)
+            total_records = meta.get('total', len(page_data))
+            
+            self.logger.info(f"  ✓ Página {current_page}/{total_pages}: {len(page_data)} {data_type} (Total acumulado: {len(all_data)}/{total_records})")
+            
+            if current_page >= total_pages:
+                break
+            
+            page += 1
+        
+        if all_data:
+            self.logger.info(f"  ✓ TOTAL: {len(all_data)} {data_type} obtenidos")
+        else:
+            self.logger.info(f"  ✗ No {data_type}")
+        
+        return all_data
 
     def _create_empty_report(self) -> bytes:
         """Create an empty report when no data is found"""
@@ -323,9 +312,9 @@ class DebugReportGenerator:
         """Create an error report"""
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Error Debug"
+        ws.title = "Error"
         
-        ws.cell(row=1, column=1, value="Error en generación debug")
+        ws.cell(row=1, column=1, value="Error en generación optimizada")
         ws.cell(row=2, column=1, value=error_message)
         ws.cell(row=3, column=1, value=f"API calls realizadas: {self.api_calls}")
         ws.cell(row=4, column=1, value=f"Tiempo transcurrido: {time.time() - self.start_time:.1f}s")

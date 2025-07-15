@@ -7,6 +7,7 @@ from services.simple_report_generator import SimpleReportGenerator
 from services.basic_report_generator import BasicReportGenerator
 from services.ultra_basic_report_generator import UltraBasicReportGenerator
 from services.debug_report_generator import DebugReportGenerator
+from services.optimized_report_generator import OptimizedReportGenerator
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -58,11 +59,11 @@ def generate_report():
                 flash('Fecha de fin inválida', 'error')
                 return redirect(url_for('main.index'))
 
-        # Use DEBUG report generator to see exactly what's happening
+        # Use OPTIMIZED report generator with complete pagination
         try:
-            logger.info(f"Starting DEBUG report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}")
-            debug_generator = DebugReportGenerator()
-            report_data = debug_generator.generate_debug_report(
+            logger.info(f"Starting OPTIMIZED report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}")
+            optimized_generator = OptimizedReportGenerator()
+            report_data = optimized_generator.generate_optimized_report(
                 from_date=from_date,
                 to_date=to_date,
                 employee_id=employee_id,
@@ -70,10 +71,10 @@ def generate_report():
                 department_id=department_id,
                 report_type=report_type
             )
-            logger.info("DEBUG report generation completed successfully")
-        except Exception as debug_error:
-            logger.error(f"DEBUG report generator failed: {str(debug_error)}")
-            flash(f'Error en generador DEBUG: {str(debug_error)}', 'error')
+            logger.info("OPTIMIZED report generation completed successfully")
+        except Exception as optimized_error:
+            logger.error(f"OPTIMIZED report generator failed: {str(optimized_error)}")
+            flash(f'Error en generador OPTIMIZADO: {str(optimized_error)}', 'error')
             return redirect(url_for('main.index'))
         
         if report_data:
