@@ -15,12 +15,12 @@ class NoBreaksReportGenerator:
     def generate_report(self, from_date: str = None, to_date: str = None, 
                        employee_id: str = None, office_id: str = None, 
                        department_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
-        """Generate report without work-breaks calls - using same logic as preview"""
+        """Generate report with only work entries - no employee data processing"""
         
         try:
-            self.logger.info("=== GENERANDO REPORTE SIN WORK-BREAKS ===")
+            self.logger.info("=== GENERANDO REPORTE SOLO CON FICHAJES ===")
             
-            # Get work entries data directly - this is the main data source (same as preview)
+            # Get work entries data directly - this is the ONLY data source
             self.logger.info("Fetching work entries data directly")
             all_work_entries = self.sesame_api.get_all_time_tracking_data(
                 employee_id=employee_id,
@@ -31,7 +31,7 @@ class NoBreaksReportGenerator:
             if not all_work_entries:
                 return self._create_empty_report()
 
-            # Get check types for activity name resolution (same as preview)
+            # Get check types for activity name resolution
             check_types_data = self.sesame_api.get_all_check_types_data()
             check_types_map = {}
             if check_types_data:
@@ -39,14 +39,14 @@ class NoBreaksReportGenerator:
                     check_types_map[check_type.get('id')] = check_type.get(
                         'name', 'Actividad no especificada')
 
-            self.logger.info(f"Processing {len(all_work_entries)} work entries for report")
+            self.logger.info(f"Processing {len(all_work_entries)} fichajes for report")
             self.logger.info(f"Loaded {len(check_types_map)} check types")
             
             # Step 3: Create Excel report
             self.logger.info("Generando archivo Excel...")
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "Reporte Sin Breaks"
+            ws.title = "Reporte Fichajes"
             
             # Headers (same as preview)
             headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
@@ -57,16 +57,16 @@ class NoBreaksReportGenerator:
             
             current_row = 2
             
-            # Process work entries directly (same logic as preview but without 10 record limit)
+            # Process work entries directly (fichajes only)
             for entry in all_work_entries:
-                # Get employee info from the work entry (same as preview)
+                # Get employee info from the work entry
                 employee_info = entry.get('employee', {})
                 employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
                 
                 if not employee_name:
                     employee_name = "Empleado desconocido"
 
-                # Extract employee identification (same as preview)
+                # Extract employee identification
                 employee_nid = employee_info.get('nid', 'No disponible')
                 employee_id_type = employee_info.get('identityNumberType', 'DNI')
 

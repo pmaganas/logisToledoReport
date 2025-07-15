@@ -139,8 +139,8 @@ def preview_report():
         from services.sesame_api import SesameAPI
         api = SesameAPI()
 
-        # Get work entries data directly - this is the main data source
-        logger.info("Fetching work entries data directly")
+        # Get work entries data directly - this is the ONLY data source
+        logger.info("Fetching work entries data directly - NO employee processing")
         all_work_entries = api.get_all_time_tracking_data(
             employee_id=employee_id,
             from_date=from_date,
@@ -150,7 +150,7 @@ def preview_report():
         if not all_work_entries:
             return jsonify({
                 "status": "success",
-                "message": "No se encontraron entradas de trabajo para el rango de fechas especificado",
+                "message": "No se encontraron fichajes para el rango de fechas especificado",
                 "data": [],
                 "headers": []
             })
@@ -172,7 +172,7 @@ def preview_report():
             "Entrada", "Salida", "Tiempo Registrado"
         ]
 
-        logger.info(f"Processing {len(all_work_entries)} work entries for preview")
+        logger.info(f"Processing {len(all_work_entries)} fichajes for preview")
         logger.info(f"Loaded {len(check_types_map)} check types")
 
         # Process work entries directly - limited to 10 records for fast loading
@@ -257,12 +257,12 @@ def preview_report():
 
         return jsonify({
             "status": "success",
-            "message": f"Vista previa: {len(preview_data)} registros (limitada a 10 líneas) de {len(all_work_entries)} entradas de trabajo totales",
+            "message": f"Vista previa: {len(preview_data)} registros (limitada a 10 líneas) de {len(all_work_entries)} fichajes totales",
             "data": preview_data,
             "headers": headers,
             "total_entries": len(all_work_entries),
             "preview_records": len(preview_data),
-            "note": "Esta es una vista previa limitada. El informe completo tendrá todos los registros de todas las entradas de trabajo."
+            "note": "Esta es una vista previa limitada. El informe completo tendrá todos los registros de fichajes."
         })
 
     except Exception as e:
@@ -516,118 +516,3 @@ def get_current_token():
         }), 500
 
 
-@main_bp.route('/get-employees')
-def get_employees():
-    """Get list of employees for dropdown"""
-    try:
-        from services.sesame_api import SesameAPI
-        api = SesameAPI()
-
-        # Get employees with better error handling - limit to reasonable amount for dropdown
-        employee_list = []
-        page = 1
-        max_pages = 50  # Increased limit to load more employees
-
-        while page <= max_pages:
-            try:
-                logger.info(f"Loading employees page {page}...")
-                response = api.get_employees(page=page, per_page=100)
-                if not response or not response.get("data"):
-                    logger.warning(f"No data received for page {page}")
-                    break
-
-                employees = response["data"]
-                if isinstance(employees, list):
-                    page_count = len(employees)
-                    for employee in employees:
-                        employee_list.append({
-                            'id':
-                            employee.get('id'),
-                            'name':
-                            f"{employee.get('firstName', '')} {employee.get('lastName', '')}"
-                            .strip()
-                        })
-                    logger.info(
-                        f"Page {page}: Added {page_count} employees, total: {len(employee_list)}"
-                    )
-
-                # Check if there are more pages
-                meta = response.get("meta", {})
-                current_page = meta.get("currentPage", page)
-                last_page = meta.get("lastPage", 1)
-                total_items = meta.get("total", 0)
-
-                logger.info(
-                    f"Pagination info - Current: {current_page}, Last: {last_page}, Total items: {total_items}"
-                )
-
-                if page >= last_page:
-                    logger.info(f"Reached last page ({last_page}), stopping")
-                    break
-
-                page += 1
-
-            except Exception as e:
-                logger.error(f"Error fetching employees page {page}: {str(e)}")
-                # Continue with what we have so far
-                break
-
-        logger.info(
-            f"Successfully loaded {len(employee_list)} employees for dropdown")
-
-        return jsonify({"status": "success", "employees": employee_list})
-
-    except Exception as e:
-        logger.error(f"Error getting employees: {str(e)}")
-        return jsonify({
-            "status": "error",
-            "message": f"Error cargando empleados: {str(e)}"
-        }), 500
-
-
-@main_bp.route('/get-offices')
-def get_offices():
-    """Get list of offices/centers for dropdown"""
-    try:
-        report_generator = ReportGenerator()
-        offices = report_generator.sesame_api.get_all_offices_data()
-
-        office_list = []
-        for office in offices:
-            office_list.append({
-                'id': office.get('id'),
-                'name': office.get('name', 'Centro sin nombre')
-            })
-
-        return jsonify({"status": "success", "offices": office_list})
-    except Exception as e:
-        logger.error(f"Error getting offices: {str(e)}")
-        return jsonify({
-            "status": "error",
-            "message": f"Error getting offices: {str(e)}"
-        }), 500
-
-
-@main_bp.route('/get-departments')
-def get_departments():
-    """Get list of departments for dropdown"""
-    try:
-        report_generator = ReportGenerator()
-        departments = report_generator.sesame_api.get_all_departments_data()
-
-        department_list = []
-        for department in departments:
-            department_list.append({
-                'id':
-                department.get('id'),
-                'name':
-                department.get('name', 'Departamento sin nombre')
-            })
-
-        return jsonify({"status": "success", "departments": department_list})
-    except Exception as e:
-        logger.error(f"Error getting departments: {str(e)}")
-        return jsonify({
-            "status": "error",
-            "message": f"Error getting departments: {str(e)}"
-        }), 500

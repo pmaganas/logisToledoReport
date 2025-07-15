@@ -712,46 +712,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-    // Load offices
+    // Funciones de carga de oficinas y departamentos eliminadas - solo trabajamos con fichajes
     function loadOffices() {
-        fetch('/get-offices')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const officeCount = data.offices.length;
-                    officeSelect.innerHTML = `<option value="">Todos los centros (${officeCount})</option>`;
-                    data.offices.forEach(office => {
-                        const option = document.createElement('option');
-                        option.value = office.id;
-                        option.textContent = office.name;
-                        officeSelect.appendChild(option);
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error loading offices:', error);
-            });
+        // Disabled - only work with fichajes
+        officeSelect.innerHTML = `<option value="">Filtros de oficina deshabilitados</option>`;
+        officeSelect.disabled = true;
     }
 
-    // Load departments
     function loadDepartments() {
-        fetch('/get-departments')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const departmentCount = data.departments.length;
-                    departmentSelect.innerHTML = `<option value="">Todos los departamentos (${departmentCount})</option>`;
-                    data.departments.forEach(department => {
-                        const option = document.createElement('option');
-                        option.value = department.id;
-                        option.textContent = department.name;
-                        departmentSelect.appendChild(option);
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error loading departments:', error);
-            });
+        // Disabled - only work with fichajes
+        departmentSelect.innerHTML = `<option value="">Filtros de departamento deshabilitados</option>`;
+        departmentSelect.disabled = true;
     }
 
     // Preview button functionality
