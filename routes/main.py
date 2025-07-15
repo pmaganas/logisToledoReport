@@ -6,6 +6,7 @@ from services.report_generator import ReportGenerator
 from services.simple_report_generator import SimpleReportGenerator
 from services.basic_report_generator import BasicReportGenerator
 from services.ultra_basic_report_generator import UltraBasicReportGenerator
+from services.debug_report_generator import DebugReportGenerator
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -57,14 +58,11 @@ def generate_report():
                 flash('Fecha de fin inválida', 'error')
                 return redirect(url_for('main.index'))
 
-        # Generate report with fallback mechanism
-        report_data = None
-        
-        # First attempt: Use SimpleReportGenerator
+        # Use DEBUG report generator to see exactly what's happening
         try:
-            logger.info(f"Starting simplified report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}")
-            simple_generator = SimpleReportGenerator()
-            report_data = simple_generator.generate_simple_report(
+            logger.info(f"Starting DEBUG report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}")
+            debug_generator = DebugReportGenerator()
+            report_data = debug_generator.generate_debug_report(
                 from_date=from_date,
                 to_date=to_date,
                 employee_id=employee_id,
@@ -72,43 +70,11 @@ def generate_report():
                 department_id=department_id,
                 report_type=report_type
             )
-            logger.info("Simplified report generation completed successfully")
-        except Exception as simple_error:
-            logger.warning(f"SimpleReportGenerator failed: {str(simple_error)}")
-            
-            # Second attempt: Use BasicReportGenerator as fallback
-            try:
-                logger.info("Attempting to generate basic report as fallback...")
-                basic_generator = BasicReportGenerator()
-                report_data = basic_generator.generate_basic_report(
-                    from_date=from_date,
-                    to_date=to_date,
-                    employee_id=employee_id,
-                    office_id=office_id,
-                    department_id=department_id,
-                    report_type=report_type
-                )
-                logger.info("Basic report generation completed successfully")
-            except Exception as basic_error:
-                logger.warning(f"BasicReportGenerator also failed: {str(basic_error)}")
-                
-                # Third attempt: Use UltraBasicReportGenerator as last resort
-                try:
-                    logger.info("Attempting to generate ultra-basic report as last resort...")
-                    ultra_basic_generator = UltraBasicReportGenerator()
-                    report_data = ultra_basic_generator.generate_ultra_basic_report(
-                        from_date=from_date,
-                        to_date=to_date,
-                        employee_id=employee_id,
-                        office_id=office_id,
-                        department_id=department_id,
-                        report_type=report_type
-                    )
-                    logger.info("Ultra-basic report generation completed successfully")
-                except Exception as ultra_error:
-                    logger.error(f"All three report generators failed. Simple: {str(simple_error)}, Basic: {str(basic_error)}, Ultra: {str(ultra_error)}")
-                    flash(f'Error crítico al generar el reporte. Problema SSL persistente: {str(ultra_error)}', 'error')
-                    return redirect(url_for('main.index'))
+            logger.info("DEBUG report generation completed successfully")
+        except Exception as debug_error:
+            logger.error(f"DEBUG report generator failed: {str(debug_error)}")
+            flash(f'Error en generador DEBUG: {str(debug_error)}', 'error')
+            return redirect(url_for('main.index'))
         
         if report_data:
             # Create filename with timestamp
