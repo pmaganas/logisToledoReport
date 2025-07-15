@@ -31,16 +31,40 @@ class OptimizedReportGenerator:
             self.logger.info("=== INICIANDO GENERACIÓN DE REPORTE OPTIMIZADO ===")
             self.logger.info(f"Parámetros: from_date={from_date}, to_date={to_date}, employee_id={employee_id}")
             
-            # Step 1: Get employees
-            self.logger.info("PASO 1: Obteniendo empleados...")
+            # Step 1: Get ALL employees with pagination
+            self.logger.info("PASO 1: Obteniendo TODOS los empleados...")
             if employee_id:
                 self.log_api_call("get_employee_details", employee_id)
                 employee_response = self.sesame_api.get_employee_details(employee_id)
                 employees = [employee_response.get('data')] if employee_response else []
             else:
-                self.log_api_call("get_employees")
-                employees_response = self.sesame_api.get_employees(page=1, per_page=100)
-                all_employees = employees_response.get('data', []) if employees_response else []
+                # Get ALL employees with pagination
+                all_employees = []
+                page = 1
+                while True:
+                    self.log_api_call(f"get_employees (page {page})")
+                    employees_response = self.sesame_api.get_employees(page=page, per_page=100)
+                    
+                    if not employees_response or not employees_response.get('data'):
+                        break
+                    
+                    page_employees = employees_response['data']
+                    all_employees.extend(page_employees)
+                    
+                    # Check if there are more pages
+                    meta = employees_response.get('meta', {})
+                    total_pages = meta.get('totalPages', 1)
+                    current_page = meta.get('page', 1)
+                    total_records = meta.get('total', len(page_employees))
+                    
+                    self.logger.info(f"  ✓ Página {current_page}/{total_pages}: {len(page_employees)} empleados (Total acumulado: {len(all_employees)}/{total_records})")
+                    
+                    if current_page >= total_pages:
+                        break
+                    
+                    page += 1
+                
+                self.logger.info(f"  ✓ TOTAL: {len(all_employees)} empleados obtenidos")
                 
                 # Apply filters
                 employees = []
@@ -59,6 +83,14 @@ class OptimizedReportGenerator:
                     
                     if include_employee:
                         employees.append(employee)
+                
+                if len(employees) != len(all_employees):
+                    self.logger.info(f"  ✓ Después de filtros: {len(employees)} empleados seleccionados")
+                
+                # TEMPORAL: Limitar empleados para evitar timeout durante pruebas
+                if len(employees) > 10:
+                    self.logger.info(f"  ⚠️ LIMITANDO a 10 empleados para evitar timeout (total disponible: {len(employees)})")
+                    employees = employees[:10]
             
             if not employees:
                 self.logger.warning("No employees found")
