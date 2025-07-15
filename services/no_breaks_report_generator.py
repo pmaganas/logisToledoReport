@@ -21,7 +21,9 @@ class NoBreaksReportGenerator:
             self.logger.info("=== GENERANDO REPORTE SOLO CON FICHAJES ===")
             
             # Get ALL work entries with complete pagination
-            self.logger.info("Fetching ALL work entries with complete pagination...")
+            self.logger.info("=== INICIANDO FETCH DE TODOS LOS REGISTROS ===")
+            self.logger.info(f"Parámetros: employee_id={employee_id}, from_date={from_date}, to_date={to_date}")
+            
             all_work_entries = self.sesame_api.get_all_time_tracking_data(
                 employee_id=employee_id,
                 from_date=from_date,
@@ -29,7 +31,10 @@ class NoBreaksReportGenerator:
             )
             
             if all_work_entries:
-                self.logger.info(f"Got {len(all_work_entries)} total entries from all pages")
+                self.logger.info(f"=== COMPLETADO: {len(all_work_entries)} registros obtenidos ===")
+            else:
+                self.logger.warning("=== NO SE OBTUVIERON REGISTROS ===")
+                return self._create_empty_report()
 
             if not all_work_entries:
                 return self._create_empty_report()
