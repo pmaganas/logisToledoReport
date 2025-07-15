@@ -15,47 +15,32 @@ class NoBreaksReportGenerator:
     def generate_report(self, from_date: str = None, to_date: str = None, 
                        employee_id: str = None, office_id: str = None, 
                        department_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
-        """Generate report without work-breaks calls"""
+        """Generate report without work-breaks calls - using same logic as preview"""
         
         try:
             self.logger.info("=== GENERANDO REPORTE SIN WORK-BREAKS ===")
             
-            # Step 1: Get employees
-            if employee_id:
-                employee_response = self.sesame_api.get_employee_details(employee_id)
-                employees = [employee_response.get('data')] if employee_response else []
-            else:
-                employees_response = self.sesame_api.get_employees(page=1, per_page=100)
-                employees = employees_response.get('data', []) if employees_response else []
-                
-                # Apply filters
-                if office_id:
-                    employees = [emp for emp in employees if emp.get('office', {}).get('id') == office_id]
-                if department_id:
-                    employees = [emp for emp in employees if emp.get('department', {}).get('id') == department_id]
-            
-            if not employees:
+            # Get work entries data directly - this is the main data source (same as preview)
+            self.logger.info("Fetching work entries data directly")
+            all_work_entries = self.sesame_api.get_all_time_tracking_data(
+                employee_id=employee_id,
+                from_date=from_date,
+                to_date=to_date
+            )
+
+            if not all_work_entries:
                 return self._create_empty_report()
-            
-            # Step 2: Get work entries only (no breaks)
-            all_employee_data = {}
-            for employee in employees:
-                emp_id = employee.get('id')
-                emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
-                
-                self.logger.info(f"Procesando empleado: {emp_name}")
-                
-                # Get time entries only
-                time_entries = self.sesame_api.get_all_time_tracking_data(
-                    employee_id=emp_id,
-                    from_date=from_date,
-                    to_date=to_date
-                )
-                
-                all_employee_data[emp_id] = {
-                    'employee': employee,
-                    'time_entries': time_entries or []
-                }
+
+            # Get check types for activity name resolution (same as preview)
+            check_types_data = self.sesame_api.get_all_check_types_data()
+            check_types_map = {}
+            if check_types_data:
+                for check_type in check_types_data:
+                    check_types_map[check_type.get('id')] = check_type.get(
+                        'name', 'Actividad no especificada')
+
+            self.logger.info(f"Processing {len(all_work_entries)} work entries for report")
+            self.logger.info(f"Loaded {len(check_types_map)} check types")
             
             # Step 3: Create Excel report
             self.logger.info("Generando archivo Excel...")
@@ -63,8 +48,8 @@ class NoBreaksReportGenerator:
             ws = wb.active
             ws.title = "Reporte Sin Breaks"
             
-            # Headers
-            headers = ["Empleado", "Tipo ID", "Número ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
+            # Headers (same as preview)
+            headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
             for col, header in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col, value=header)
                 cell.font = Font(bold=True)
@@ -72,70 +57,85 @@ class NoBreaksReportGenerator:
             
             current_row = 2
             
-            # Process employee data
-            for emp_id, data in all_employee_data.items():
-                employee = data['employee']
-                emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
-                identity_type, identity_number = self._get_employee_identification(employee)
+            # Process work entries directly (same logic as preview but without 10 record limit)
+            for entry in all_work_entries:
+                # Get employee info from the work entry (same as preview)
+                employee_info = entry.get('employee', {})
+                employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
                 
-                time_entries = data['time_entries']
-                
-                if time_entries:
-                    # Group by date
-                    entries_by_date = {}
-                    for entry in time_entries:
-                        work_in = entry.get('workEntryIn', {}) if entry.get('workEntryIn') else {}
-                        if work_in and work_in.get('date'):
-                            try:
-                                parsed_date = self._parse_datetime(work_in.get('date'))
-                                if parsed_date:
-                                    date_key = parsed_date.strftime('%Y-%m-%d')
-                                    if date_key not in entries_by_date:
-                                        entries_by_date[date_key] = []
-                                    entries_by_date[date_key].append(entry)
-                            except Exception:
-                                continue
-                    
-                    # Process each date
-                    for date_key in sorted(entries_by_date.keys()):
-                        date_entries = entries_by_date[date_key]
+                if not employee_name:
+                    employee_name = "Empleado desconocido"
+
+                # Extract employee identification (same as preview)
+                employee_nid = employee_info.get('nid', 'No disponible')
+                employee_id_type = employee_info.get('identityNumberType', 'DNI')
+
+                # Extract date from workEntryIn.date (same as preview)
+                entry_date = "No disponible"
+                if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                    try:
+                        entry_datetime = datetime.fromisoformat(
+                            entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                        entry_date = entry_datetime.strftime('%Y-%m-%d')
+                    except Exception as e:
+                        self.logger.error(f"Error parsing entry date: {e}")
+                        entry_date = "Error en fecha"
+
+                # Get activity name from workCheckTypeId using check types mapping (same as preview)
+                activity_name = "Actividad no especificada"
+                work_check_type_id = entry.get('workCheckTypeId')
+                if work_check_type_id and work_check_type_id in check_types_map:
+                    activity_name = check_types_map[work_check_type_id]
+                elif entry.get('workEntryType'):
+                    activity_name = entry.get('workEntryType', 'Actividad no especificada')
+
+                # Group name left empty as requested (same as preview)
+                group_name = ""
+
+                # Extract times from workEntryIn and workEntryOut (same as preview)
+                start_time = "No disponible"
+                end_time = "No disponible"
+
+                if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                    try:
+                        start_datetime = datetime.fromisoformat(
+                            entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                        start_time = start_datetime.strftime('%H:%M:%S')
+                    except Exception as e:
+                        self.logger.error(f"Error parsing start time: {e}")
+                        start_time = "Error en hora"
+
+                if entry.get('workEntryOut') and entry['workEntryOut'].get('date'):
+                    try:
+                        end_datetime = datetime.fromisoformat(
+                            entry['workEntryOut']['date'].replace('Z', '+00:00'))
+                        end_time = end_datetime.strftime('%H:%M:%S')
+                    except Exception as e:
+                        self.logger.error(f"Error parsing end time: {e}")
+                        end_time = "Error en hora"
+
+                # Calculate duration (same as preview)
+                final_duration = "No disponible"
+                if entry.get('workedSeconds') is not None:
+                    try:
+                        worked_seconds = entry['workedSeconds']
+                        final_duration = self._format_duration(timedelta(seconds=worked_seconds))
+                    except Exception as e:
+                        self.logger.error(f"Error calculating duration: {e}")
+                        final_duration = "Error en duración"
                         
-                        for entry in date_entries:
-                            work_in = entry.get('workEntryIn', {}) if entry.get('workEntryIn') else {}
-                            work_out = entry.get('workEntryOut', {}) if entry.get('workEntryOut') else {}
-                            
-                            start_time = self._parse_datetime(work_in.get('date')) if work_in else None
-                            end_time = self._parse_datetime(work_out.get('date')) if work_out else None
-                            
-                            # Skip entries without start time
-                            if not start_time:
-                                continue
-                            
-                            # Calculate duration
-                            duration_str = "00:00:00"
-                            end_time_str = "--"
-                            
-                            if start_time and end_time:
-                                duration = end_time - start_time
-                                entry_seconds = duration.total_seconds()
-                                hours = int(entry_seconds // 3600)
-                                minutes = int((entry_seconds % 3600) // 60)
-                                seconds = int(entry_seconds % 60)
-                                duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-                                end_time_str = end_time.strftime("%H:%M:%S")
-                            
-                            # Write to Excel
-                            ws.cell(row=current_row, column=1, value=emp_name)
-                            ws.cell(row=current_row, column=2, value=identity_type)
-                            ws.cell(row=current_row, column=3, value=identity_number)
-                            ws.cell(row=current_row, column=4, value=date_key)
-                            ws.cell(row=current_row, column=5, value=entry.get('workEntryType', 'No especificado'))
-                            ws.cell(row=current_row, column=6, value="")  # Group - empty
-                            ws.cell(row=current_row, column=7, value=start_time.strftime("%H:%M:%S"))
-                            ws.cell(row=current_row, column=8, value=end_time_str)
-                            ws.cell(row=current_row, column=9, value=duration_str)
-                            
-                            current_row += 1
+                # Write to Excel
+                ws.cell(row=current_row, column=1, value=employee_name)
+                ws.cell(row=current_row, column=2, value=employee_id_type)
+                ws.cell(row=current_row, column=3, value=employee_nid)
+                ws.cell(row=current_row, column=4, value=entry_date)
+                ws.cell(row=current_row, column=5, value=activity_name)
+                ws.cell(row=current_row, column=6, value=group_name)
+                ws.cell(row=current_row, column=7, value=start_time)
+                ws.cell(row=current_row, column=8, value=end_time)
+                ws.cell(row=current_row, column=9, value=final_duration)
+                
+                current_row += 1
             
             # Save to BytesIO
             output = BytesIO()
@@ -195,3 +195,16 @@ class NoBreaksReportGenerator:
         identification_number = employee.get('nid', employee.get('id', 'No disponible'))
         
         return identification_type, identification_number
+
+    def _format_duration(self, duration):
+        """Format duration as HH:MM:SS - same as preview"""
+        if isinstance(duration, timedelta):
+            total_seconds = int(duration.total_seconds())
+        else:
+            total_seconds = int(duration)
+
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
