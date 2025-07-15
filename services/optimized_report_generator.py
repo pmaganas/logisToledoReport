@@ -30,7 +30,6 @@ class OptimizedReportGenerator:
         metrics = {
             'employees': {'total': 0, 'filtered': 0, 'pages': 0},
             'time_entries': {'total': 0, 'pages': 0},
-            'break_entries': {'total': 0, 'pages': 0},
             'api_calls': 0,
             'estimated_time': 0
         }
@@ -104,9 +103,7 @@ class OptimizedReportGenerator:
                 # Sample first 3 employees to estimate
                 sample_employees = employees[:3]
                 total_time_entries = 0
-                total_break_entries = 0
                 total_time_pages = 0
-                total_break_pages = 0
                 
                 for employee in sample_employees:
                     emp_id = employee.get('id')
@@ -143,47 +140,14 @@ class OptimizedReportGenerator:
                     total_time_entries += employee_time_entries
                     total_time_pages += (page - 1)
                     
-                    # Get break entries for this employee
-                    page = 1
-                    employee_break_entries = 0
-                    while True:
-                        self.log_api_call(f"get_break_entries (page {page})", emp_name)
-                        break_response = self.sesame_api.get_breaks(
-                            employee_id=emp_id,
-                            from_date=from_date,
-                            to_date=to_date,
-                            page=page,
-                            limit=100
-                        )
-                        
-                        if not break_response or not break_response.get('data'):
-                            break
-                        
-                        page_data = break_response['data']
-                        employee_break_entries += len(page_data)
-                        
-                        meta = break_response.get('meta', {})
-                        total_pages = meta.get('totalPages', 1)
-                        current_page = meta.get('page', 1)
-                        
-                        if current_page >= total_pages:
-                            break
-                        
-                        page += 1
-                    
-                    total_break_entries += employee_break_entries
-                    total_break_pages += (page - 1)
+
                 
                 # Estimate for all employees
                 avg_time_entries = total_time_entries / len(sample_employees)
-                avg_break_entries = total_break_entries / len(sample_employees)
                 avg_time_pages = total_time_pages / len(sample_employees)
-                avg_break_pages = total_break_pages / len(sample_employees)
                 
                 metrics['time_entries']['total'] = int(avg_time_entries * metrics['employees']['filtered'])
-                metrics['break_entries']['total'] = int(avg_break_entries * metrics['employees']['filtered'])
                 metrics['time_entries']['pages'] = int(avg_time_pages * metrics['employees']['filtered'])
-                metrics['break_entries']['pages'] = int(avg_break_pages * metrics['employees']['filtered'])
             
             metrics['api_calls'] = self.api_calls
             metrics['estimated_time'] = int(time.time() - self.start_time)
@@ -191,7 +155,6 @@ class OptimizedReportGenerator:
             self.logger.info(f"=== MÉTRICAS COMPLETADAS ===")
             self.logger.info(f"Empleados: {metrics['employees']['filtered']}/{metrics['employees']['total']}")
             self.logger.info(f"Time entries estimados: {metrics['time_entries']['total']}")
-            self.logger.info(f"Break entries estimados: {metrics['break_entries']['total']}")
             self.logger.info(f"API calls realizadas: {metrics['api_calls']}")
             
             return metrics
@@ -306,20 +269,9 @@ class OptimizedReportGenerator:
                     employee_name=emp_name
                 )
                 
-                # Get ALL break entries with pagination  
-                break_entries = self._get_all_paginated_data(
-                    endpoint_func=self.sesame_api.get_breaks,
-                    employee_id=emp_id,
-                    from_date=from_date,
-                    to_date=to_date,
-                    data_type="break entries",
-                    employee_name=emp_name
-                )
-                
                 all_employee_data[emp_id] = {
                     'employee': employee,
-                    'time_entries': time_entries,
-                    'break_entries': break_entries
+                    'time_entries': time_entries
                 }
             
             # Step 4: Create Excel report

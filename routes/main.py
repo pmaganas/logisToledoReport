@@ -3,11 +3,7 @@ from datetime import datetime, timedelta
 import io
 import logging
 from services.report_generator import ReportGenerator
-from services.simple_report_generator import SimpleReportGenerator
-from services.basic_report_generator import BasicReportGenerator
-from services.ultra_basic_report_generator import UltraBasicReportGenerator
-from services.debug_report_generator import DebugReportGenerator
-from services.optimized_report_generator import OptimizedReportGenerator
+from services.no_breaks_report_generator import NoBreaksReportGenerator
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -62,24 +58,24 @@ def generate_report():
                 flash('Fecha de fin inválida', 'error')
                 return redirect(url_for('main.index'))
 
-        # Use OPTIMIZED report generator with complete pagination
+        # Use NO-BREAKS report generator without work-breaks API calls
         try:
             logger.info(
-                f"Starting OPTIMIZED report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}"
+                f"Starting NO-BREAKS report generation - Type: {report_type}, Employee: {employee_id}, Office: {office_id}, Department: {department_id}"
             )
-            optimized_generator = OptimizedReportGenerator()
-            report_data = optimized_generator.generate_optimized_report(
+            no_breaks_generator = NoBreaksReportGenerator()
+            report_data = no_breaks_generator.generate_report(
                 from_date=from_date,
                 to_date=to_date,
                 employee_id=employee_id,
                 office_id=office_id,
                 department_id=department_id,
                 report_type=report_type)
-            logger.info("OPTIMIZED report generation completed successfully")
-        except Exception as optimized_error:
+            logger.info("NO-BREAKS report generation completed successfully")
+        except Exception as no_breaks_error:
             logger.error(
-                f"OPTIMIZED report generator failed: {str(optimized_error)}")
-            flash(f'Error en generador OPTIMIZADO: {str(optimized_error)}',
+                f"NO-BREAKS report generator failed: {str(no_breaks_error)}")
+            flash(f'Error en generador NO-BREAKS: {str(no_breaks_error)}',
                   'error')
             return redirect(url_for('main.index'))
 
@@ -167,12 +163,7 @@ def preview_report():
                 check_types_map[check_type.get('id')] = check_type.get(
                     'name', 'Actividad no especificada')
 
-        # Get break data for time redistribution
-        all_break_data = api.get_all_breaks_data(
-            employee_id=employee_id,
-            from_date=from_date,
-            to_date=to_date
-        )
+        # No longer fetching break data as requested
 
         # Set up response structure
         preview_data = []
@@ -182,7 +173,6 @@ def preview_report():
         ]
 
         logger.info(f"Processing {len(all_work_entries)} work entries for preview")
-        logger.info(f"Processing {len(all_break_data)} break entries for redistribution")
         logger.info(f"Loaded {len(check_types_map)} check types")
 
         # Process work entries directly - limited to 10 records for fast loading
