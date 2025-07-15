@@ -156,7 +156,7 @@ class DebugReportGenerator:
                     # Group by date
                     entries_by_date = {}
                     for entry in time_entries:
-                        work_in = entry.get('workEntryIn', {})
+                        work_in = entry.get('workEntryIn', {}) if entry.get('workEntryIn') else {}
                         if work_in and work_in.get('date'):
                             try:
                                 parsed_date = self._parse_datetime(work_in.get('date'))
@@ -175,10 +175,10 @@ class DebugReportGenerator:
                         
                         for entry in date_entries:
                             work_in = entry.get('workEntryIn', {})
-                            work_out = entry.get('workEntryOut', {})
+                            work_out = entry.get('workEntryOut', {}) if entry.get('workEntryOut') else {}
                             
-                            start_time = self._parse_datetime(work_in.get('date'))
-                            end_time = self._parse_datetime(work_out.get('date'))
+                            start_time = self._parse_datetime(work_in.get('date')) if work_in else None
+                            end_time = self._parse_datetime(work_out.get('date')) if work_out else None
                             
                             # Calculate duration
                             duration_str = "00:00:00"
