@@ -22,6 +22,184 @@ class OptimizedReportGenerator:
         context = f" for {employee_name}" if employee_name else ""
         self.logger.info(f"API CALL #{self.api_calls}: {endpoint}{context} [Total time: {elapsed:.1f}s]")
 
+    def get_data_metrics(self, from_date: str = None, to_date: str = None, 
+                        employee_id: str = None, office_id: str = None, 
+                        department_id: str = None) -> Dict:
+        """Get data collection metrics without generating full report"""
+        
+        metrics = {
+            'employees': {'total': 0, 'filtered': 0, 'pages': 0},
+            'time_entries': {'total': 0, 'pages': 0},
+            'break_entries': {'total': 0, 'pages': 0},
+            'api_calls': 0,
+            'estimated_time': 0
+        }
+        
+        try:
+            self.logger.info("=== OBTENIENDO MÉTRICAS DE DATOS ===")
+            
+            # Step 1: Get ALL employees with pagination
+            self.logger.info("PASO 1: Contando empleados...")
+            if employee_id:
+                metrics['employees']['total'] = 1
+                metrics['employees']['filtered'] = 1
+                metrics['employees']['pages'] = 1
+                self.api_calls += 1
+            else:
+                # Get ALL employees with pagination
+                all_employees = []
+                page = 1
+                while True:
+                    self.log_api_call(f"get_employees (page {page})")
+                    employees_response = self.sesame_api.get_employees(page=page, per_page=100)
+                    
+                    if not employees_response or not employees_response.get('data'):
+                        break
+                    
+                    page_employees = employees_response['data']
+                    all_employees.extend(page_employees)
+                    
+                    meta = employees_response.get('meta', {})
+                    total_pages = meta.get('totalPages', 1)
+                    current_page = meta.get('page', 1)
+                    
+                    self.logger.info(f"  ✓ Página {current_page}/{total_pages}: {len(page_employees)} empleados")
+                    
+                    if current_page >= total_pages:
+                        break
+                    
+                    page += 1
+                
+                metrics['employees']['total'] = len(all_employees)
+                metrics['employees']['pages'] = page - 1
+                
+                # Apply filters
+                employees = []
+                for employee in all_employees:
+                    include_employee = True
+                    
+                    if office_id:
+                        employee_office_id = employee.get('office', {}).get('id') if employee.get('office') else None
+                        if employee_office_id != office_id:
+                            include_employee = False
+                    
+                    if department_id and include_employee:
+                        employee_department_id = employee.get('department', {}).get('id') if employee.get('department') else None
+                        if employee_department_id != department_id:
+                            include_employee = False
+                    
+                    if include_employee:
+                        employees.append(employee)
+                
+                metrics['employees']['filtered'] = len(employees)
+                
+                # Limit for testing
+                if len(employees) > 10:
+                    metrics['employees']['filtered'] = 10
+                    employees = employees[:10]
+            
+            # Step 2: Sample a few employees to estimate time entries and breaks
+            self.logger.info("PASO 2: Estimando registros de tiempo...")
+            if len(employees) > 0:
+                # Sample first 3 employees to estimate
+                sample_employees = employees[:3]
+                total_time_entries = 0
+                total_break_entries = 0
+                total_time_pages = 0
+                total_break_pages = 0
+                
+                for employee in sample_employees:
+                    emp_id = employee.get('id')
+                    emp_name = f"{employee.get('firstName', '')} {employee.get('lastName', '')}".strip()
+                    
+                    # Get time entries for this employee
+                    page = 1
+                    employee_time_entries = 0
+                    while True:
+                        self.log_api_call(f"get_time_entries (page {page})", emp_name)
+                        time_response = self.sesame_api.get_work_entries(
+                            employee_id=emp_id,
+                            from_date=from_date,
+                            to_date=to_date,
+                            page=page,
+                            limit=100
+                        )
+                        
+                        if not time_response or not time_response.get('data'):
+                            break
+                        
+                        page_data = time_response['data']
+                        employee_time_entries += len(page_data)
+                        
+                        meta = time_response.get('meta', {})
+                        total_pages = meta.get('totalPages', 1)
+                        current_page = meta.get('page', 1)
+                        
+                        if current_page >= total_pages:
+                            break
+                        
+                        page += 1
+                    
+                    total_time_entries += employee_time_entries
+                    total_time_pages += (page - 1)
+                    
+                    # Get break entries for this employee
+                    page = 1
+                    employee_break_entries = 0
+                    while True:
+                        self.log_api_call(f"get_break_entries (page {page})", emp_name)
+                        break_response = self.sesame_api.get_breaks(
+                            employee_id=emp_id,
+                            from_date=from_date,
+                            to_date=to_date,
+                            page=page,
+                            limit=100
+                        )
+                        
+                        if not break_response or not break_response.get('data'):
+                            break
+                        
+                        page_data = break_response['data']
+                        employee_break_entries += len(page_data)
+                        
+                        meta = break_response.get('meta', {})
+                        total_pages = meta.get('totalPages', 1)
+                        current_page = meta.get('page', 1)
+                        
+                        if current_page >= total_pages:
+                            break
+                        
+                        page += 1
+                    
+                    total_break_entries += employee_break_entries
+                    total_break_pages += (page - 1)
+                
+                # Estimate for all employees
+                avg_time_entries = total_time_entries / len(sample_employees)
+                avg_break_entries = total_break_entries / len(sample_employees)
+                avg_time_pages = total_time_pages / len(sample_employees)
+                avg_break_pages = total_break_pages / len(sample_employees)
+                
+                metrics['time_entries']['total'] = int(avg_time_entries * metrics['employees']['filtered'])
+                metrics['break_entries']['total'] = int(avg_break_entries * metrics['employees']['filtered'])
+                metrics['time_entries']['pages'] = int(avg_time_pages * metrics['employees']['filtered'])
+                metrics['break_entries']['pages'] = int(avg_break_pages * metrics['employees']['filtered'])
+            
+            metrics['api_calls'] = self.api_calls
+            metrics['estimated_time'] = int(time.time() - self.start_time)
+            
+            self.logger.info(f"=== MÉTRICAS COMPLETADAS ===")
+            self.logger.info(f"Empleados: {metrics['employees']['filtered']}/{metrics['employees']['total']}")
+            self.logger.info(f"Time entries estimados: {metrics['time_entries']['total']}")
+            self.logger.info(f"Break entries estimados: {metrics['break_entries']['total']}")
+            self.logger.info(f"API calls realizadas: {metrics['api_calls']}")
+            
+            return metrics
+            
+        except Exception as e:
+            self.logger.error(f"Error getting data metrics: {str(e)}")
+            return metrics
+
     def generate_optimized_report(self, from_date: str = None, to_date: str = None, 
                                  employee_id: str = None, office_id: str = None, 
                                  department_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:

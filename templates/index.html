@@ -255,6 +255,55 @@
     </div>
 </div>
 
+<!-- Confirmation Modal -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" id="confirmationModal">
+    <div class="bg-white rounded-xl p-6 max-w-lg w-full mx-4">
+        <div class="text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4">
+                <i class="ti ti-database text-indigo-600 text-xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Confirmar Generación de Reporte</h3>
+            <div class="text-left bg-gray-50 p-4 rounded-lg mb-6">
+                <h4 class="font-medium text-gray-900 mb-3">Resumen de datos a procesar:</h4>
+                <div class="space-y-2 text-sm text-gray-600">
+                    <div class="flex justify-between">
+                        <span>Empleados encontrados:</span>
+                        <span id="confirmEmployeesTotal">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Empleados a procesar:</span>
+                        <span id="confirmEmployeesFiltered">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Registros de tiempo estimados:</span>
+                        <span id="confirmTimeEntries">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Registros de descansos estimados:</span>
+                        <span id="confirmBreakEntries">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Páginas consultadas:</span>
+                        <span id="confirmPagesConsulted">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Llamadas API realizadas:</span>
+                        <span id="confirmApiCalls">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex space-x-4">
+                <button type="button" class="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors" onclick="closeConfirmationModal()">
+                    Cancelar
+                </button>
+                <button type="button" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors" onclick="proceedWithReport()">
+                    Generar Reporte
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Loading Modal -->
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" id="loadingModal">
     <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
@@ -370,6 +419,9 @@ document.addEventListener('DOMContentLoaded', function() {
         newTokenInput.focus();
     });
 
+    // Global variables for confirmation modal
+    let previewMetrics = null;
+    
     // Handle date range selection
     dateRangeSelect.addEventListener('change', function() {
         if (this.value === 'custom') {
@@ -771,45 +823,64 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingProgress.textContent = 'Iniciando...';
         progressBar.style.width = '10%';
 
-        // Make API call
-        fetch('/preview-report', {
+        // Get data metrics first
+        fetch('/preview-data', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: JSON.stringify(formData)
+            body: new URLSearchParams(formData)
         })
         .then(response => response.json())
         .then(data => {
             loadingModal.classList.add('hidden');
-            if (data.status === 'success') {
-                displayPreview(data);
+            
+            if (data.success) {
+                // Store metrics globally
+                previewMetrics = data.metrics;
+                
+                // Show confirmation modal with metrics
+                showConfirmationModal(data.metrics);
             } else {
-                // Show error message
-                connectionStatus.innerHTML = `
-                    <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
-                        <i class="ti ti-alert-circle text-red-600 mr-2"></i>
-                        <p class="text-sm text-red-800">Error en vista previa: ${data.message}</p>
-                    </div>
-                `;
+                alert('Error al obtener vista previa de datos: ' + data.error);
             }
         })
         .catch(error => {
             loadingModal.classList.add('hidden');
-            // Show error message
-            connectionStatus.innerHTML = `
-                <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
-                    <i class="ti ti-alert-circle text-red-600 mr-2"></i>
-                    <p class="text-sm text-red-800">Error al generar vista previa: ${error.message}</p>
-                </div>
-            `;
+            alert('Error al conectar con el servidor: ' + error.message);
         })
         .finally(() => {
             // Re-enable preview button
             previewBtn.disabled = false;
-            previewBtn.innerHTML = '<i class="ti ti-eye mr-2"></i>Vista Previa del Informe';
+            previewBtn.innerHTML = '<i class="ti ti-eye mr-2"></i>Vista Previa';
         });
     });
+
+    // Show confirmation modal with metrics
+    window.showConfirmationModal = function(metrics) {
+        document.getElementById('confirmEmployeesTotal').textContent = metrics.employees.total;
+        document.getElementById('confirmEmployeesFiltered').textContent = metrics.employees.filtered;
+        document.getElementById('confirmTimeEntries').textContent = metrics.time_entries.total;
+        document.getElementById('confirmBreakEntries').textContent = metrics.break_entries.total;
+        document.getElementById('confirmPagesConsulted').textContent = 
+            metrics.employees.pages + metrics.time_entries.pages + metrics.break_entries.pages;
+        document.getElementById('confirmApiCalls').textContent = metrics.api_calls;
+        
+        document.getElementById('confirmationModal').classList.remove('hidden');
+    }
+
+    // Close confirmation modal
+    window.closeConfirmationModal = function() {
+        document.getElementById('confirmationModal').classList.add('hidden');
+    }
+
+    // Proceed with report generation
+    window.proceedWithReport = function() {
+        closeConfirmationModal();
+        
+        // Submit the form to generate the report
+        reportForm.submit();
+    }
 
     // Display preview data in table
     function displayPreview(data) {
