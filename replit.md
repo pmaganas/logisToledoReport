@@ -154,4 +154,4 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced Navigation**: Added responsive navigation bar with mobile menu support for easy access to main features
 - **Report Limit Management**: Implemented automatic cleanup system maintaining maximum 10 reports, oldest files deleted automatically when limit exceeded
 - **Preview Functionality Removal**: Eliminated Vista Previa del Informe button and all related functionality including confirmation modal, preview table, and /preview-data endpoint - streamlined interface for direct report generation only
-- **Pause Time Redistribution**: Implemented automatic redistribution of pause entries - pause records are removed from final report and their time is added to adjacent work entries (preferably previous, then next) for cleaner reporting
+- **Pause Time Redistribution**: Implemented automatic redistribution of pause entries - pause records are removed from final report and gaps are eliminated by connecting adjacent work entries (previous entry extends to pause end, next entry starts at pause start) for seamless time tracking

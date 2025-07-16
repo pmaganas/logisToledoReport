@@ -167,33 +167,51 @@ class NoBreaksReportGenerator:
         return identification_type, identification_number
 
     def _redistribute_pause_time(self, entries: List[Dict]) -> List[Dict]:
-        """Redistribute pause time to adjacent work entries and remove pause entries"""
+        """Redistribute pause time by eliminating gaps and adjusting adjacent work entries"""
         if not entries:
             return entries
         
         processed_entries = []
+        i = 0
         
-        for i, entry in enumerate(entries):
+        while i < len(entries):
+            entry = entries[i]
             work_entry_type = entry.get('workEntryType', '')
             
             if work_entry_type == 'pause':
-                # This is a pause entry - redistribute its time
-                pause_duration = self._get_entry_duration_seconds(entry)
+                # This is a pause entry - adjust adjacent work entries to eliminate gap
+                pause_start = self._get_entry_start_time(entry)
+                pause_end = self._get_entry_end_time(entry)
                 
-                if pause_duration > 0:
-                    # Find the best entry to add this pause time to
-                    target_entry = self._find_target_entry_for_pause(entries, i)
+                if pause_start and pause_end:
+                    # Find previous work entry
+                    prev_entry = self._find_previous_work_entry(entries, i)
+                    # Find next work entry
+                    next_entry = self._find_next_work_entry(entries, i)
                     
-                    if target_entry:
-                        # Add pause time to the target entry
-                        self._add_pause_time_to_entry(target_entry, pause_duration)
-                        self.logger.info(f"Redistributed {pause_duration} seconds from pause to adjacent work entry")
+                    if prev_entry and next_entry:
+                        # Extend previous entry to end when pause starts
+                        # Move next entry to start when pause starts
+                        self._extend_entry_to_time(prev_entry, pause_end)
+                        self._move_entry_start_to_time(next_entry, pause_start)
+                        self.logger.info(f"Eliminated pause gap by connecting adjacent work entries")
+                    elif prev_entry:
+                        # Only previous entry exists - extend it by pause duration
+                        pause_duration = self._get_entry_duration_seconds(entry)
+                        self._extend_entry_by_duration(prev_entry, pause_duration)
+                        self.logger.info(f"Extended previous work entry by {pause_duration} seconds")
+                    elif next_entry:
+                        # Only next entry exists - move it to start when pause started
+                        self._move_entry_start_to_time(next_entry, pause_start)
+                        self.logger.info(f"Moved next work entry to eliminate pause gap")
                 
                 # Skip adding this pause entry to processed_entries
+                i += 1
                 continue
             else:
                 # This is a work entry - add it to processed entries
                 processed_entries.append(entry)
+                i += 1
         
         return processed_entries
 
@@ -215,40 +233,68 @@ class NoBreaksReportGenerator:
             self.logger.error(f"Error calculating entry duration: {e}")
             return 0
 
-    def _find_target_entry_for_pause(self, entries: List[Dict], pause_index: int) -> Optional[Dict]:
-        """Find the best entry to redistribute pause time to (preferably previous, then next)"""
-        # First try to find previous work entry
+    def _get_entry_start_time(self, entry: Dict) -> Optional[datetime]:
+        """Get the start time of an entry"""
+        try:
+            work_entry_in = entry.get('workEntryIn', {})
+            if work_entry_in.get('date'):
+                return datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
+        except Exception:
+            pass
+        return None
+
+    def _get_entry_end_time(self, entry: Dict) -> Optional[datetime]:
+        """Get the end time of an entry"""
+        try:
+            work_entry_out = entry.get('workEntryOut', {})
+            if work_entry_out.get('date'):
+                return datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
+        except Exception:
+            pass
+        return None
+
+    def _find_previous_work_entry(self, entries: List[Dict], pause_index: int) -> Optional[Dict]:
+        """Find the previous work entry before the pause"""
         for i in range(pause_index - 1, -1, -1):
             if entries[i].get('workEntryType', '') != 'pause':
                 return entries[i]
-        
-        # If no previous work entry found, look for next work entry
+        return None
+
+    def _find_next_work_entry(self, entries: List[Dict], pause_index: int) -> Optional[Dict]:
+        """Find the next work entry after the pause"""
         for i in range(pause_index + 1, len(entries)):
             if entries[i].get('workEntryType', '') != 'pause':
                 return entries[i]
-        
         return None
 
-    def _add_pause_time_to_entry(self, entry: Dict, pause_seconds: int):
-        """Add pause time to a work entry by extending its duration"""
+    def _extend_entry_to_time(self, entry: Dict, end_time: datetime):
+        """Extend a work entry to end at the specified time"""
         try:
             work_entry_out = entry.get('workEntryOut', {})
-            
-            if not work_entry_out.get('date'):
-                return
-            
-            # Parse the current out time
-            out_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
-            
-            # Add the pause duration
-            new_out_time = out_time + timedelta(seconds=pause_seconds)
-            
-            # Update the workEntryOut date
-            work_entry_out['date'] = new_out_time.isoformat().replace('+00:00', 'Z')
-            
-            self.logger.info(f"Extended work entry duration by {pause_seconds} seconds")
+            if work_entry_out:
+                work_entry_out['date'] = end_time.isoformat().replace('+00:00', 'Z')
         except Exception as e:
-            self.logger.error(f"Error adding pause time to entry: {e}")
+            self.logger.error(f"Error extending entry to time: {e}")
+
+    def _move_entry_start_to_time(self, entry: Dict, start_time: datetime):
+        """Move a work entry to start at the specified time"""
+        try:
+            work_entry_in = entry.get('workEntryIn', {})
+            if work_entry_in:
+                work_entry_in['date'] = start_time.isoformat().replace('+00:00', 'Z')
+        except Exception as e:
+            self.logger.error(f"Error moving entry start time: {e}")
+
+    def _extend_entry_by_duration(self, entry: Dict, duration_seconds: int):
+        """Extend a work entry by the specified duration"""
+        try:
+            work_entry_out = entry.get('workEntryOut', {})
+            if work_entry_out and work_entry_out.get('date'):
+                end_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
+                new_end_time = end_time + timedelta(seconds=duration_seconds)
+                work_entry_out['date'] = new_end_time.isoformat().replace('+00:00', 'Z')
+        except Exception as e:
+            self.logger.error(f"Error extending entry by duration: {e}")
 
     def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
         """Process entries grouped by employee and date, redistributing pause time"""
