@@ -387,7 +387,7 @@ class NoBreaksReportGenerator:
             # Add TOTAL row for this employee
             current_row = self._add_total_row(ws, group, daily_totals, total_worked_seconds, current_row)
             
-            # Add blank row between different employee/date groups
+            # Add blank row between different employees
             current_row += 1
         
         return current_row
@@ -465,12 +465,12 @@ class NoBreaksReportGenerator:
         }
     
     def _add_total_row(self, ws, group, daily_totals, total_worked_seconds, current_row):
-        """Add TOTAL row for employee/date combination"""
+        """Add TOTAL row for employee"""
         employee_info = group['employee_info']
         employee_name = group['employee_name']
         employee_nid = employee_info.get('nid', 'No disponible')
         employee_id_type = employee_info.get('identityNumberType', 'DNI')
-        entry_date = group['date']
+        entry_date = "TOTAL"  # Since we're not grouping by date anymore
         
         # Create summary of activity types
         activity_summary = []
