@@ -196,39 +196,18 @@ class NoBreaksReportGenerator:
                     prev_entry = self._find_previous_work_entry(entries, i)
                     next_entry = self._find_next_work_entry(entries, i)
                     
-                    if prev_entry and next_entry:
-                        # PRIORITY: Connect previous entry to next entry through the pause
+                    if prev_entry:
+                        # PRIORITY: Always try to extend previous entry to cover the pause
                         prev_start = self._get_entry_start_time(prev_entry)
                         prev_end = self._get_entry_end_time(prev_entry)
-                        next_start = self._get_entry_start_time(next_entry)
-                        next_end = self._get_entry_end_time(next_entry)
                         
-                        if prev_start and prev_end and next_start and next_end:
-                            # Extend previous entry to end where next entry ends (absorbing both pause and next entry)
-                            self._extend_entry_to_time(prev_entry, next_end)
-                            
-                            # Mark next entry to be skipped (it was merged into previous)
-                            next_entry['_skip'] = True
-                            
-                            self.logger.info(f"Unido registro anterior ({prev_start.strftime('%H:%M:%S')}) con siguiente ({next_end.strftime('%H:%M:%S')}), duración total: {prev_entry['workedSeconds']}s")
+                        if prev_start and prev_end:
+                            # Extend previous entry to end of pause
+                            self._extend_entry_to_time(prev_entry, pause_end)
+                            self.logger.info(f"Registro anterior extendido desde {prev_end.strftime('%H:%M:%S')} hasta {pause_end.strftime('%H:%M:%S')}")
                         else:
-                            self.logger.warning(f"No se pudo fusionar: prev_start={prev_start}, prev_end={prev_end}, next_start={next_start}, next_end={next_end}")
-                            # If next entry has no end time, just move it to start at pause start
-                            if next_start and not next_end:
-                                self._move_entry_start_to_time(next_entry, pause_start)
-                                self.logger.info(f"Siguiente registro sin hora fin movido de {next_start.strftime('%H:%M:%S')} a {pause_start.strftime('%H:%M:%S')}")
-                    elif next_entry:
-                        # Only next entry exists - move it to start when pause started
-                        next_old_start = self._get_entry_start_time(next_entry)
-                        self._move_entry_start_to_time(next_entry, pause_start)
-                        self.logger.info(f"Siguiente registro movido de {next_old_start.strftime('%H:%M:%S')} a {pause_start.strftime('%H:%M:%S')}")
-                    elif prev_entry:
-                        # Only previous entry exists - extend it to cover the pause
-                        self._extend_entry_to_time(prev_entry, pause_end)
-                        prev_start = self._get_entry_start_time(prev_entry)
-                        new_duration = pause_end - prev_start
-                        prev_entry['workedSeconds'] = int(new_duration.total_seconds())
-                        self.logger.info(f"Registro anterior extendido hasta {pause_end.strftime('%H:%M:%S')}")
+                            self.logger.warning(f"No se pudo extender registro anterior: prev_start={prev_start}, prev_end={prev_end}")
+
                     else:
                         self.logger.warning("No se encontró registro anterior ni siguiente para redistribuir pausa")
                 
