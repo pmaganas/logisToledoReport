@@ -20,18 +20,57 @@ class NoBreaksReportGenerator:
         try:
             self.logger.info("=== GENERANDO REPORTE SOLO CON FICHAJES ===")
             
-            # Get ALL work entries with complete pagination
-            self.logger.info("=== INICIANDO FETCH DE TODOS LOS REGISTROS ===")
+            # Get work entries with safe incremental loading
+            self.logger.info("=== INICIANDO FETCH INCREMENTAL DE REGISTROS ===")
             self.logger.info(f"Parámetros: employee_id={employee_id}, from_date={from_date}, to_date={to_date}")
             
-            all_work_entries = self.sesame_api.get_all_time_tracking_data(
-                employee_id=employee_id,
-                from_date=from_date,
-                to_date=to_date
-            )
+            all_work_entries = []
+            page = 1
+            max_safe_pages = 50  # Limite seguro para evitar SSL timeout
+            
+            while page <= max_safe_pages:
+                try:
+                    response = self.sesame_api.get_time_tracking(
+                        employee_id=employee_id,
+                        from_date=from_date,
+                        to_date=to_date,
+                        page=page,
+                        limit=100
+                    )
+                    
+                    if not response or not response.get('data'):
+                        self.logger.info(f"No más datos en página {page}, terminando")
+                        break
+                    
+                    entries = response['data']
+                    all_work_entries.extend(entries)
+                    self.logger.info(f"Página {page}: {len(entries)} registros, total: {len(all_work_entries)}")
+                    
+                    # Verificar si hay más páginas
+                    meta = response.get('meta', {})
+                    if page >= meta.get('lastPage', 1):
+                        self.logger.info(f"Llegamos a la última página ({meta.get('lastPage', 1)})")
+                        break
+                    
+                    # Si no hay suficientes registros, terminamos
+                    if len(entries) < 100:
+                        self.logger.info(f"Página {page} tiene menos de 100 registros, terminando")
+                        break
+                    
+                    page += 1
+                    
+                except Exception as e:
+                    self.logger.error(f"Error en página {page}: {str(e)}")
+                    if page == 1:
+                        # Si falla la primera página, es un error crítico
+                        raise e
+                    else:
+                        # Si falla una página posterior, continuamos con lo que tenemos
+                        self.logger.warning(f"Continuando con {len(all_work_entries)} registros obtenidos hasta página {page-1}")
+                        break
             
             if all_work_entries:
-                self.logger.info(f"=== COMPLETADO: {len(all_work_entries)} registros obtenidos ===")
+                self.logger.info(f"=== COMPLETADO: {len(all_work_entries)} registros obtenidos en {page-1} páginas ===")
             else:
                 self.logger.warning("=== NO SE OBTUVIERON REGISTROS ===")
                 return self._create_empty_report()
