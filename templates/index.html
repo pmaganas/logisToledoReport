@@ -4,6 +4,31 @@
 <div class="max-w-4xl mx-auto">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="p-6">
+            <!-- Background Report Status -->
+            {% if report_id %}
+            <div class="mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4" id="reportStatus">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="ti ti-loader animate-spin text-blue-600"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-blue-800">
+                            Generando reporte en segundo plano...
+                        </h3>
+                        <p class="text-sm text-blue-700 mt-1" id="statusMessage">
+                            Procesando datos de la API...
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-3 hidden" id="downloadSection">
+                    <a href="#" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" id="downloadLink">
+                        <i class="ti ti-download mr-2"></i>
+                        Descargar Reporte
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Connection Status -->
             <div class="mb-6">
                 <div class="flex flex-wrap gap-2 mb-3" id="connectionButtons">
@@ -146,31 +171,6 @@
                     </button>
                 </div>
             </form>
-
-            <!-- Background Report Status -->
-            {% if report_id %}
-            <div class="mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4" id="reportStatus">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <i class="ti ti-loader animate-spin text-blue-600"></i>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-blue-800">
-                            Generando reporte en segundo plano...
-                        </h3>
-                        <p class="text-sm text-blue-700 mt-1" id="statusMessage">
-                            Procesando datos de la API...
-                        </p>
-                    </div>
-                </div>
-                <div class="mt-3 hidden" id="downloadSection">
-                    <a href="#" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" id="downloadLink">
-                        <i class="ti ti-download mr-2"></i>
-                        Descargar Reporte
-                    </a>
-                </div>
-            </div>
-            {% endif %}
 
             <!-- Preview Table Container -->
             <div id="previewContainer" class="mb-6 hidden">
