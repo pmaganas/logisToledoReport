@@ -26,7 +26,7 @@ class NoBreaksReportGenerator:
             
             all_work_entries = []
             page = 1
-            max_safe_pages = 50  # Limite seguro para evitar SSL timeout
+            max_safe_pages = 100  # Limite aumentado para 10,000 registros
             
             while page <= max_safe_pages:
                 try:
