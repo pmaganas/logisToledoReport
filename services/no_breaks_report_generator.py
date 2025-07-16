@@ -167,7 +167,7 @@ class NoBreaksReportGenerator:
         return identification_type, identification_number
 
     def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
-        """Process entries grouped by employee and date with break elimination and totals"""
+        """Process entries grouped by employee and date showing ALL entries including breaks"""
         # Group entries by employee and date
         grouped_entries = {}
         
@@ -200,16 +200,11 @@ class NoBreaksReportGenerator:
                     'employee_id': employee_id,
                     'employee_info': employee_info,
                     'date': entry_date,
-                    'work_entries': [],
-                    'pause_entries': []
+                    'all_entries': []
                 }
             
-            # Classify entries as work or pause
-            work_entry_type = entry.get('workEntryType', '').lower()
-            if work_entry_type == 'pause':
-                grouped_entries[group_key]['pause_entries'].append(entry)
-            else:
-                grouped_entries[group_key]['work_entries'].append(entry)
+            # Add ALL entries (work, pause, everything)
+            grouped_entries[group_key]['all_entries'].append(entry)
         
         # Sort groups by employee name and date
         sorted_groups = sorted(grouped_entries.values(), 
@@ -217,26 +212,16 @@ class NoBreaksReportGenerator:
         
         # Process each group
         for group in sorted_groups:
-            work_entries = group['work_entries']
-            pause_entries = group['pause_entries']
+            all_entries = group['all_entries']
             
-            # Sort work entries by start time
-            work_entries.sort(key=lambda x: x.get('workEntryIn', {}).get('date', ''))
+            # Sort all entries by start time
+            all_entries.sort(key=lambda x: x.get('workEntryIn', {}).get('date', ''))
             
-            # Calculate total pause time
-            total_pause_seconds = 0
-            for pause_entry in pause_entries:
-                if pause_entry.get('workedSeconds') is not None:
-                    total_pause_seconds += pause_entry['workedSeconds']
-            
-            # Redistribute pause time to work entries
-            processed_work_entries = self._redistribute_pause_time(work_entries, total_pause_seconds)
-            
-            # Write work entries to Excel
+            # Write ALL entries to Excel (work, pause, everything)
             daily_totals = {}
             total_worked_seconds = 0
             
-            for entry in processed_work_entries:
+            for entry in all_entries:
                 row_data = self._extract_entry_data(entry, group['employee_info'], group['date'], check_types_map)
                 
                 # Write to Excel
@@ -268,27 +253,6 @@ class NoBreaksReportGenerator:
             current_row += 1
         
         return current_row
-    
-    def _redistribute_pause_time(self, work_entries, total_pause_seconds):
-        """Redistribute pause time among work entries"""
-        if not work_entries or total_pause_seconds <= 0:
-            return work_entries
-        
-        # Distribute pause time evenly among work entries
-        pause_per_entry = total_pause_seconds / len(work_entries)
-        
-        processed_entries = []
-        for entry in work_entries:
-            # Create a copy to avoid modifying original
-            processed_entry = entry.copy()
-            
-            # Add pause time to worked seconds
-            original_worked_seconds = entry.get('workedSeconds', 0)
-            processed_entry['workedSeconds'] = original_worked_seconds + pause_per_entry
-            
-            processed_entries.append(processed_entry)
-        
-        return processed_entries
     
     def _extract_entry_data(self, entry, employee_info, entry_date, check_types_map):
         """Extract data from a work entry for Excel output"""

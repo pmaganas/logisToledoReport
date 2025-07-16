@@ -142,3 +142,5 @@ Preferred communication style: Simple, everyday language.
 - **Consolidated Main Route**: Eliminated separate /generate-report endpoint - all functionality now handled in main route
 - **Thread-Based Processing**: Background reports use threading to prevent SSL timeout blocking the UI
 - **Real-Time Status Updates**: JavaScript polling system checks report status every 1-2 seconds with visual feedback
+- **Date Range Calculation Fix**: Fixed timezone issues with current_month calculation using manual date formatting instead of toISOString()
+- **Show All Entries**: Reverted break elimination logic - now shows ALL entries including breaks/pauses without redistribution
