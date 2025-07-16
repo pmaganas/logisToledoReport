@@ -249,14 +249,8 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    // Remove the row from the table
-                    reportRow.remove();
-                    
-                    // Check if there are no more reports
-                    const tbody = document.querySelector('tbody');
-                    if (tbody.children.length === 0) {
-                        location.reload(); // Reload to show empty state
-                    }
+                    // Reload the page to update counters and summary
+                    location.reload();
                 } else {
                     alert('Error al eliminar el reporte: ' + data.message);
                     reportRow.classList.remove('loading');
