@@ -157,3 +157,4 @@ Preferred communication style: Simple, everyday language.
 - **Pause Time Redistribution**: Implemented automatic redistribution of pause entries - pause records are removed from final report and pause time is always added to the next work entry by advancing its start time to eliminate gaps, creating seamless time tracking
 - **Chronological Sorting**: Implemented robust chronological sorting of work entries by entry start time (workEntryIn.date) per employee per date to ensure proper temporal ordering
 - **Employee-Date Grouping**: Maintained grouping by employee and date for proper daily totals while ensuring chronological ordering within each group
+- **Night Shift Sorting**: Fixed chronological ordering for night shifts by adjusting entries between 00:00-06:00 to sort after previous night's entries (22:00, 23:00, 00:00, 01:00, 02:00 sequence)

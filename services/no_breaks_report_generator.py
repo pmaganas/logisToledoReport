@@ -307,13 +307,23 @@ class NoBreaksReportGenerator:
             self.logger.error(f"Error extending entry by duration: {e}")
 
     def _get_entry_sort_key(self, entry: Dict):
-        """Get sort key for chronological ordering by entry start time"""
+        """Get sort key for chronological ordering by entry start time - handles night shifts"""
         try:
             work_entry_in = entry.get('workEntryIn', {})
             if work_entry_in and work_entry_in.get('date'):
                 # Parse the datetime and return it for sorting
                 parsed_time = datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
-                return parsed_time
+                
+                # For night shifts: if time is between 00:00 and 06:00, add 24 hours for proper sorting
+                # This ensures night shift entries (like 22:00, 23:00, 00:00, 01:00, 02:00) sort correctly
+                if parsed_time.hour >= 0 and parsed_time.hour <= 6:
+                    # This is likely early morning of next day in a night shift
+                    # Add 24 hours to make it sort after the previous night's entries
+                    sort_time = parsed_time + timedelta(hours=24)
+                    self.logger.debug(f"Night shift adjustment: {parsed_time} -> {sort_time} for sorting")
+                    return sort_time
+                else:
+                    return parsed_time
         except Exception as e:
             self.logger.error(f"Error parsing entry date for sorting: {e}")
         
@@ -368,8 +378,23 @@ class NoBreaksReportGenerator:
         for group in sorted_groups:
             all_entries = group['all_entries']
             
+            # Log entries before sorting
+            self.logger.info(f"=== ANTES DE ORDENAR - {group['employee_name']} - {group['date']} ===")
+            for i, entry in enumerate(all_entries):
+                start_time = self._get_entry_start_time(entry)
+                entry_type = entry.get('workEntryType', 'unknown')
+                self.logger.info(f"  {i}: {entry_type} - {start_time}")
+            
             # Sort all entries chronologically by entry start time
             all_entries.sort(key=self._get_entry_sort_key)
+            
+            # Log entries after sorting
+            self.logger.info(f"=== DESPUÉS DE ORDENAR - {group['employee_name']} - {group['date']} ===")
+            for i, entry in enumerate(all_entries):
+                start_time = self._get_entry_start_time(entry)
+                sort_key = self._get_entry_sort_key(entry)
+                entry_type = entry.get('workEntryType', 'unknown')
+                self.logger.info(f"  {i}: {entry_type} - {start_time} (sort_key: {sort_key})")
             
             # Process pause redistribution
             processed_entries = self._redistribute_pause_time(all_entries)
