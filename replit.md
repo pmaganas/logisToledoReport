@@ -149,3 +149,4 @@ Preferred communication style: Simple, everyday language.
 - **UI Cleanup**: Removed "Feature Highlight" section about breakfast breaks and "Report Information" section with column details
 - **Increased Pagination Limit**: Changed API query limit from 100 to 300 records per page to reduce total API calls and improve performance
 - **Infinite Progress Bar**: Implemented simple infinite progress bar animation during report generation for better user experience
+- **SSL Connection Handling**: Improved database connection management during long-running report generation to prevent SSL timeout errors

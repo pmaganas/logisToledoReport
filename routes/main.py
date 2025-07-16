@@ -48,18 +48,27 @@ def generate_report_background(report_id, form_data, app_context):
                 with open(file_path, 'wb') as f:
                     f.write(report_data)
                 
-                background_reports[report_id]['status'] = 'completed'
-                background_reports[report_id]['filename'] = filename
-                background_reports[report_id]['file_path'] = file_path
+                # Update status outside app context to avoid DB connection issues
                 logger.info(f"Background report completed - ID: {report_id}, File: {filename}")
             else:
-                background_reports[report_id]['status'] = 'error'
-                background_reports[report_id]['error'] = 'Error al generar el reporte'
-            
+                logger.error("No report data generated")
+                
     except Exception as e:
         logger.error(f"Background report generation failed - ID: {report_id}, Error: {str(e)}")
+        
+    # Update status outside app context to avoid DB SSL issues
+    try:
+        if report_data:
+            background_reports[report_id]['status'] = 'completed'
+            background_reports[report_id]['filename'] = filename
+            background_reports[report_id]['file_path'] = file_path
+        else:
+            background_reports[report_id]['status'] = 'error'
+            background_reports[report_id]['error'] = 'Error al generar el reporte'
+    except Exception as e:
+        logger.error(f"Error updating report status - ID: {report_id}, Error: {str(e)}")
         background_reports[report_id]['status'] = 'error'
-        background_reports[report_id]['error'] = str(e)
+        background_reports[report_id]['error'] = 'Error en el proceso final'
 
 
 @main_bp.route('/', methods=['GET', 'POST'])
