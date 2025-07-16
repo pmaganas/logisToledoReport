@@ -14,8 +14,7 @@ class NoBreaksReportGenerator:
 
     def generate_report(self, from_date: str = None, to_date: str = None, 
                        employee_id: str = None, office_id: str = None, 
-                       department_id: str = None, report_type: str = "by_employee",
-                       progress_callback=None) -> Optional[bytes]:
+                       department_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
         """Generate report with only work entries - no employee data processing"""
         
         try:
@@ -381,8 +380,7 @@ class NoBreaksReportGenerator:
             all_work_entries = self.api.get_all_time_tracking_data(
                 employee_id=employee_id,
                 from_date=from_date,
-                to_date=to_date,
-                progress_callback=progress_callback
+                to_date=to_date
             )
             
             # Get check types mapping
