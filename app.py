@@ -33,9 +33,7 @@ with app.app_context():
 
 # Import routes
 from routes.main import main_bp
-from routes.preview_data import preview_bp
 app.register_blueprint(main_bp)
-app.register_blueprint(preview_bp)
 
 # Error handlers
 @app.errorhandler(404)

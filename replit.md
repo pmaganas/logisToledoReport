@@ -153,3 +153,4 @@ Preferred communication style: Simple, everyday language.
 - **Downloads Management Screen**: Added comprehensive downloads page where users can view all generated reports, re-download files, and delete old reports with confirmation modal
 - **Enhanced Navigation**: Added responsive navigation bar with mobile menu support for easy access to main features
 - **Report Limit Management**: Implemented automatic cleanup system maintaining maximum 10 reports, oldest files deleted automatically when limit exceeded
+- **Preview Functionality Removal**: Eliminated Vista Previa del Informe button and all related functionality including confirmation modal, preview table, and /preview-data endpoint - streamlined interface for direct report generation only
