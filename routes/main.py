@@ -9,10 +9,92 @@ main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
 
 
-@main_bp.route('/')
+@main_bp.route('/', methods=['GET', 'POST'])
 def index():
-    """Main page with report generation form"""
-    return render_template('index.html')
+    """Main page with report generation form and direct report generation"""
+    if request.method == 'GET':
+        return render_template('index.html')
+    
+    # Handle POST request for report generation
+    try:
+        # Get form data
+        from_date = request.form.get('from_date')
+        to_date = request.form.get('to_date')
+        date_range = request.form.get('date_range', 'today')
+        employee_id = request.form.get('employee_id')
+        office_id = request.form.get('office_id')
+        department_id = request.form.get('department_id')
+        report_type = request.form.get('report_type', 'by_employee')
+
+        # Validate dates
+        if from_date:
+            try:
+                datetime.strptime(from_date, '%Y-%m-%d')
+            except ValueError:
+                flash('Fecha de inicio inválida', 'error')
+                return render_template('index.html')
+
+        if to_date:
+            try:
+                datetime.strptime(to_date, '%Y-%m-%d')
+            except ValueError:
+                flash('Fecha de fin inválida', 'error')
+                return render_template('index.html')
+
+        # Generate report directly in the same route
+        report_data = None
+        
+        try:
+            logger.info(f"Starting NO-BREAKS report generation - Type: {report_type}")
+            no_breaks_generator = NoBreaksReportGenerator()
+            report_data = no_breaks_generator.generate_report(
+                from_date=from_date,
+                to_date=to_date,
+                employee_id=employee_id,
+                office_id=office_id,
+                department_id=department_id,
+                report_type=report_type)
+            logger.info("NO-BREAKS report generation completed successfully")
+        except Exception as no_breaks_error:
+            logger.error(f"NO-BREAKS report generator failed: {str(no_breaks_error)}")
+            
+            # Try ultra-basic fallback for SSL issues
+            try:
+                logger.info("Trying ULTRA-BASIC fallback for SSL issues...")
+                from services.ultra_basic_report_generator import UltraBasicReportGenerator
+                ultra_basic_generator = UltraBasicReportGenerator()
+                report_data = ultra_basic_generator.generate_ultra_basic_report(
+                    from_date=from_date,
+                    to_date=to_date,
+                    employee_id=employee_id,
+                    office_id=office_id,
+                    department_id=department_id,
+                    report_type=report_type)
+                logger.info("ULTRA-BASIC fallback completed successfully")
+            except Exception as fallback_error:
+                logger.error(f"ULTRA-BASIC fallback also failed: {str(fallback_error)}")
+                flash(f'Error SSL persistente. Intente con un rango de fechas más corto: {str(fallback_error)}', 'error')
+                return render_template('index.html')
+
+        if report_data:
+            # Create filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"reporte_actividades_{timestamp}.xlsx"
+
+            # Return file
+            return send_file(
+                io.BytesIO(report_data),
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=filename)
+        else:
+            flash('Error al generar el reporte. Verifique los datos y vuelva a intentar.', 'error')
+            return render_template('index.html')
+
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}")
+        flash(f'Error al generar el reporte: {str(e)}', 'error')
+        return render_template('index.html')
 
 
 @main_bp.route('/test-connection')
@@ -30,8 +112,6 @@ def test_connection():
         }), 500
 
 
-@main_bp.route('/generate-report', methods=['POST'])
-def generate_report():
     """Generate and download XLSX report"""
     try:
         # Get form data
