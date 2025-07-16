@@ -182,9 +182,17 @@ def test_connection():
         result = api.get_token_info()
         
         if result:
+            # Extract company name from the API response
+            company_name = "Empresa no identificada"
+            if 'data' in result and 'company' in result['data']:
+                company_name = result['data']['company'].get('name', 'Empresa no identificada')
+            elif 'company' in result:
+                company_name = result['company'].get('name', 'Empresa no identificada')
+            
             return jsonify({
                 "status": "success",
                 "message": "Conexión exitosa",
+                "company": company_name,
                 "data": result
             })
         else:
@@ -340,9 +348,10 @@ def _format_duration(duration):
 def apply_token():
     """Apply new API token"""
     try:
-        new_token = request.form.get('token', '').strip()
-        region = request.form.get('region', 'eu1')
-        description = request.form.get('description', '')
+        data = request.get_json()
+        new_token = data.get('token', '').strip()
+        region = data.get('region', 'eu1')
+        description = data.get('description', '')
         
         if not new_token:
             return jsonify({
@@ -356,9 +365,22 @@ def apply_token():
         # Set the new token as active
         SesameToken.set_active_token(new_token, description, region)
         
+        # Test the token and get company info
+        from services.sesame_api import SesameAPI
+        api = SesameAPI()
+        result = api.get_token_info()
+        
+        company_name = "Empresa no identificada"
+        if result:
+            if 'data' in result and 'company' in result['data']:
+                company_name = result['data']['company'].get('name', 'Empresa no identificada')
+            elif 'company' in result:
+                company_name = result['company'].get('name', 'Empresa no identificada')
+        
         return jsonify({
             'status': 'success',
-            'message': 'Token aplicado correctamente'
+            'message': 'Token aplicado correctamente',
+            'company': company_name
         })
         
     except Exception as e:
