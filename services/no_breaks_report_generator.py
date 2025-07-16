@@ -302,7 +302,8 @@ class NoBreaksReportGenerator:
             work_entry_in = entry.get('workEntryIn', {})
             if work_entry_in and work_entry_in.get('date'):
                 # Parse the datetime and return it for sorting
-                return datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
+                parsed_time = datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
+                return parsed_time
         except Exception as e:
             self.logger.error(f"Error parsing entry date for sorting: {e}")
         
@@ -362,6 +363,9 @@ class NoBreaksReportGenerator:
             
             # Process pause redistribution
             processed_entries = self._redistribute_pause_time(all_entries)
+            
+            # Sort processed entries again to ensure chronological order after pause redistribution
+            processed_entries.sort(key=self._get_entry_sort_key)
             
             # Write processed entries to Excel (without pause entries)
             daily_totals = {}
