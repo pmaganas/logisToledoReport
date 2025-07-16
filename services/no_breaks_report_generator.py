@@ -104,85 +104,8 @@ class NoBreaksReportGenerator:
             
             current_row = 2
             
-            # Process work entries directly (fichajes only)
-            for entry in all_work_entries:
-                # Get employee info from the work entry
-                employee_info = entry.get('employee', {})
-                employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
-                
-                if not employee_name:
-                    employee_name = "Empleado desconocido"
-
-                # Extract employee identification
-                employee_nid = employee_info.get('nid', 'No disponible')
-                employee_id_type = employee_info.get('identityNumberType', 'DNI')
-
-                # Extract date from workEntryIn.date (same as preview)
-                entry_date = "No disponible"
-                if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
-                    try:
-                        entry_datetime = datetime.fromisoformat(
-                            entry['workEntryIn']['date'].replace('Z', '+00:00'))
-                        entry_date = entry_datetime.strftime('%Y-%m-%d')
-                    except Exception as e:
-                        self.logger.error(f"Error parsing entry date: {e}")
-                        entry_date = "Error en fecha"
-
-                # Get activity name from workCheckTypeId using check types mapping (same as preview)
-                activity_name = "Actividad no especificada"
-                work_check_type_id = entry.get('workCheckTypeId')
-                if work_check_type_id and work_check_type_id in check_types_map:
-                    activity_name = check_types_map[work_check_type_id]
-                elif entry.get('workEntryType'):
-                    activity_name = entry.get('workEntryType', 'Actividad no especificada')
-
-                # Group name left empty as requested (same as preview)
-                group_name = ""
-
-                # Extract times from workEntryIn and workEntryOut (same as preview)
-                start_time = "No disponible"
-                end_time = "No disponible"
-
-                if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
-                    try:
-                        start_datetime = datetime.fromisoformat(
-                            entry['workEntryIn']['date'].replace('Z', '+00:00'))
-                        start_time = start_datetime.strftime('%H:%M:%S')
-                    except Exception as e:
-                        self.logger.error(f"Error parsing start time: {e}")
-                        start_time = "Error en hora"
-
-                if entry.get('workEntryOut') and entry['workEntryOut'].get('date'):
-                    try:
-                        end_datetime = datetime.fromisoformat(
-                            entry['workEntryOut']['date'].replace('Z', '+00:00'))
-                        end_time = end_datetime.strftime('%H:%M:%S')
-                    except Exception as e:
-                        self.logger.error(f"Error parsing end time: {e}")
-                        end_time = "Error en hora"
-
-                # Calculate duration (same as preview)
-                final_duration = "No disponible"
-                if entry.get('workedSeconds') is not None:
-                    try:
-                        worked_seconds = entry['workedSeconds']
-                        final_duration = self._format_duration(timedelta(seconds=worked_seconds))
-                    except Exception as e:
-                        self.logger.error(f"Error calculating duration: {e}")
-                        final_duration = "Error en duración"
-                        
-                # Write to Excel
-                ws.cell(row=current_row, column=1, value=employee_name)
-                ws.cell(row=current_row, column=2, value=employee_id_type)
-                ws.cell(row=current_row, column=3, value=employee_nid)
-                ws.cell(row=current_row, column=4, value=entry_date)
-                ws.cell(row=current_row, column=5, value=activity_name)
-                ws.cell(row=current_row, column=6, value=group_name)
-                ws.cell(row=current_row, column=7, value=start_time)
-                ws.cell(row=current_row, column=8, value=end_time)
-                ws.cell(row=current_row, column=9, value=final_duration)
-                
-                current_row += 1
+            # Group entries by employee and date
+            current_row = self._process_grouped_entries(ws, all_work_entries, check_types_map, current_row)
             
             # Save to BytesIO
             output = BytesIO()
@@ -242,6 +165,234 @@ class NoBreaksReportGenerator:
         identification_number = employee.get('nid', employee.get('id', 'No disponible'))
         
         return identification_type, identification_number
+
+    def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
+        """Process entries grouped by employee and date with break elimination and totals"""
+        # Group entries by employee and date
+        grouped_entries = {}
+        
+        for entry in all_work_entries:
+            # Get employee info
+            employee_info = entry.get('employee', {})
+            employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
+            employee_id = employee_info.get('id', 'unknown')
+            
+            if not employee_name:
+                employee_name = "Empleado desconocido"
+            
+            # Extract date from workEntryIn.date
+            entry_date = "No disponible"
+            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                try:
+                    entry_datetime = datetime.fromisoformat(
+                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                    entry_date = entry_datetime.strftime('%Y-%m-%d')
+                except Exception as e:
+                    self.logger.error(f"Error parsing entry date: {e}")
+                    entry_date = "Error en fecha"
+            
+            # Create group key
+            group_key = f"{employee_id}_{entry_date}"
+            
+            if group_key not in grouped_entries:
+                grouped_entries[group_key] = {
+                    'employee_name': employee_name,
+                    'employee_id': employee_id,
+                    'employee_info': employee_info,
+                    'date': entry_date,
+                    'work_entries': [],
+                    'pause_entries': []
+                }
+            
+            # Classify entries as work or pause
+            work_entry_type = entry.get('workEntryType', '').lower()
+            if work_entry_type == 'pause':
+                grouped_entries[group_key]['pause_entries'].append(entry)
+            else:
+                grouped_entries[group_key]['work_entries'].append(entry)
+        
+        # Sort groups by employee name and date
+        sorted_groups = sorted(grouped_entries.values(), 
+                             key=lambda x: (x['employee_name'], x['date']))
+        
+        # Process each group
+        for group in sorted_groups:
+            work_entries = group['work_entries']
+            pause_entries = group['pause_entries']
+            
+            # Sort work entries by start time
+            work_entries.sort(key=lambda x: x.get('workEntryIn', {}).get('date', ''))
+            
+            # Calculate total pause time
+            total_pause_seconds = 0
+            for pause_entry in pause_entries:
+                if pause_entry.get('workedSeconds') is not None:
+                    total_pause_seconds += pause_entry['workedSeconds']
+            
+            # Redistribute pause time to work entries
+            processed_work_entries = self._redistribute_pause_time(work_entries, total_pause_seconds)
+            
+            # Write work entries to Excel
+            daily_totals = {}
+            total_worked_seconds = 0
+            
+            for entry in processed_work_entries:
+                row_data = self._extract_entry_data(entry, group['employee_info'], group['date'], check_types_map)
+                
+                # Write to Excel
+                ws.cell(row=current_row, column=1, value=row_data['employee_name'])
+                ws.cell(row=current_row, column=2, value=row_data['employee_id_type'])
+                ws.cell(row=current_row, column=3, value=row_data['employee_nid'])
+                ws.cell(row=current_row, column=4, value=row_data['entry_date'])
+                ws.cell(row=current_row, column=5, value=row_data['activity_name'])
+                ws.cell(row=current_row, column=6, value=row_data['group_name'])
+                ws.cell(row=current_row, column=7, value=row_data['start_time'])
+                ws.cell(row=current_row, column=8, value=row_data['end_time'])
+                ws.cell(row=current_row, column=9, value=row_data['final_duration'])
+                
+                # Accumulate totals by activity type
+                activity_name = row_data['activity_name']
+                worked_seconds = row_data['worked_seconds']
+                
+                if activity_name not in daily_totals:
+                    daily_totals[activity_name] = 0
+                daily_totals[activity_name] += worked_seconds
+                total_worked_seconds += worked_seconds
+                
+                current_row += 1
+            
+            # Add TOTAL row for this employee/date combination
+            current_row = self._add_total_row(ws, group, daily_totals, total_worked_seconds, current_row)
+            
+            # Add blank row between different employee/date groups
+            current_row += 1
+        
+        return current_row
+    
+    def _redistribute_pause_time(self, work_entries, total_pause_seconds):
+        """Redistribute pause time among work entries"""
+        if not work_entries or total_pause_seconds <= 0:
+            return work_entries
+        
+        # Distribute pause time evenly among work entries
+        pause_per_entry = total_pause_seconds / len(work_entries)
+        
+        processed_entries = []
+        for entry in work_entries:
+            # Create a copy to avoid modifying original
+            processed_entry = entry.copy()
+            
+            # Add pause time to worked seconds
+            original_worked_seconds = entry.get('workedSeconds', 0)
+            processed_entry['workedSeconds'] = original_worked_seconds + pause_per_entry
+            
+            processed_entries.append(processed_entry)
+        
+        return processed_entries
+    
+    def _extract_entry_data(self, entry, employee_info, entry_date, check_types_map):
+        """Extract data from a work entry for Excel output"""
+        # Employee name
+        employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
+        if not employee_name:
+            employee_name = "Empleado desconocido"
+        
+        # Employee identification
+        employee_nid = employee_info.get('nid', 'No disponible')
+        employee_id_type = employee_info.get('identityNumberType', 'DNI')
+        
+        # Get activity name from workCheckTypeId using check types mapping
+        activity_name = "Actividad no especificada"
+        work_check_type_id = entry.get('workCheckTypeId')
+        if work_check_type_id and work_check_type_id in check_types_map:
+            activity_name = check_types_map[work_check_type_id]
+        elif entry.get('workEntryType'):
+            activity_name = entry.get('workEntryType', 'Actividad no especificada')
+        
+        # Group name left empty as requested
+        group_name = ""
+        
+        # Extract times from workEntryIn and workEntryOut
+        start_time = "No disponible"
+        end_time = "No disponible"
+        
+        if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+            try:
+                start_datetime = datetime.fromisoformat(
+                    entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                start_time = start_datetime.strftime('%H:%M:%S')
+            except Exception as e:
+                self.logger.error(f"Error parsing start time: {e}")
+                start_time = "Error en hora"
+        
+        if entry.get('workEntryOut') and entry['workEntryOut'].get('date'):
+            try:
+                end_datetime = datetime.fromisoformat(
+                    entry['workEntryOut']['date'].replace('Z', '+00:00'))
+                end_time = end_datetime.strftime('%H:%M:%S')
+            except Exception as e:
+                self.logger.error(f"Error parsing end time: {e}")
+                end_time = "Error en hora"
+        
+        # Calculate duration
+        worked_seconds = entry.get('workedSeconds', 0)
+        final_duration = self._format_duration(timedelta(seconds=worked_seconds))
+        
+        return {
+            'employee_name': employee_name,
+            'employee_id_type': employee_id_type,
+            'employee_nid': employee_nid,
+            'entry_date': entry_date,
+            'activity_name': activity_name,
+            'group_name': group_name,
+            'start_time': start_time,
+            'end_time': end_time,
+            'final_duration': final_duration,
+            'worked_seconds': worked_seconds
+        }
+    
+    def _add_total_row(self, ws, group, daily_totals, total_worked_seconds, current_row):
+        """Add TOTAL row for employee/date combination"""
+        employee_info = group['employee_info']
+        employee_name = group['employee_name']
+        employee_nid = employee_info.get('nid', 'No disponible')
+        employee_id_type = employee_info.get('identityNumberType', 'DNI')
+        entry_date = group['date']
+        
+        # Create summary of activity types
+        activity_summary = []
+        for activity_name, seconds in daily_totals.items():
+            duration_str = self._format_duration(timedelta(seconds=seconds))
+            activity_summary.append(f"{activity_name}: {duration_str}")
+        
+        # Join activity summary (limit to avoid Excel cell size issues)
+        activity_summary_str = "; ".join(activity_summary[:5])  # Limit to 5 activities
+        if len(daily_totals) > 5:
+            activity_summary_str += f"; ... y {len(daily_totals) - 5} más"
+        
+        # Total duration
+        total_duration = self._format_duration(timedelta(seconds=total_worked_seconds))
+        
+        # Apply bold formatting for TOTAL row
+        total_font = Font(bold=True)
+        total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+        
+        # Write TOTAL row
+        ws.cell(row=current_row, column=1, value=employee_name).font = total_font
+        ws.cell(row=current_row, column=2, value=employee_id_type).font = total_font
+        ws.cell(row=current_row, column=3, value=employee_nid).font = total_font
+        ws.cell(row=current_row, column=4, value=entry_date).font = total_font
+        ws.cell(row=current_row, column=5, value="TOTAL").font = total_font
+        ws.cell(row=current_row, column=6, value="").font = total_font
+        ws.cell(row=current_row, column=7, value="").font = total_font
+        ws.cell(row=current_row, column=8, value="").font = total_font
+        ws.cell(row=current_row, column=9, value=total_duration).font = total_font
+        
+        # Apply background color to TOTAL row
+        for col in range(1, 10):
+            ws.cell(row=current_row, column=col).fill = total_fill
+        
+        return current_row + 1
 
     def _format_duration(self, duration):
         """Format duration as HH:MM:SS - same as preview"""
