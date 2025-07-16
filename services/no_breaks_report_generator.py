@@ -199,19 +199,24 @@ class NoBreaksReportGenerator:
                     if prev_entry and next_entry:
                         # PRIORITY: Connect previous entry to next entry through the pause
                         prev_start = self._get_entry_start_time(prev_entry)
+                        prev_end = self._get_entry_end_time(prev_entry)
+                        next_start = self._get_entry_start_time(next_entry)
                         next_end = self._get_entry_end_time(next_entry)
                         
-                        # Extend previous entry to end where next entry ends (absorbing both pause and next entry)
-                        self._extend_entry_to_time(prev_entry, next_end)
-                        
-                        # Calculate new duration for previous entry
-                        new_duration = next_end - prev_start
-                        prev_entry['workedSeconds'] = int(new_duration.total_seconds())
-                        
-                        # Mark next entry to be skipped (it was merged into previous)
-                        next_entry['_skip'] = True
-                        
-                        self.logger.info(f"Unido registro anterior ({prev_start.strftime('%H:%M:%S')}) con siguiente ({next_end.strftime('%H:%M:%S')}), duración total: {prev_entry['workedSeconds']}s")
+                        if prev_start and prev_end and next_start and next_end:
+                            # Extend previous entry to end where next entry ends (absorbing both pause and next entry)
+                            self._extend_entry_to_time(prev_entry, next_end)
+                            
+                            # Mark next entry to be skipped (it was merged into previous)
+                            next_entry['_skip'] = True
+                            
+                            self.logger.info(f"Unido registro anterior ({prev_start.strftime('%H:%M:%S')}) con siguiente ({next_end.strftime('%H:%M:%S')}), duración total: {prev_entry['workedSeconds']}s")
+                        else:
+                            self.logger.warning(f"No se pudo fusionar: prev_start={prev_start}, prev_end={prev_end}, next_start={next_start}, next_end={next_end}")
+                            # If next entry has no end time, just move it to start at pause start
+                            if next_start and not next_end:
+                                self._move_entry_start_to_time(next_entry, pause_start)
+                                self.logger.info(f"Siguiente registro sin hora fin movido de {next_start.strftime('%H:%M:%S')} a {pause_start.strftime('%H:%M:%S')}")
                     elif next_entry:
                         # Only next entry exists - move it to start when pause started
                         next_old_start = self._get_entry_start_time(next_entry)
@@ -320,18 +325,18 @@ class NoBreaksReportGenerator:
             work_entry_in = entry.get('workEntryIn', {})
             work_entry_out = entry.get('workEntryOut', {})
             
-            if work_entry_in and work_entry_out and work_entry_out.get('date'):
-                # Get the end time
-                end_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
-                
+            if work_entry_in:
                 # Update start time
                 work_entry_in['date'] = start_time.isoformat().replace('+00:00', 'Z')
                 
-                # Update worked seconds to reflect the new duration
-                new_duration = end_time - start_time
-                entry['workedSeconds'] = int(new_duration.total_seconds())
-                
-                self.logger.info(f"Updated entry: start {start_time.strftime('%H:%M:%S')}, end {end_time.strftime('%H:%M:%S')}, new duration {entry['workedSeconds']}s")
+                # Update worked seconds only if we have an end time
+                if work_entry_out and work_entry_out.get('date'):
+                    end_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
+                    new_duration = end_time - start_time
+                    entry['workedSeconds'] = int(new_duration.total_seconds())
+                    self.logger.info(f"Updated entry: start {start_time.strftime('%H:%M:%S')}, end {end_time.strftime('%H:%M:%S')}, new duration {entry['workedSeconds']}s")
+                else:
+                    self.logger.info(f"Updated entry start to {start_time.strftime('%H:%M:%S')} (no end time available)")
         except Exception as e:
             self.logger.error(f"Error moving entry start time: {e}")
 
