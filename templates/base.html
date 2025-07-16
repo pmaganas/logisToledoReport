@@ -41,11 +41,16 @@
                 
                 <!-- Navigation Links -->
                 <div class="hidden md:flex items-center space-x-4">
-                    <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    {% set current_page = request.endpoint %}
+                    <a href="{{ url_for('main.index') }}" 
+                       class="{% if current_page == 'main.index' %}bg-indigo-100 text-indigo-700 border-indigo-300 cursor-not-allowed{% else %}text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-50 cursor-pointer{% endif %} px-3 py-2 rounded-md text-sm font-medium transition-colors border"
+                       {% if current_page == 'main.index' %}onclick="event.preventDefault(); return false;"{% endif %}>
                         <i class="ti ti-plus mr-1"></i>
                         Generar Reporte
                     </a>
-                    <a href="{{ url_for('main.downloads') }}" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    <a href="{{ url_for('main.downloads') }}" 
+                       class="{% if current_page == 'main.downloads' %}bg-indigo-100 text-indigo-700 border-indigo-300 cursor-not-allowed{% else %}text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-50 cursor-pointer{% endif %} px-3 py-2 rounded-md text-sm font-medium transition-colors border"
+                       {% if current_page == 'main.downloads' %}onclick="event.preventDefault(); return false;"{% endif %}>
                         <i class="ti ti-download mr-1"></i>
                         Descargas
                     </a>
@@ -62,11 +67,15 @@
             <!-- Mobile menu -->
             <div class="hidden md:hidden" id="mobile-menu">
                 <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                    <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium">
+                    <a href="{{ url_for('main.index') }}" 
+                       class="{% if current_page == 'main.index' %}bg-indigo-100 text-indigo-700 border-indigo-300 cursor-not-allowed{% else %}text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-50 cursor-pointer{% endif %} block px-3 py-2 rounded-md text-base font-medium border"
+                       {% if current_page == 'main.index' %}onclick="event.preventDefault(); return false;"{% endif %}>
                         <i class="ti ti-plus mr-1"></i>
                         Generar Reporte
                     </a>
-                    <a href="{{ url_for('main.downloads') }}" class="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium">
+                    <a href="{{ url_for('main.downloads') }}" 
+                       class="{% if current_page == 'main.downloads' %}bg-indigo-100 text-indigo-700 border-indigo-300 cursor-not-allowed{% else %}text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-50 cursor-pointer{% endif %} block px-3 py-2 rounded-md text-base font-medium border"
+                       {% if current_page == 'main.downloads' %}onclick="event.preventDefault(); return false;"{% endif %}>
                         <i class="ti ti-download mr-1"></i>
                         Descargas
                     </a>
