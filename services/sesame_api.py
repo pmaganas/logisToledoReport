@@ -234,7 +234,8 @@ class SesameAPI:
                                    employee_id: str = None,
                                    company_id: str = None,
                                    from_date: str = None,
-                                   to_date: str = None) -> List[Dict]:
+                                   to_date: str = None,
+                                   progress_callback=None) -> List[Dict]:
         """Get all time tracking data with pagination"""
         all_entries = []
         page = 1
@@ -287,6 +288,10 @@ class SesameAPI:
                 self.logger.info(
                     f"WORK-ENTRIES: Page {current_page} of {last_page}, total items: {total_items}"
                 )
+
+                # Update progress if callback provided
+                if progress_callback:
+                    progress_callback(current_page, last_page, f"Descargando página {current_page} de {last_page}")
 
                 # Si no hay más entradas en esta página, terminamos
                 if len(entries) == 0:

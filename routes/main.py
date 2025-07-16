@@ -19,19 +19,30 @@ def generate_report_background(report_id, form_data, app_context):
         with app_context:
             logger.info(f"Starting background report generation - ID: {report_id}")
             background_reports[report_id]['status'] = 'processing'
+            background_reports[report_id]['progress'] = {'current_page': 0, 'total_pages': 0, 'message': 'Iniciando...'}
             
             # Generate report
             report_data = None
             
             logger.info(f"Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
             no_breaks_generator = NoBreaksReportGenerator()
+            
+            # Pass the progress callback to the generator
+            def update_progress(current_page, total_pages, message):
+                background_reports[report_id]['progress'] = {
+                    'current_page': current_page,
+                    'total_pages': total_pages,
+                    'message': message
+                }
+            
             report_data = no_breaks_generator.generate_report(
                 from_date=form_data['from_date'],
                 to_date=form_data['to_date'],
                 employee_id=form_data['employee_id'],
                 office_id=form_data['office_id'],
                 department_id=form_data['department_id'],
-                report_type=form_data['report_type'])
+                report_type=form_data['report_type'],
+                progress_callback=update_progress)
             logger.info("NO-BREAKS report generation completed successfully")
 
             if report_data:
@@ -135,12 +146,18 @@ def report_status(report_id):
         return jsonify({'status': 'not_found'}), 404
     
     report = background_reports[report_id]
-    return jsonify({
+    response = {
         'status': report['status'],
         'created_at': report['created_at'].isoformat(),
         'filename': report.get('filename', ''),
         'error': report.get('error', '')
-    })
+    }
+    
+    # Add progress information if available
+    if 'progress' in report:
+        response['progress'] = report['progress']
+    
+    return jsonify(response)
 
 
 @main_bp.route('/download-report/<report_id>')

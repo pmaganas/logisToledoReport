@@ -924,7 +924,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 const reportStatus = document.getElementById('reportStatus');
                 
                 if (data.status === 'processing') {
-                    statusMessage.textContent = 'Procesando datos de la API...';
+                    let message = 'Procesando datos de la API...';
+                    let progressHtml = '';
+                    
+                    // Add progress bar if progress data is available
+                    if (data.progress && data.progress.total_pages > 0) {
+                        const current = data.progress.current_page;
+                        const total = data.progress.total_pages;
+                        const percentage = Math.round((current / total) * 100);
+                        
+                        message = data.progress.message || `Descargando página ${current} de ${total}`;
+                        
+                        progressHtml = `
+                            <div class="mt-3">
+                                <div class="flex items-center justify-between text-sm text-gray-600 mb-1">
+                                    <span>Página ${current} de ${total}</span>
+                                    <span>${percentage}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    reportStatus.className = 'mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4';
+                    reportStatus.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="ti ti-loader animate-spin text-blue-600"></i>
+                            </div>
+                            <div class="ml-3 flex-grow">
+                                <h3 class="text-base font-semibold text-blue-800">
+                                    Generando reporte
+                                </h3>
+                                <p class="text-sm text-blue-700 mt-1">
+                                    ${message}
+                                </p>
+                                ${progressHtml}
+                            </div>
+                        </div>
+                    `;
+                    
                     // Continue checking
                     setTimeout(() => checkReportStatus(reportId), 2000);
                 } else if (data.status === 'completed') {
@@ -971,7 +1012,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                 } else {
                     // Still starting or unknown status
-                    statusMessage.textContent = 'Iniciando proceso de generación...';
+                    reportStatus.className = 'mb-6 bg-yellow-50 rounded-xl border border-yellow-200 p-4';
+                    reportStatus.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="ti ti-clock text-yellow-600"></i>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-base font-semibold text-yellow-800">
+                                    Iniciando reporte
+                                </h3>
+                                <p class="text-sm text-yellow-700 mt-1">
+                                    Preparando la generación del reporte...
+                                </p>
+                            </div>
+                        </div>
+                    `;
                     setTimeout(() => checkReportStatus(reportId), 1000);
                 }
             })
