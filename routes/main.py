@@ -5,6 +5,7 @@ import logging
 import threading
 import uuid
 import os
+import glob
 from services.no_breaks_report_generator import NoBreaksReportGenerator
 
 main_bp = Blueprint('main', __name__)
@@ -217,53 +218,6 @@ def test_connection():
         }), 500
 
 
-@main_bp.route('/preview-report', methods=['POST'])
-def preview_report():
-    """Preview report data in table format"""
-    try:
-        # Get form data
-        from_date = request.form.get('from_date')
-        to_date = request.form.get('to_date')
-        date_range = request.form.get('date_range', 'today')
-        employee_id = request.form.get('employee_id')
-        office_id = request.form.get('office_id')
-        department_id = request.form.get('department_id')
-        report_type = request.form.get('report_type', 'by_employee')
-
-        # Validate dates
-        if from_date:
-            try:
-                datetime.strptime(from_date, '%Y-%m-%d')
-            except ValueError:
-                return jsonify({'error': 'Fecha de inicio inválida'}), 400
-
-        if to_date:
-            try:
-                datetime.strptime(to_date, '%Y-%m-%d')
-            except ValueError:
-                return jsonify({'error': 'Fecha de fin inválida'}), 400
-
-        # Use optimized report generator to get data metrics
-        from services.optimized_report_generator import OptimizedReportGenerator
-        
-        generator = OptimizedReportGenerator()
-        
-        # Get preview data with metrics
-        preview_data = generator.get_data_metrics(
-            from_date=from_date,
-            to_date=to_date,
-            employee_id=employee_id,
-            office_id=office_id,
-            department_id=department_id
-        )
-        
-        return jsonify(preview_data)
-        
-    except Exception as e:
-        logger.error(f"Error generating preview: {str(e)}")
-        return jsonify({'error': f'Error al generar vista previa: {str(e)}'}), 500
-
-
 def _process_break_redistribution(time_entries, break_entries):
     """Process break time redistribution based on workEntryType"""
     # Group entries by date and employee
@@ -430,4 +384,130 @@ def get_current_token():
         return jsonify({
             'status': 'error',
             'message': f'Error al obtener información del token: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/descargas')
+def downloads():
+    """Downloads page - show all generated reports"""
+    try:
+        # Get all report files from temp directory
+        temp_dir = 'temp_reports'
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir, exist_ok=True)
+        
+        # Get all xlsx files in temp directory
+        report_files = glob.glob(os.path.join(temp_dir, '*.xlsx'))
+        
+        # Parse file information
+        reports = []
+        for file_path in report_files:
+            try:
+                filename = os.path.basename(file_path)
+                # Extract report_id and timestamp from filename
+                # Format: {report_id}_reporte_actividades_{timestamp}.xlsx
+                parts = filename.split('_')
+                if len(parts) >= 4:
+                    report_id = parts[0]
+                    timestamp_str = parts[3] + '_' + parts[4].replace('.xlsx', '')
+                    
+                    # Parse timestamp
+                    try:
+                        timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+                    except:
+                        timestamp = datetime.fromtimestamp(os.path.getmtime(file_path))
+                    
+                    # Get file size
+                    file_size = os.path.getsize(file_path)
+                    file_size_mb = round(file_size / (1024 * 1024), 2)
+                    
+                    reports.append({
+                        'id': report_id,
+                        'filename': filename,
+                        'original_filename': f"reporte_actividades_{timestamp_str}.xlsx",
+                        'created_at': timestamp,
+                        'size_mb': file_size_mb,
+                        'file_path': file_path
+                    })
+            except Exception as e:
+                logger.warning(f"Error parsing report file {file_path}: {str(e)}")
+                continue
+        
+        # Sort by creation date (newest first)
+        reports.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        return render_template('downloads.html', reports=reports)
+        
+    except Exception as e:
+        logger.error(f"Error in downloads page: {str(e)}")
+        flash('Error al cargar la página de descargas', 'error')
+        return redirect(url_for('main.index'))
+
+
+@main_bp.route('/descargas/download/<report_id>')
+def download_report_by_id(report_id):
+    """Download a specific report by ID"""
+    try:
+        temp_dir = 'temp_reports'
+        # Find the file that starts with the report_id
+        pattern = os.path.join(temp_dir, f"{report_id}_*.xlsx")
+        matching_files = glob.glob(pattern)
+        
+        if not matching_files:
+            flash('Reporte no encontrado', 'error')
+            return redirect(url_for('main.downloads'))
+        
+        file_path = matching_files[0]
+        filename = os.path.basename(file_path)
+        
+        # Extract original filename
+        parts = filename.split('_')
+        if len(parts) >= 4:
+            timestamp_str = parts[3] + '_' + parts[4].replace('.xlsx', '')
+            original_filename = f"reporte_actividades_{timestamp_str}.xlsx"
+        else:
+            original_filename = filename
+        
+        return send_file(file_path, as_attachment=True, download_name=original_filename)
+        
+    except Exception as e:
+        logger.error(f"Error downloading report {report_id}: {str(e)}")
+        flash('Error al descargar el reporte', 'error')
+        return redirect(url_for('main.downloads'))
+
+
+@main_bp.route('/descargas/delete/<report_id>', methods=['POST'])
+def delete_report(report_id):
+    """Delete a specific report"""
+    try:
+        temp_dir = 'temp_reports'
+        # Find the file that starts with the report_id
+        pattern = os.path.join(temp_dir, f"{report_id}_*.xlsx")
+        matching_files = glob.glob(pattern)
+        
+        if not matching_files:
+            return jsonify({
+                'status': 'error',
+                'message': 'Reporte no encontrado'
+            }), 404
+        
+        file_path = matching_files[0]
+        
+        # Delete the file
+        os.remove(file_path)
+        
+        # Also remove from background_reports if it exists
+        if report_id in background_reports:
+            del background_reports[report_id]
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Reporte eliminado correctamente'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting report {report_id}: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al eliminar el reporte: {str(e)}'
         }), 500

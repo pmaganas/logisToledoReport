@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Descargas - Sesame Report Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-latest/icons-sprite.svg">
+    <style>
+        body { font-family: 'Figtree', sans-serif; }
+        .btn-primary { @apply bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200; }
+        .btn-secondary { @apply bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200; }
+        .btn-danger { @apply bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200; }
+        .btn-sm { @apply py-1.5 px-3 text-sm; }
+        .card { @apply bg-white rounded-lg shadow-md border border-gray-200; }
+        .table-row { @apply border-b border-gray-200 hover:bg-gray-50 transition duration-200; }
+        .loading { @apply opacity-50 pointer-events-none; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-900">Sesame Report Generator</h1>
+                </div>
+                <nav class="flex space-x-4">
+                    <a href="/" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                        Generar Reporte
+                    </a>
+                    <a href="/descargas" class="bg-indigo-500 text-white px-3 py-2 rounded-md text-sm font-medium">
+                        Descargas
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Historial de Descargas</h2>
+            <p class="text-gray-600">Gestiona tus reportes generados: descarga nuevamente o elimina archivos antiguos.</p>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} bg-{{ 'red' if category == 'error' else 'green' }}-100 border border-{{ 'red' if category == 'error' else 'green' }}-300 text-{{ 'red' if category == 'error' else 'green' }}-700 px-4 py-3 rounded-lg mb-4">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Reports Table -->
+        <div class="card">
+            {% if reports %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Archivo
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Fecha de Generación
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Tamaño
+                                </th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Acciones
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for report in reports %}
+                                <tr class="table-row" id="report-{{ report.id }}">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 w-8 h-8">
+                                                <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                </svg>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">
+                                                    {{ report.original_filename }}
+                                                </div>
+                                                <div class="text-sm text-gray-500">
+                                                    ID: {{ report.id }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">
+                                            {{ report.created_at.strftime('%d/%m/%Y') }}
+                                        </div>
+                                        <div class="text-sm text-gray-500">
+                                            {{ report.created_at.strftime('%H:%M:%S') }}
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">
+                                            {{ report.size_mb }} MB
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <div class="flex justify-end space-x-2">
+                                            <a href="/descargas/download/{{ report.id }}" 
+                                               class="btn-primary btn-sm">
+                                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                </svg>
+                                                Descargar
+                                            </a>
+                                            <button onclick="deleteReport('{{ report.id }}')" 
+                                                    class="btn-danger btn-sm">
+                                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                </svg>
+                                                Eliminar
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No hay reportes generados</h3>
+                    <p class="mt-1 text-sm text-gray-500">Comienza generando tu primer reporte.</p>
+                    <div class="mt-6">
+                        <a href="/" class="btn-primary">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            Generar Reporte
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Summary Stats -->
+        {% if reports %}
+            <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Resumen</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-indigo-600">{{ reports|length }}</div>
+                        <div class="text-sm text-gray-500">Reportes Generados</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600">{{ "%.1f"|format(reports|map(attribute='size_mb')|sum) }} MB</div>
+                        <div class="text-sm text-gray-500">Espacio Utilizado</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-600">{{ reports[0].created_at.strftime('%d/%m/%Y') if reports else '-' }}</div>
+                        <div class="text-sm text-gray-500">Último Reporte</div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Confirmar Eliminación</h3>
+            <p class="text-sm text-gray-600 mb-6">¿Estás seguro de que deseas eliminar este reporte? Esta acción no se puede deshacer.</p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeDeleteModal()" class="btn-secondary">
+                    Cancelar
+                </button>
+                <button onclick="confirmDelete()" class="btn-danger">
+                    Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let reportToDelete = null;
+
+        function deleteReport(reportId) {
+            reportToDelete = reportId;
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('deleteModal').classList.add('flex');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+            document.getElementById('deleteModal').classList.remove('flex');
+            reportToDelete = null;
+        }
+
+        function confirmDelete() {
+            if (!reportToDelete) return;
+
+            const reportRow = document.getElementById(`report-${reportToDelete}`);
+            reportRow.classList.add('loading');
+
+            fetch(`/descargas/delete/${reportToDelete}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Remove the row from the table
+                    reportRow.remove();
+                    
+                    // Check if there are no more reports
+                    const tbody = document.querySelector('tbody');
+                    if (tbody.children.length === 0) {
+                        location.reload(); // Reload to show empty state
+                    }
+                } else {
+                    alert('Error al eliminar el reporte: ' + data.message);
+                    reportRow.classList.remove('loading');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al eliminar el reporte');
+                reportRow.classList.remove('loading');
+            })
+            .finally(() => {
+                closeDeleteModal();
+            });
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteModal();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -33,11 +33,44 @@
 <body class="font-figtree bg-gray-50 min-h-screen">
     <nav class="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8">
         <div class="mx-auto max-w-7xl">
-            <div class="flex h-16 items-center">
+            <div class="flex h-16 items-center justify-between">
                 <a href="{{ url_for('main.index') }}" class="flex items-center text-gray-900 hover:text-indigo-500 transition-colors">
                     <i class="ti ti-file-spreadsheet text-xl mr-2"></i>
                     <span class="text-lg font-semibold">Generador de Informe Grupos y tipos de fichaje</span>
                 </a>
+                
+                <!-- Navigation Links -->
+                <div class="hidden md:flex items-center space-x-4">
+                    <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                        <i class="ti ti-plus mr-1"></i>
+                        Generar Reporte
+                    </a>
+                    <a href="{{ url_for('main.downloads') }}" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                        <i class="ti ti-download mr-1"></i>
+                        Descargas
+                    </a>
+                </div>
+                
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button type="button" class="text-gray-500 hover:text-gray-600 focus:outline-none focus:text-gray-600" id="mobile-menu-button">
+                        <i class="ti ti-menu-2"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile menu -->
+            <div class="hidden md:hidden" id="mobile-menu">
+                <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                    <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="ti ti-plus mr-1"></i>
+                        Generar Reporte
+                    </a>
+                    <a href="{{ url_for('main.downloads') }}" class="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="ti ti-download mr-1"></i>
+                        Descargas
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
@@ -66,5 +99,13 @@
     </footer>
     
     {% block scripts %}{% endblock %}
+    
+    <!-- Mobile menu toggle script -->
+    <script>
+        document.getElementById('mobile-menu-button').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
 </body>
 </html>
