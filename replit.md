@@ -137,3 +137,8 @@ Preferred communication style: Simple, everyday language.
 - **Work-Breaks Elimination**: Removed all work-breaks API calls as requested, system now only processes work-entries data
 - **New NoBreaksReportGenerator**: Created simplified report generator that focuses only on work-entries without break processing
 - **Employee Data Elimination**: Removed all employee, office, and department endpoints - application now works exclusively with fichajes (work entries)
+- **Background Report Generation**: Implemented async report generation system with real-time status updates
+- **Download Link System**: Reports now generate in background with download links appearing below the button when ready
+- **Consolidated Main Route**: Eliminated separate /generate-report endpoint - all functionality now handled in main route
+- **Thread-Based Processing**: Background reports use threading to prevent SSL timeout blocking the UI
+- **Real-Time Status Updates**: JavaScript polling system checks report status every 1-2 seconds with visual feedback

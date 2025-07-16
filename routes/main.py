@@ -1,21 +1,96 @@
-from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for, session
 from datetime import datetime, timedelta
 import io
 import logging
+import threading
+import uuid
+import os
 from services.report_generator import ReportGenerator
 from services.no_breaks_report_generator import NoBreaksReportGenerator
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
 
+# Store for background reports
+background_reports = {}
+
+def generate_report_background(report_id, form_data):
+    """Generate report in background thread"""
+    try:
+        logger.info(f"Starting background report generation - ID: {report_id}")
+        background_reports[report_id]['status'] = 'processing'
+        
+        # Generate report
+        report_data = None
+        
+        try:
+            logger.info(f"Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
+            no_breaks_generator = NoBreaksReportGenerator()
+            report_data = no_breaks_generator.generate_report(
+                from_date=form_data['from_date'],
+                to_date=form_data['to_date'],
+                employee_id=form_data['employee_id'],
+                office_id=form_data['office_id'],
+                department_id=form_data['department_id'],
+                report_type=form_data['report_type'])
+            logger.info("NO-BREAKS report generation completed successfully")
+        except Exception as no_breaks_error:
+            logger.error(f"NO-BREAKS report generator failed: {str(no_breaks_error)}")
+            
+            # Try ultra-basic fallback for SSL issues
+            try:
+                logger.info("Trying ULTRA-BASIC fallback for SSL issues...")
+                from services.ultra_basic_report_generator import UltraBasicReportGenerator
+                ultra_basic_generator = UltraBasicReportGenerator()
+                report_data = ultra_basic_generator.generate_ultra_basic_report(
+                    from_date=form_data['from_date'],
+                    to_date=form_data['to_date'],
+                    employee_id=form_data['employee_id'],
+                    office_id=form_data['office_id'],
+                    department_id=form_data['department_id'],
+                    report_type=form_data['report_type'])
+                logger.info("ULTRA-BASIC fallback completed successfully")
+            except Exception as fallback_error:
+                logger.error(f"ULTRA-BASIC fallback also failed: {str(fallback_error)}")
+                background_reports[report_id]['status'] = 'error'
+                background_reports[report_id]['error'] = f'Error SSL persistente: {str(fallback_error)}'
+                return
+
+        if report_data:
+            # Save report to temporary file
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"reporte_actividades_{timestamp}.xlsx"
+            
+            # Create temp directory if it doesn't exist
+            temp_dir = 'temp_reports'
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            # Save file
+            file_path = os.path.join(temp_dir, f"{report_id}_{filename}")
+            with open(file_path, 'wb') as f:
+                f.write(report_data)
+            
+            background_reports[report_id]['status'] = 'completed'
+            background_reports[report_id]['filename'] = filename
+            background_reports[report_id]['file_path'] = file_path
+            logger.info(f"Background report completed - ID: {report_id}, File: {filename}")
+        else:
+            background_reports[report_id]['status'] = 'error'
+            background_reports[report_id]['error'] = 'Error al generar el reporte'
+            
+    except Exception as e:
+        logger.error(f"Background report generation failed - ID: {report_id}, Error: {str(e)}")
+        background_reports[report_id]['status'] = 'error'
+        background_reports[report_id]['error'] = str(e)
+
 
 @main_bp.route('/', methods=['GET', 'POST'])
 def index():
-    """Main page with report generation form and direct report generation"""
+    """Main page with report generation form and background report generation"""
     if request.method == 'GET':
         return render_template('index.html')
     
-    # Handle POST request for report generation
+    # Handle POST request for background report generation
     try:
         # Get form data
         from_date = request.form.get('from_date')
@@ -41,60 +116,82 @@ def index():
                 flash('Fecha de fin inválida', 'error')
                 return render_template('index.html')
 
-        # Generate report directly in the same route
-        report_data = None
+        # Generate unique report ID
+        report_id = str(uuid.uuid4())
         
-        try:
-            logger.info(f"Starting NO-BREAKS report generation - Type: {report_type}")
-            no_breaks_generator = NoBreaksReportGenerator()
-            report_data = no_breaks_generator.generate_report(
-                from_date=from_date,
-                to_date=to_date,
-                employee_id=employee_id,
-                office_id=office_id,
-                department_id=department_id,
-                report_type=report_type)
-            logger.info("NO-BREAKS report generation completed successfully")
-        except Exception as no_breaks_error:
-            logger.error(f"NO-BREAKS report generator failed: {str(no_breaks_error)}")
-            
-            # Try ultra-basic fallback for SSL issues
-            try:
-                logger.info("Trying ULTRA-BASIC fallback for SSL issues...")
-                from services.ultra_basic_report_generator import UltraBasicReportGenerator
-                ultra_basic_generator = UltraBasicReportGenerator()
-                report_data = ultra_basic_generator.generate_ultra_basic_report(
-                    from_date=from_date,
-                    to_date=to_date,
-                    employee_id=employee_id,
-                    office_id=office_id,
-                    department_id=department_id,
-                    report_type=report_type)
-                logger.info("ULTRA-BASIC fallback completed successfully")
-            except Exception as fallback_error:
-                logger.error(f"ULTRA-BASIC fallback also failed: {str(fallback_error)}")
-                flash(f'Error SSL persistente. Intente con un rango de fechas más corto: {str(fallback_error)}', 'error')
-                return render_template('index.html')
-
-        if report_data:
-            # Create filename with timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"reporte_actividades_{timestamp}.xlsx"
-
-            # Return file
-            return send_file(
-                io.BytesIO(report_data),
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                as_attachment=True,
-                download_name=filename)
-        else:
-            flash('Error al generar el reporte. Verifique los datos y vuelva a intentar.', 'error')
-            return render_template('index.html')
+        # Store form data and initial status
+        form_data = {
+            'from_date': from_date,
+            'to_date': to_date,
+            'employee_id': employee_id,
+            'office_id': office_id,
+            'department_id': department_id,
+            'report_type': report_type
+        }
+        
+        background_reports[report_id] = {
+            'status': 'starting',
+            'created_at': datetime.now(),
+            'form_data': form_data
+        }
+        
+        # Start background thread
+        thread = threading.Thread(target=generate_report_background, args=(report_id, form_data))
+        thread.daemon = True
+        thread.start()
+        
+        flash('Reporte iniciado en segundo plano. Se mostrará el enlace de descarga cuando esté listo.', 'info')
+        return render_template('index.html', report_id=report_id)
 
     except Exception as e:
-        logger.error(f"Error generating report: {str(e)}")
-        flash(f'Error al generar el reporte: {str(e)}', 'error')
+        logger.error(f"Error starting background report: {str(e)}")
+        flash(f'Error al iniciar el reporte: {str(e)}', 'error')
         return render_template('index.html')
+
+
+@main_bp.route('/report-status/<report_id>')
+def report_status(report_id):
+    """Check the status of a background report"""
+    if report_id not in background_reports:
+        return jsonify({'status': 'not_found'}), 404
+    
+    report = background_reports[report_id]
+    return jsonify({
+        'status': report['status'],
+        'created_at': report['created_at'].isoformat(),
+        'filename': report.get('filename', ''),
+        'error': report.get('error', '')
+    })
+
+
+@main_bp.route('/download-report/<report_id>')
+def download_report(report_id):
+    """Download a completed background report"""
+    if report_id not in background_reports:
+        flash('Reporte no encontrado', 'error')
+        return redirect(url_for('main.index'))
+    
+    report = background_reports[report_id]
+    
+    if report['status'] != 'completed':
+        flash('Reporte no está listo para descarga', 'error')
+        return redirect(url_for('main.index'))
+    
+    if not os.path.exists(report['file_path']):
+        flash('Archivo de reporte no encontrado', 'error')
+        return redirect(url_for('main.index'))
+    
+    try:
+        return send_file(
+            report['file_path'],
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=report['filename']
+        )
+    except Exception as e:
+        logger.error(f"Error downloading report {report_id}: {str(e)}")
+        flash(f'Error al descargar el reporte: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
 
 
 @main_bp.route('/test-connection')
