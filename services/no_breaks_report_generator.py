@@ -291,10 +291,23 @@ class NoBreaksReportGenerator:
                 work_entry_out['date'] = end_time.isoformat().replace('+00:00', 'Z')
                 
                 # Update worked seconds to reflect the new duration
-                new_duration = end_time - start_time
+                # Handle night shifts - if end_time appears before start_time, it's next day
+                if end_time < start_time:
+                    # Add 24 hours to end_time for calculation
+                    adjusted_end_time = end_time + timedelta(days=1)
+                    new_duration = adjusted_end_time - start_time
+                else:
+                    new_duration = end_time - start_time
+                
                 entry['workedSeconds'] = int(new_duration.total_seconds())
                 
-                self.logger.info(f"Extended entry: start {start_time.strftime('%H:%M:%S')}, new end {end_time.strftime('%H:%M:%S')}, new duration {entry['workedSeconds']}s")
+                # Format duration as HH:MM:SS
+                hours = int(new_duration.total_seconds() // 3600)
+                minutes = int((new_duration.total_seconds() % 3600) // 60)
+                seconds = int(new_duration.total_seconds() % 60)
+                duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                
+                self.logger.info(f"Extended entry: start {start_time.strftime('%H:%M:%S')}, new end {end_time.strftime('%H:%M:%S')}, new duration {duration_str} ({entry['workedSeconds']}s)")
         except Exception as e:
             self.logger.error(f"Error extending entry to time: {e}")
 
