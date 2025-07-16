@@ -190,36 +190,52 @@ class NoBreaksReportGenerator:
                 pause_end = self._get_entry_end_time(entry)
                 
                 if pause_start and pause_end:
-                    self.logger.info(f"Pausa desde {pause_start} hasta {pause_end}")
+                    self.logger.info(f"Pausa desde {pause_start.strftime('%H:%M:%S')} hasta {pause_end.strftime('%H:%M:%S')}")
                     
-                    # Find next work entry (priority: always add to next)
+                    # Find previous and next work entries
+                    prev_entry = self._find_previous_work_entry(entries, i)
                     next_entry = self._find_next_work_entry(entries, i)
                     
-                    if next_entry:
-                        # Always move next entry to start when pause started
+                    if prev_entry and next_entry:
+                        # PRIORITY: Connect previous entry to next entry through the pause
+                        prev_start = self._get_entry_start_time(prev_entry)
+                        next_end = self._get_entry_end_time(next_entry)
+                        
+                        # Extend previous entry to end where next entry ends (absorbing both pause and next entry)
+                        self._extend_entry_to_time(prev_entry, next_end)
+                        
+                        # Calculate new duration for previous entry
+                        new_duration = next_end - prev_start
+                        prev_entry['workedSeconds'] = int(new_duration.total_seconds())
+                        
+                        # Mark next entry to be skipped (it was merged into previous)
+                        next_entry['_skip'] = True
+                        
+                        self.logger.info(f"Unido registro anterior ({prev_start.strftime('%H:%M:%S')}) con siguiente ({next_end.strftime('%H:%M:%S')}), duración total: {prev_entry['workedSeconds']}s")
+                    elif next_entry:
+                        # Only next entry exists - move it to start when pause started
                         next_old_start = self._get_entry_start_time(next_entry)
                         self._move_entry_start_to_time(next_entry, pause_start)
-                        next_new_start = self._get_entry_start_time(next_entry)
-                        self.logger.info(f"Siguiente registro movido de {next_old_start} a {next_new_start}")
+                        self.logger.info(f"Siguiente registro movido de {next_old_start.strftime('%H:%M:%S')} a {pause_start.strftime('%H:%M:%S')}")
+                    elif prev_entry:
+                        # Only previous entry exists - extend it to cover the pause
+                        self._extend_entry_to_time(prev_entry, pause_end)
+                        prev_start = self._get_entry_start_time(prev_entry)
+                        new_duration = pause_end - prev_start
+                        prev_entry['workedSeconds'] = int(new_duration.total_seconds())
+                        self.logger.info(f"Registro anterior extendido hasta {pause_end.strftime('%H:%M:%S')}")
                     else:
-                        # If no next entry, find previous entry as fallback
-                        prev_entry = self._find_previous_work_entry(entries, i)
-                        if prev_entry:
-                            # Extend previous entry by pause duration
-                            pause_duration = self._get_entry_duration_seconds(entry)
-                            prev_old_end = self._get_entry_end_time(prev_entry)
-                            self._extend_entry_by_duration(prev_entry, pause_duration)
-                            prev_new_end = self._get_entry_end_time(prev_entry)
-                            self.logger.info(f"Registro anterior extendido de {prev_old_end} a {prev_new_end} (+{pause_duration}s)")
-                        else:
-                            self.logger.warning("No se encontró registro anterior ni siguiente para redistribuir pausa")
+                        self.logger.warning("No se encontró registro anterior ni siguiente para redistribuir pausa")
                 
                 # Skip adding this pause entry to processed_entries
                 i += 1
                 continue
             else:
-                # This is a work entry - add it to processed entries
-                processed_entries.append(entry)
+                # This is a work entry - add it to processed entries if not marked to skip
+                if not entry.get('_skip', False):
+                    processed_entries.append(entry)
+                else:
+                    self.logger.info(f"Saltando registro fusionado en posición {i}")
                 i += 1
         
         self.logger.info(f"=== REDISTRIBUCIÓN COMPLETADA - {pause_count} pausas eliminadas, {len(processed_entries)} registros de trabajo ===")
@@ -278,20 +294,44 @@ class NoBreaksReportGenerator:
         return None
 
     def _extend_entry_to_time(self, entry: Dict, end_time: datetime):
-        """Extend a work entry to end at the specified time"""
+        """Extend a work entry to end at the specified time and update worked seconds"""
         try:
+            work_entry_in = entry.get('workEntryIn', {})
             work_entry_out = entry.get('workEntryOut', {})
-            if work_entry_out:
+            
+            if work_entry_in and work_entry_in.get('date') and work_entry_out:
+                # Get the start time
+                start_time = datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
+                
+                # Update end time
                 work_entry_out['date'] = end_time.isoformat().replace('+00:00', 'Z')
+                
+                # Update worked seconds to reflect the new duration
+                new_duration = end_time - start_time
+                entry['workedSeconds'] = int(new_duration.total_seconds())
+                
+                self.logger.info(f"Extended entry: start {start_time.strftime('%H:%M:%S')}, new end {end_time.strftime('%H:%M:%S')}, new duration {entry['workedSeconds']}s")
         except Exception as e:
             self.logger.error(f"Error extending entry to time: {e}")
 
     def _move_entry_start_to_time(self, entry: Dict, start_time: datetime):
-        """Move a work entry to start at the specified time"""
+        """Move a work entry to start at the specified time and update worked seconds"""
         try:
             work_entry_in = entry.get('workEntryIn', {})
-            if work_entry_in:
+            work_entry_out = entry.get('workEntryOut', {})
+            
+            if work_entry_in and work_entry_out and work_entry_out.get('date'):
+                # Get the end time
+                end_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
+                
+                # Update start time
                 work_entry_in['date'] = start_time.isoformat().replace('+00:00', 'Z')
+                
+                # Update worked seconds to reflect the new duration
+                new_duration = end_time - start_time
+                entry['workedSeconds'] = int(new_duration.total_seconds())
+                
+                self.logger.info(f"Updated entry: start {start_time.strftime('%H:%M:%S')}, end {end_time.strftime('%H:%M:%S')}, new duration {entry['workedSeconds']}s")
         except Exception as e:
             self.logger.error(f"Error moving entry start time: {e}")
 
