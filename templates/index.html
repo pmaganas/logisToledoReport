@@ -495,11 +495,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
             
             case 'current_month':
-                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                const year = today.getFullYear();
+                const month = today.getMonth();
+                const startOfMonth = new Date(year, month, 1);
+                const endOfMonth = new Date(year, month + 1, 0);
+                
+                // Format dates manually to avoid timezone issues
+                const formatDate = (date) => {
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${d}`;
+                };
+                
                 return {
-                    from: startOfMonth.toISOString().split('T')[0],
-                    to: endOfMonth.toISOString().split('T')[0]
+                    from: formatDate(startOfMonth),
+                    to: formatDate(endOfMonth)
                 };
             
             case 'last_month':
@@ -942,11 +953,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set default dates based on current month (which is selected by default)
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const startOfMonth = new Date(year, month, 1);
+    const endOfMonth = new Date(year, month + 1, 0);
     
-    document.getElementById('from_date').value = startOfMonth.toISOString().split('T')[0];
-    document.getElementById('to_date').value = endOfMonth.toISOString().split('T')[0];
+    // Format dates manually to avoid timezone issues
+    const formatDate = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+    
+    document.getElementById('from_date').value = formatDate(startOfMonth);
+    document.getElementById('to_date').value = formatDate(endOfMonth);
 
     // Auto-test connection on page load
     setTimeout(() => {
