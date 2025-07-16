@@ -166,8 +166,92 @@ class NoBreaksReportGenerator:
         
         return identification_type, identification_number
 
+    def _redistribute_pause_time(self, entries: List[Dict]) -> List[Dict]:
+        """Redistribute pause time to adjacent work entries and remove pause entries"""
+        if not entries:
+            return entries
+        
+        processed_entries = []
+        
+        for i, entry in enumerate(entries):
+            work_entry_type = entry.get('workEntryType', '')
+            
+            if work_entry_type == 'pause':
+                # This is a pause entry - redistribute its time
+                pause_duration = self._get_entry_duration_seconds(entry)
+                
+                if pause_duration > 0:
+                    # Find the best entry to add this pause time to
+                    target_entry = self._find_target_entry_for_pause(entries, i)
+                    
+                    if target_entry:
+                        # Add pause time to the target entry
+                        self._add_pause_time_to_entry(target_entry, pause_duration)
+                        self.logger.info(f"Redistributed {pause_duration} seconds from pause to adjacent work entry")
+                
+                # Skip adding this pause entry to processed_entries
+                continue
+            else:
+                # This is a work entry - add it to processed entries
+                processed_entries.append(entry)
+        
+        return processed_entries
+
+    def _get_entry_duration_seconds(self, entry: Dict) -> int:
+        """Get the duration of an entry in seconds"""
+        try:
+            work_entry_in = entry.get('workEntryIn', {})
+            work_entry_out = entry.get('workEntryOut', {})
+            
+            if not work_entry_in.get('date') or not work_entry_out.get('date'):
+                return 0
+            
+            in_time = datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
+            out_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
+            
+            duration = out_time - in_time
+            return int(duration.total_seconds())
+        except Exception as e:
+            self.logger.error(f"Error calculating entry duration: {e}")
+            return 0
+
+    def _find_target_entry_for_pause(self, entries: List[Dict], pause_index: int) -> Optional[Dict]:
+        """Find the best entry to redistribute pause time to (preferably previous, then next)"""
+        # First try to find previous work entry
+        for i in range(pause_index - 1, -1, -1):
+            if entries[i].get('workEntryType', '') != 'pause':
+                return entries[i]
+        
+        # If no previous work entry found, look for next work entry
+        for i in range(pause_index + 1, len(entries)):
+            if entries[i].get('workEntryType', '') != 'pause':
+                return entries[i]
+        
+        return None
+
+    def _add_pause_time_to_entry(self, entry: Dict, pause_seconds: int):
+        """Add pause time to a work entry by extending its duration"""
+        try:
+            work_entry_out = entry.get('workEntryOut', {})
+            
+            if not work_entry_out.get('date'):
+                return
+            
+            # Parse the current out time
+            out_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
+            
+            # Add the pause duration
+            new_out_time = out_time + timedelta(seconds=pause_seconds)
+            
+            # Update the workEntryOut date
+            work_entry_out['date'] = new_out_time.isoformat().replace('+00:00', 'Z')
+            
+            self.logger.info(f"Extended work entry duration by {pause_seconds} seconds")
+        except Exception as e:
+            self.logger.error(f"Error adding pause time to entry: {e}")
+
     def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
-        """Process entries grouped by employee and date showing ALL entries including breaks"""
+        """Process entries grouped by employee and date, redistributing pause time"""
         # Group entries by employee and date
         grouped_entries = {}
         
@@ -217,11 +301,14 @@ class NoBreaksReportGenerator:
             # Sort all entries by start time
             all_entries.sort(key=lambda x: x.get('workEntryIn', {}).get('date', ''))
             
-            # Write ALL entries to Excel (work, pause, everything)
+            # Process pause redistribution
+            processed_entries = self._redistribute_pause_time(all_entries)
+            
+            # Write processed entries to Excel (without pause entries)
             daily_totals = {}
             total_worked_seconds = 0
             
-            for entry in all_entries:
+            for entry in processed_entries:
                 row_data = self._extract_entry_data(entry, group['employee_info'], group['date'], check_types_map)
                 
                 # Write to Excel
