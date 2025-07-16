@@ -11,8 +11,52 @@ from services.no_breaks_report_generator import NoBreaksReportGenerator
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
 
+# Configuration
+MAX_REPORTS = 10
+
 # Store for background reports
 background_reports = {}
+
+def _enforce_report_limit(temp_dir, max_reports=MAX_REPORTS):
+    """Enforce maximum number of reports, delete oldest if exceeded"""
+    deleted_files = []
+    try:
+        # Get all xlsx files in temp directory
+        report_files = glob.glob(os.path.join(temp_dir, '*.xlsx'))
+        
+        if len(report_files) <= max_reports:
+            return deleted_files
+        
+        # Sort files by modification time (oldest first)
+        report_files.sort(key=lambda x: os.path.getmtime(x))
+        
+        # Calculate how many files to delete
+        files_to_delete = len(report_files) - max_reports
+        
+        for i in range(files_to_delete):
+            file_to_delete = report_files[i]
+            try:
+                # Extract report_id from filename for cleanup
+                filename = os.path.basename(file_to_delete)
+                if '_' in filename:
+                    report_id = filename.split('_')[0]
+                    # Remove from background_reports if it exists
+                    if report_id in background_reports:
+                        del background_reports[report_id]
+                
+                # Delete the file
+                os.remove(file_to_delete)
+                deleted_files.append(filename)
+                logger.info(f"Deleted old report file: {filename} (enforcing {max_reports} report limit)")
+                
+            except Exception as e:
+                logger.warning(f"Failed to delete old report file {file_to_delete}: {str(e)}")
+                
+    except Exception as e:
+        logger.error(f"Error enforcing report limit: {str(e)}")
+    
+    return deleted_files
+
 
 def generate_report_background(report_id, form_data, app_context):
     """Generate report in background thread"""
@@ -48,6 +92,11 @@ def generate_report_background(report_id, form_data, app_context):
                 file_path = os.path.join(temp_dir, f"{report_id}_{filename}")
                 with open(file_path, 'wb') as f:
                     f.write(report_data)
+                
+                # Check and enforce 10 report limit
+                deleted_files = _enforce_report_limit(temp_dir)
+                if deleted_files:
+                    logger.info(f"Deleted {len(deleted_files)} old report(s) to enforce 10 report limit: {', '.join(deleted_files)}")
                 
                 # Update status outside app context to avoid DB connection issues
                 logger.info(f"Background report completed - ID: {report_id}, File: {filename}")
@@ -436,7 +485,7 @@ def downloads():
         # Sort by creation date (newest first)
         reports.sort(key=lambda x: x['created_at'], reverse=True)
         
-        return render_template('downloads.html', reports=reports)
+        return render_template('downloads.html', reports=reports, max_reports=MAX_REPORTS)
         
     except Exception as e:
         logger.error(f"Error in downloads page: {str(e)}")
