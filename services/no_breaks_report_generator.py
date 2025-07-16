@@ -296,6 +296,19 @@ class NoBreaksReportGenerator:
         except Exception as e:
             self.logger.error(f"Error extending entry by duration: {e}")
 
+    def _get_entry_sort_key(self, entry: Dict):
+        """Get sort key for chronological ordering by entry start time"""
+        try:
+            work_entry_in = entry.get('workEntryIn', {})
+            if work_entry_in and work_entry_in.get('date'):
+                # Parse the datetime and return it for sorting
+                return datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
+        except Exception as e:
+            self.logger.error(f"Error parsing entry date for sorting: {e}")
+        
+        # Return a very old datetime as fallback for entries without valid dates
+        return datetime.min.replace(tzinfo=datetime.now().astimezone().tzinfo)
+
     def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
         """Process entries grouped by employee and date, redistributing pause time"""
         # Group entries by employee and date
@@ -344,8 +357,8 @@ class NoBreaksReportGenerator:
         for group in sorted_groups:
             all_entries = group['all_entries']
             
-            # Sort all entries by start time
-            all_entries.sort(key=lambda x: x.get('workEntryIn', {}).get('date', ''))
+            # Sort all entries chronologically by entry start time
+            all_entries.sort(key=self._get_entry_sort_key)
             
             # Process pause redistribution
             processed_entries = self._redistribute_pause_time(all_entries)
