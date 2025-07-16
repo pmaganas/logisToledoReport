@@ -20,11 +20,13 @@
     /* Hide action buttons by default, show on row hover */
     .table-row .action-buttons {
         opacity: 0;
-        transition: opacity 0.2s ease;
+        visibility: hidden;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
     }
     
     .table-row:hover .action-buttons {
         opacity: 1;
+        visibility: visible;
     }
     .loading { @apply opacity-50 pointer-events-none; }
     
