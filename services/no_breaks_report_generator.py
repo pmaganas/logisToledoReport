@@ -311,8 +311,8 @@ class NoBreaksReportGenerator:
         return datetime.min.replace(tzinfo=datetime.now().astimezone().tzinfo)
 
     def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
-        """Process entries grouped by employee and date, redistributing pause time"""
-        # Group entries by employee and date
+        """Process entries grouped by employee, redistributing pause time"""
+        # Group entries by employee only (not by date to handle night shifts properly)
         grouped_entries = {}
         
         for entry in all_work_entries:
@@ -324,35 +324,23 @@ class NoBreaksReportGenerator:
             if not employee_name:
                 employee_name = "Empleado desconocido"
             
-            # Extract date from workEntryIn.date
-            entry_date = "No disponible"
-            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
-                try:
-                    entry_datetime = datetime.fromisoformat(
-                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
-                    entry_date = entry_datetime.strftime('%Y-%m-%d')
-                except Exception as e:
-                    self.logger.error(f"Error parsing entry date: {e}")
-                    entry_date = "Error en fecha"
-            
-            # Create group key
-            group_key = f"{employee_id}_{entry_date}"
+            # Create group key by employee only
+            group_key = f"{employee_id}"
             
             if group_key not in grouped_entries:
                 grouped_entries[group_key] = {
                     'employee_name': employee_name,
                     'employee_id': employee_id,
                     'employee_info': employee_info,
-                    'date': entry_date,
                     'all_entries': []
                 }
             
             # Add ALL entries (work, pause, everything)
             grouped_entries[group_key]['all_entries'].append(entry)
         
-        # Sort groups by employee name and date
+        # Sort groups by employee name
         sorted_groups = sorted(grouped_entries.values(), 
-                             key=lambda x: (x['employee_name'], x['date']))
+                             key=lambda x: x['employee_name'])
         
         # Process each group
         for group in sorted_groups:
@@ -372,7 +360,7 @@ class NoBreaksReportGenerator:
             total_worked_seconds = 0
             
             for entry in processed_entries:
-                row_data = self._extract_entry_data(entry, group['employee_info'], group['date'], check_types_map)
+                row_data = self._extract_entry_data(entry, group['employee_info'], check_types_map)
                 
                 # Write to Excel
                 ws.cell(row=current_row, column=1, value=row_data['employee_name'])
@@ -396,7 +384,7 @@ class NoBreaksReportGenerator:
                 
                 current_row += 1
             
-            # Add TOTAL row for this employee/date combination
+            # Add TOTAL row for this employee
             current_row = self._add_total_row(ws, group, daily_totals, total_worked_seconds, current_row)
             
             # Add blank row between different employee/date groups
@@ -404,7 +392,7 @@ class NoBreaksReportGenerator:
         
         return current_row
     
-    def _extract_entry_data(self, entry, employee_info, entry_date, check_types_map):
+    def _extract_entry_data(self, entry, employee_info, check_types_map):
         """Extract data from a work entry for Excel output"""
         # Employee name
         employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
@@ -425,6 +413,17 @@ class NoBreaksReportGenerator:
         
         # Group name left empty as requested
         group_name = ""
+        
+        # Extract date from workEntryIn.date
+        entry_date = "No disponible"
+        if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+            try:
+                entry_datetime = datetime.fromisoformat(
+                    entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                entry_date = entry_datetime.strftime('%Y-%m-%d')
+            except Exception as e:
+                self.logger.error(f"Error parsing entry date: {e}")
+                entry_date = "Error en fecha"
         
         # Extract times from workEntryIn and workEntryOut
         start_time = "No disponible"
