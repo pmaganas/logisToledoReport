@@ -776,6 +776,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const dateRange = dateRangeSelect.value;
         if (dateRange !== 'custom') {
             const dates = calculateDateRange(dateRange);
+            console.log('Date range calculation for preview:', dateRange, dates);
             formData.from_date = dates.from;
             formData.to_date = dates.to;
         }
@@ -922,6 +923,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const dateRange = dateRangeSelect.value;
         if (dateRange !== 'custom') {
             const dates = calculateDateRange(dateRange);
+            console.log('Date range calculation for form submission:', dateRange, dates);
             fromDateInput.value = dates.from;
             toDateInput.value = dates.to;
         }
