@@ -135,6 +135,10 @@ class SesameAPI:
             params["from"] = from_date
         if to_date:
             params["to"] = to_date
+        
+        # Add sorting by date and entry time for consistent ordering
+        params["sort"] = "workEntryIn.date,workEntryIn.createdAt"
+        params["order"] = "asc"
 
         return self._make_request("/schedule/v1/work-entries", params=params)
 

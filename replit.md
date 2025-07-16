@@ -145,3 +145,5 @@ Preferred communication style: Simple, everyday language.
 - **Date Range Calculation Fix**: Fixed timezone issues with current_month calculation using manual date formatting instead of toISOString()
 - **Show All Entries**: Reverted break elimination logic - now shows ALL entries including breaks/pauses without redistribution
 - **Code Cleanup**: Removed unused report generator files and simplified codebase to only use NoBreaksReportGenerator
+- **API Sorting**: Added sorting parameters to work-entries endpoint to ensure consistent ordering by date and entry time
+- **UI Cleanup**: Removed "Feature Highlight" section about breakfast breaks and "Report Information" section with column details
