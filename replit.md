@@ -156,3 +156,4 @@ Preferred communication style: Simple, everyday language.
 - **Preview Functionality Removal**: Eliminated Vista Previa del Informe button and all related functionality including confirmation modal, preview table, and /preview-data endpoint - streamlined interface for direct report generation only
 - **Pause Time Redistribution**: Implemented automatic redistribution of pause entries - pause records are removed from final report and pause time is always added to the next work entry by advancing its start time to eliminate gaps, creating seamless time tracking
 - **Chronological Sorting**: Implemented robust chronological sorting of work entries by entry start time (workEntryIn.date) per employee per date to ensure proper temporal ordering
+- **Employee-Date Grouping**: Maintained grouping by employee and date for proper daily totals while ensuring chronological ordering within each group

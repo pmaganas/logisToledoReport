@@ -306,8 +306,8 @@ class NoBreaksReportGenerator:
         return datetime.min.replace(tzinfo=datetime.now().astimezone().tzinfo)
 
     def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
-        """Process entries grouped by employee, redistributing pause time"""
-        # Group entries by employee only (not by date to handle night shifts properly)
+        """Process entries grouped by employee and date, redistributing pause time"""
+        # Group entries by employee and date
         grouped_entries = {}
         
         for entry in all_work_entries:
@@ -319,23 +319,35 @@ class NoBreaksReportGenerator:
             if not employee_name:
                 employee_name = "Empleado desconocido"
             
-            # Create group key by employee only
-            group_key = f"{employee_id}"
+            # Extract date from workEntryIn.date
+            entry_date = "No disponible"
+            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                try:
+                    entry_datetime = datetime.fromisoformat(
+                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                    entry_date = entry_datetime.strftime('%Y-%m-%d')
+                except Exception as e:
+                    self.logger.error(f"Error parsing entry date: {e}")
+                    entry_date = "Error en fecha"
+            
+            # Create group key by employee and date
+            group_key = f"{employee_id}_{entry_date}"
             
             if group_key not in grouped_entries:
                 grouped_entries[group_key] = {
                     'employee_name': employee_name,
                     'employee_id': employee_id,
                     'employee_info': employee_info,
+                    'date': entry_date,
                     'all_entries': []
                 }
             
             # Add ALL entries (work, pause, everything)
             grouped_entries[group_key]['all_entries'].append(entry)
         
-        # Sort groups by employee name
+        # Sort groups by employee name and date
         sorted_groups = sorted(grouped_entries.values(), 
-                             key=lambda x: x['employee_name'])
+                             key=lambda x: (x['employee_name'], x['date']))
         
         # Process each group
         for group in sorted_groups:
@@ -379,10 +391,10 @@ class NoBreaksReportGenerator:
                 
                 current_row += 1
             
-            # Add TOTAL row for this employee
+            # Add TOTAL row for this employee/date combination
             current_row = self._add_total_row(ws, group, daily_totals, total_worked_seconds, current_row)
             
-            # Add blank row between different employees
+            # Add blank row between different employee/date groups
             current_row += 1
         
         return current_row
@@ -460,12 +472,12 @@ class NoBreaksReportGenerator:
         }
     
     def _add_total_row(self, ws, group, daily_totals, total_worked_seconds, current_row):
-        """Add TOTAL row for employee"""
+        """Add TOTAL row for employee/date combination"""
         employee_info = group['employee_info']
         employee_name = group['employee_name']
         employee_nid = employee_info.get('nid', 'No disponible')
         employee_id_type = employee_info.get('identityNumberType', 'DNI')
-        entry_date = "TOTAL"  # Since we're not grouping by date anymore
+        entry_date = group['date']
         
         # Create summary of activity types
         activity_summary = []
