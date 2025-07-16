@@ -99,7 +99,7 @@ class BasicReportGenerator:
                                     from_date=from_date,
                                     to_date=to_date,
                                     page=page,
-                                    limit=20
+                                    limit=300
                                 )
                                 if page_response and page_response.get('data'):
                                     time_entries.extend(page_response['data'])
