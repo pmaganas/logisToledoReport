@@ -171,7 +171,10 @@ class NoBreaksReportGenerator:
         if not entries:
             return entries
         
+        self.logger.info(f"=== REDISTRIBUYENDO PAUSAS - {len(entries)} registros ===")
+        
         processed_entries = []
+        pause_count = 0
         i = 0
         
         while i < len(entries):
@@ -179,26 +182,37 @@ class NoBreaksReportGenerator:
             work_entry_type = entry.get('workEntryType', '')
             
             if work_entry_type == 'pause':
+                pause_count += 1
+                self.logger.info(f"Procesando pausa #{pause_count} en posición {i}")
+                
                 # This is a pause entry - adjust adjacent work entries to eliminate gap
                 pause_start = self._get_entry_start_time(entry)
                 pause_end = self._get_entry_end_time(entry)
                 
                 if pause_start and pause_end:
+                    self.logger.info(f"Pausa desde {pause_start} hasta {pause_end}")
+                    
                     # Find next work entry (priority: always add to next)
                     next_entry = self._find_next_work_entry(entries, i)
                     
                     if next_entry:
                         # Always move next entry to start when pause started
+                        next_old_start = self._get_entry_start_time(next_entry)
                         self._move_entry_start_to_time(next_entry, pause_start)
-                        self.logger.info(f"Moved next work entry to start at pause beginning, eliminating pause gap")
+                        next_new_start = self._get_entry_start_time(next_entry)
+                        self.logger.info(f"Siguiente registro movido de {next_old_start} a {next_new_start}")
                     else:
                         # If no next entry, find previous entry as fallback
                         prev_entry = self._find_previous_work_entry(entries, i)
                         if prev_entry:
                             # Extend previous entry by pause duration
                             pause_duration = self._get_entry_duration_seconds(entry)
+                            prev_old_end = self._get_entry_end_time(prev_entry)
                             self._extend_entry_by_duration(prev_entry, pause_duration)
-                            self.logger.info(f"No next entry found, extended previous work entry by {pause_duration} seconds")
+                            prev_new_end = self._get_entry_end_time(prev_entry)
+                            self.logger.info(f"Registro anterior extendido de {prev_old_end} a {prev_new_end} (+{pause_duration}s)")
+                        else:
+                            self.logger.warning("No se encontró registro anterior ni siguiente para redistribuir pausa")
                 
                 # Skip adding this pause entry to processed_entries
                 i += 1
@@ -208,6 +222,7 @@ class NoBreaksReportGenerator:
                 processed_entries.append(entry)
                 i += 1
         
+        self.logger.info(f"=== REDISTRIBUCIÓN COMPLETADA - {pause_count} pausas eliminadas, {len(processed_entries)} registros de trabajo ===")
         return processed_entries
 
     def _get_entry_duration_seconds(self, entry: Dict) -> int:
@@ -325,7 +340,7 @@ class NoBreaksReportGenerator:
                 try:
                     entry_datetime = datetime.fromisoformat(
                         entry['workEntryIn']['date'].replace('Z', '+00:00'))
-                    entry_date = entry_datetime.strftime('%Y-%m-%d')
+                    entry_date = entry_datetime.strftime('%d/%m/%Y')
                 except Exception as e:
                     self.logger.error(f"Error parsing entry date: {e}")
                     entry_date = "Error en fecha"
@@ -427,7 +442,7 @@ class NoBreaksReportGenerator:
             try:
                 entry_datetime = datetime.fromisoformat(
                     entry['workEntryIn']['date'].replace('Z', '+00:00'))
-                entry_date = entry_datetime.strftime('%Y-%m-%d')
+                entry_date = entry_datetime.strftime('%d/%m/%Y')
             except Exception as e:
                 self.logger.error(f"Error parsing entry date: {e}")
                 entry_date = "Error en fecha"
