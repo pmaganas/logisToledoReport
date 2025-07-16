@@ -250,7 +250,7 @@ class SesameAPI:
                                                   from_date=from_date,
                                                   to_date=to_date,
                                                   page=page,
-                                                  limit=100)
+                                                  limit=300)
 
                 self.logger.info(f"WORK-ENTRIES: Requesting page {page}")
 

@@ -35,7 +35,7 @@ class NoBreaksReportGenerator:
                         from_date=from_date,
                         to_date=to_date,
                         page=page,
-                        limit=100
+                        limit=300
                     )
                     
                     if not response or not response.get('data'):
@@ -53,8 +53,8 @@ class NoBreaksReportGenerator:
                         break
                     
                     # Si no hay suficientes registros, terminamos
-                    if len(entries) < 100:
-                        self.logger.info(f"Página {page} tiene menos de 100 registros, terminando")
+                    if len(entries) < 300:
+                        self.logger.info(f"Página {page} tiene menos de 300 registros, terminando")
                         break
                     
                     page += 1
