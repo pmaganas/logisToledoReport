@@ -184,26 +184,21 @@ class NoBreaksReportGenerator:
                 pause_end = self._get_entry_end_time(entry)
                 
                 if pause_start and pause_end:
-                    # Find previous work entry
-                    prev_entry = self._find_previous_work_entry(entries, i)
-                    # Find next work entry
+                    # Find next work entry (priority: always add to next)
                     next_entry = self._find_next_work_entry(entries, i)
                     
-                    if prev_entry and next_entry:
-                        # Extend previous entry to end when pause starts
-                        # Move next entry to start when pause starts
-                        self._extend_entry_to_time(prev_entry, pause_end)
+                    if next_entry:
+                        # Always move next entry to start when pause started
                         self._move_entry_start_to_time(next_entry, pause_start)
-                        self.logger.info(f"Eliminated pause gap by connecting adjacent work entries")
-                    elif prev_entry:
-                        # Only previous entry exists - extend it by pause duration
-                        pause_duration = self._get_entry_duration_seconds(entry)
-                        self._extend_entry_by_duration(prev_entry, pause_duration)
-                        self.logger.info(f"Extended previous work entry by {pause_duration} seconds")
-                    elif next_entry:
-                        # Only next entry exists - move it to start when pause started
-                        self._move_entry_start_to_time(next_entry, pause_start)
-                        self.logger.info(f"Moved next work entry to eliminate pause gap")
+                        self.logger.info(f"Moved next work entry to start at pause beginning, eliminating pause gap")
+                    else:
+                        # If no next entry, find previous entry as fallback
+                        prev_entry = self._find_previous_work_entry(entries, i)
+                        if prev_entry:
+                            # Extend previous entry by pause duration
+                            pause_duration = self._get_entry_duration_seconds(entry)
+                            self._extend_entry_by_duration(prev_entry, pause_duration)
+                            self.logger.info(f"No next entry found, extended previous work entry by {pause_duration} seconds")
                 
                 # Skip adding this pause entry to processed_entries
                 i += 1
