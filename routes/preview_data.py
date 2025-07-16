@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 import logging
-from services.optimized_report_generator import OptimizedReportGenerator
+from services.no_breaks_report_generator import NoBreaksReportGenerator
 
 preview_bp = Blueprint('preview', __name__)
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def preview_data():
                 return jsonify({'error': 'Fecha de fin inválida'}), 400
         
         # Create preview generator
-        preview_generator = OptimizedReportGenerator()
+        preview_generator = NoBreaksReportGenerator()
         
         # Get data metrics without generating full report
         metrics = preview_generator.get_data_metrics(

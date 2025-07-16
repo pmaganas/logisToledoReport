@@ -144,3 +144,4 @@ Preferred communication style: Simple, everyday language.
 - **Real-Time Status Updates**: JavaScript polling system checks report status every 1-2 seconds with visual feedback
 - **Date Range Calculation Fix**: Fixed timezone issues with current_month calculation using manual date formatting instead of toISOString()
 - **Show All Entries**: Reverted break elimination logic - now shows ALL entries including breaks/pauses without redistribution
+- **Code Cleanup**: Removed unused report generator files and simplified codebase to only use NoBreaksReportGenerator

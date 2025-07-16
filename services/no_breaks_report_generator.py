@@ -370,3 +370,59 @@ class NoBreaksReportGenerator:
         seconds = total_seconds % 60
 
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    
+    def get_data_metrics(self, from_date: str = None, to_date: str = None, 
+                         employee_id: str = None, office_id: str = None, 
+                         department_id: str = None) -> dict:
+        """Get data collection metrics without generating full report"""
+        try:
+            # Get all work entries
+            all_work_entries = self.api.get_all_time_tracking_data(
+                employee_id=employee_id,
+                from_date=from_date,
+                to_date=to_date
+            )
+            
+            # Get check types mapping
+            check_types_response = self.api.get_check_types()
+            check_types_map = {}
+            if check_types_response and 'data' in check_types_response:
+                for check_type in check_types_response['data']:
+                    check_types_map[check_type['id']] = check_type['name']
+            
+            # Process first 10 entries for preview
+            preview_entries = []
+            for entry in all_work_entries[:10]:  # Only first 10 for preview
+                employee_info = entry.get('employee', {})
+                employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
+                
+                if not employee_name:
+                    employee_name = "Empleado desconocido"
+                
+                # Extract date
+                entry_date = "No disponible"
+                if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                    try:
+                        entry_datetime = datetime.fromisoformat(
+                            entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                        entry_date = entry_datetime.strftime('%Y-%m-%d')
+                    except Exception:
+                        entry_date = "Error en fecha"
+                
+                row_data = self._extract_entry_data(entry, employee_info, entry_date, check_types_map)
+                preview_entries.append(row_data)
+            
+            return {
+                'total_entries': len(all_work_entries),
+                'preview_entries': preview_entries,
+                'success': True
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting data metrics: {str(e)}")
+            return {
+                'total_entries': 0,
+                'preview_entries': [],
+                'success': False,
+                'error': str(e)
+            }

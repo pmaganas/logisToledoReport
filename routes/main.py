@@ -5,7 +5,6 @@ import logging
 import threading
 import uuid
 import os
-from services.report_generator import ReportGenerator
 from services.no_breaks_report_generator import NoBreaksReportGenerator
 
 main_bp = Blueprint('main', __name__)
@@ -24,38 +23,16 @@ def generate_report_background(report_id, form_data, app_context):
             # Generate report
             report_data = None
             
-            try:
-                logger.info(f"Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
-                no_breaks_generator = NoBreaksReportGenerator()
-                report_data = no_breaks_generator.generate_report(
-                    from_date=form_data['from_date'],
-                    to_date=form_data['to_date'],
-                    employee_id=form_data['employee_id'],
-                    office_id=form_data['office_id'],
-                    department_id=form_data['department_id'],
-                    report_type=form_data['report_type'])
-                logger.info("NO-BREAKS report generation completed successfully")
-            except Exception as no_breaks_error:
-                logger.error(f"NO-BREAKS report generator failed: {str(no_breaks_error)}")
-                
-                # Try ultra-basic fallback for SSL issues
-                try:
-                    logger.info("Trying ULTRA-BASIC fallback for SSL issues...")
-                    from services.ultra_basic_report_generator import UltraBasicReportGenerator
-                    ultra_basic_generator = UltraBasicReportGenerator()
-                    report_data = ultra_basic_generator.generate_ultra_basic_report(
-                        from_date=form_data['from_date'],
-                        to_date=form_data['to_date'],
-                        employee_id=form_data['employee_id'],
-                        office_id=form_data['office_id'],
-                        department_id=form_data['department_id'],
-                        report_type=form_data['report_type'])
-                    logger.info("ULTRA-BASIC fallback completed successfully")
-                except Exception as fallback_error:
-                    logger.error(f"ULTRA-BASIC fallback also failed: {str(fallback_error)}")
-                    background_reports[report_id]['status'] = 'error'
-                    background_reports[report_id]['error'] = f'Error SSL persistente: {str(fallback_error)}'
-                    return
+            logger.info(f"Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
+            no_breaks_generator = NoBreaksReportGenerator()
+            report_data = no_breaks_generator.generate_report(
+                from_date=form_data['from_date'],
+                to_date=form_data['to_date'],
+                employee_id=form_data['employee_id'],
+                office_id=form_data['office_id'],
+                department_id=form_data['department_id'],
+                report_type=form_data['report_type'])
+            logger.info("NO-BREAKS report generation completed successfully")
 
             if report_data:
                 # Save report to temporary file
@@ -200,14 +177,26 @@ def download_report(report_id):
 def test_connection():
     """Test API connection"""
     try:
-        report_generator = ReportGenerator()
-        result = report_generator.test_connection()
-        return jsonify(result)
+        from services.sesame_api import SesameAPI
+        api = SesameAPI()
+        result = api.get_token_info()
+        
+        if result:
+            return jsonify({
+                "status": "success",
+                "message": "Conexión exitosa",
+                "data": result
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "No se pudo conectar a la API"
+            }), 500
     except Exception as e:
         logger.error(f"Error testing connection: {str(e)}")
         return jsonify({
             "status": "error",
-            "message": f"Connection test failed: {str(e)}"
+            "message": f"Error de conexión: {str(e)}"
         }), 500
 
 
