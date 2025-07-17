@@ -54,6 +54,12 @@
                         <i class="ti ti-download mr-1"></i>
                         Descargas
                     </a>
+                    <a href="{{ url_for('main.connection') }}" 
+                       class="{% if current_page == 'main.connection' %}bg-indigo-100 text-indigo-700 border-indigo-300 cursor-not-allowed{% else %}text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-50 cursor-pointer{% endif %} px-3 py-2 rounded-md text-sm font-medium transition-colors border"
+                       {% if current_page == 'main.connection' %}onclick="event.preventDefault(); return false;"{% endif %}>
+                        <i class="ti ti-settings mr-1"></i>
+                        Conexión
+                    </a>
                 </div>
                 
                 <!-- Mobile menu button -->
@@ -78,6 +84,12 @@
                        {% if current_page == 'main.downloads' %}onclick="event.preventDefault(); return false;"{% endif %}>
                         <i class="ti ti-download mr-1"></i>
                         Descargas
+                    </a>
+                    <a href="{{ url_for('main.connection') }}" 
+                       class="{% if current_page == 'main.connection' %}bg-indigo-100 text-indigo-700 border-indigo-300 cursor-not-allowed{% else %}text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-50 cursor-pointer{% endif %} block px-3 py-2 rounded-md text-base font-medium border"
+                       {% if current_page == 'main.connection' %}onclick="event.preventDefault(); return false;"{% endif %}>
+                        <i class="ti ti-settings mr-1"></i>
+                        Conexión
                     </a>
                 </div>
             </div>

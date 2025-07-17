@@ -356,6 +356,12 @@ def _format_duration(duration):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
+@main_bp.route('/conexion')
+def connection():
+    """Connection management page"""
+    return render_template('connection.html')
+
+
 @main_bp.route('/apply-token', methods=['POST'])
 def apply_token():
     """Apply new API token"""
