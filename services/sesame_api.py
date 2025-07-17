@@ -75,9 +75,7 @@ class SesameAPI:
                 verify=True  # Verify SSL certificates
             )
 
-            self.logger.debug(
-                f"API Request: {method} {url} - Status: {response.status_code}"
-            )
+
 
             if response.status_code == 200:
                 return response.json()

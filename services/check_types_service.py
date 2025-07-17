@@ -16,8 +16,6 @@ class CheckTypesService:
     def sync_check_types(self) -> bool:
         """Sync all check types from API to database"""
         try:
-            logger.info("Starting check types synchronization")
-            
             # Get all check types from API using pagination
             check_types = self._get_all_check_types()
             
@@ -28,7 +26,6 @@ class CheckTypesService:
             # Bulk upsert to database
             CheckType.bulk_upsert(check_types)
             
-            logger.info(f"Successfully synchronized {len(check_types)} check types")
             return True
             
         except Exception as e:
@@ -45,13 +42,11 @@ class CheckTypesService:
                 response = self.api.get_check_types(page=page, limit=100)
                 
                 if not response or 'data' not in response:
-                    logger.warning(f"No data in response for page {page}")
                     break
                 
                 check_types = response['data']
                 
                 if not check_types:
-                    logger.info(f"No more check types at page {page}")
                     break
                 
                 # Process each check type
@@ -63,14 +58,11 @@ class CheckTypesService:
                     }
                     all_check_types.append(processed_type)
                 
-                logger.debug(f"Retrieved {len(check_types)} check types from page {page}")
-                
                 # Check if there are more pages
                 metadata = response.get('metadata', {})
                 total_pages = metadata.get('totalPages', 1)
                 
                 if page >= total_pages:
-                    logger.info(f"Reached last page {page} of {total_pages}")
                     break
                 
                 page += 1
@@ -106,10 +98,8 @@ class CheckTypesService:
             check_types_count = CheckType.query.count()
             
             if check_types_count == 0:
-                logger.info("No check types in database, syncing from API")
                 return self.sync_check_types()
             
-            logger.debug(f"Found {check_types_count} check types in database cache")
             return True
             
         except Exception as e:
@@ -119,8 +109,6 @@ class CheckTypesService:
     def refresh_check_types(self) -> bool:
         """Force refresh of check types from API"""
         try:
-            logger.info("Force refreshing check types from API")
-            
             # Delete all existing check types
             CheckType.query.delete()
             db.session.commit()

@@ -10,7 +10,6 @@ class NoBreaksReportGenerator:
     def __init__(self):
         self.sesame_api = SesameAPI()
         self.logger = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.INFO)
 
     def generate_report(self, from_date: str = None, to_date: str = None, 
                        employee_id: str = None, office_id: str = None, 
@@ -18,18 +17,11 @@ class NoBreaksReportGenerator:
         """Generate report with only work entries - no employee data processing"""
         
         try:
-            self.logger.info("=== GENERANDO REPORTE SOLO CON FICHAJES ===")
-            
             # Ensure check types are cached
-            self.logger.info("=== VERIFICANDO CACHE DE TIPOS DE FICHAJE ===")
             from services.check_types_service import CheckTypesService
             check_types_service = CheckTypesService()
             if not check_types_service.ensure_check_types_cached():
                 self.logger.warning("Failed to cache check types, activity names may be incomplete")
-            
-            # Get work entries with safe incremental loading
-            self.logger.info("=== INICIANDO FETCH INCREMENTAL DE REGISTROS ===")
-            self.logger.info(f"Parámetros: employee_id={employee_id}, from_date={from_date}, to_date={to_date}")
             
             all_work_entries = []
             page = 1
@@ -46,22 +38,18 @@ class NoBreaksReportGenerator:
                     )
                     
                     if not response or not response.get('data'):
-                        self.logger.info(f"No más datos en página {page}, terminando")
                         break
                     
                     entries = response['data']
                     all_work_entries.extend(entries)
-                    self.logger.info(f"Página {page}: {len(entries)} registros, total: {len(all_work_entries)}")
                     
                     # Verificar si hay más páginas
                     meta = response.get('meta', {})
                     if page >= meta.get('lastPage', 1):
-                        self.logger.info(f"Llegamos a la última página ({meta.get('lastPage', 1)})")
                         break
                     
                     # Si no hay suficientes registros, terminamos
                     if len(entries) < 300:
-                        self.logger.info(f"Página {page} tiene menos de 300 registros, terminando")
                         break
                     
                     page += 1
@@ -76,23 +64,11 @@ class NoBreaksReportGenerator:
                         self.logger.warning(f"Continuando con {len(all_work_entries)} registros obtenidos hasta página {page-1}")
                         break
             
-            if all_work_entries:
-                self.logger.info(f"=== COMPLETADO: {len(all_work_entries)} registros obtenidos en {page-1} páginas ===")
-            else:
-                self.logger.warning("=== NO SE OBTUVIERON REGISTROS ===")
-                return self._create_empty_report()
-
             if not all_work_entries:
                 return self._create_empty_report()
 
             # Check types are now cached in database via CheckTypesService
             check_types_map = {}  # Not needed anymore, keeping for compatibility
-
-            self.logger.info(f"Processing {len(all_work_entries)} fichajes for report")
-            self.logger.info(f"Loaded {len(check_types_map)} check types")
-            
-            # Step 3: Create Excel report
-            self.logger.info("Generando archivo Excel...")
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Reporte Fichajes"
@@ -114,7 +90,7 @@ class NoBreaksReportGenerator:
             wb.save(output)
             output.seek(0)
             
-            self.logger.info(f"Reporte generado exitosamente con {current_row - 2} registros")
+
             return output.getvalue()
             
         except Exception as e:
@@ -173,10 +149,7 @@ class NoBreaksReportGenerator:
         if not entries:
             return entries
         
-        self.logger.info(f"=== REDISTRIBUYENDO PAUSAS - {len(entries)} registros ===")
-        
         processed_entries = []
-        pause_count = 0
         i = 0
         
         while i < len(entries):
@@ -184,16 +157,11 @@ class NoBreaksReportGenerator:
             work_entry_type = entry.get('workEntryType', '')
             
             if work_entry_type == 'pause':
-                pause_count += 1
-                self.logger.info(f"Procesando pausa #{pause_count} en posición {i}")
-                
                 # This is a pause entry - adjust adjacent work entries to eliminate gap
                 pause_start = self._get_entry_start_time(entry)
                 pause_end = self._get_entry_end_time(entry)
                 
                 if pause_start and pause_end:
-                    self.logger.info(f"Pausa desde {pause_start.strftime('%H:%M:%S')} hasta {pause_end.strftime('%H:%M:%S')}")
-                    
                     # Find previous and next work entries
                     prev_entry = self._find_previous_work_entry(entries, i)
                     next_entry = self._find_next_work_entry(entries, i)
@@ -206,12 +174,6 @@ class NoBreaksReportGenerator:
                         if prev_start and prev_end:
                             # Extend previous entry to end of pause
                             self._extend_entry_to_time(prev_entry, pause_end)
-                            self.logger.info(f"Registro anterior extendido desde {prev_end.strftime('%H:%M:%S')} hasta {pause_end.strftime('%H:%M:%S')}")
-                        else:
-                            self.logger.warning(f"No se pudo extender registro anterior: prev_start={prev_start}, prev_end={prev_end}")
-
-                    else:
-                        self.logger.warning("No se encontró registro anterior ni siguiente para redistribuir pausa")
                 
                 # Skip adding this pause entry to processed_entries
                 i += 1
@@ -220,11 +182,8 @@ class NoBreaksReportGenerator:
                 # This is a work entry - add it to processed entries if not marked to skip
                 if not entry.get('_skip', False):
                     processed_entries.append(entry)
-                else:
-                    self.logger.info(f"Saltando registro fusionado en posición {i}")
                 i += 1
         
-        self.logger.info(f"=== REDISTRIBUCIÓN COMPLETADA - {pause_count} pausas eliminadas, {len(processed_entries)} registros de trabajo ===")
         return processed_entries
 
     def _get_entry_duration_seconds(self, entry: Dict) -> int:
@@ -328,9 +287,7 @@ class NoBreaksReportGenerator:
                     end_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
                     new_duration = end_time - start_time
                     entry['workedSeconds'] = int(new_duration.total_seconds())
-                    self.logger.info(f"Updated entry: start {start_time.strftime('%H:%M:%S')}, end {end_time.strftime('%H:%M:%S')}, new duration {entry['workedSeconds']}s")
-                else:
-                    self.logger.info(f"Updated entry start to {start_time.strftime('%H:%M:%S')} (no end time available)")
+
         except Exception as e:
             self.logger.error(f"Error moving entry start time: {e}")
 
@@ -359,7 +316,6 @@ class NoBreaksReportGenerator:
                     # This is likely early morning of next day in a night shift
                     # Add 24 hours to make it sort after the previous night's entries
                     sort_time = parsed_time + timedelta(hours=24)
-                    self.logger.debug(f"Night shift adjustment: {parsed_time} -> {sort_time} for sorting")
                     return sort_time
                 else:
                     return parsed_time
@@ -417,23 +373,8 @@ class NoBreaksReportGenerator:
         for group in sorted_groups:
             all_entries = group['all_entries']
             
-            # Log entries before sorting
-            self.logger.info(f"=== ANTES DE ORDENAR - {group['employee_name']} - {group['date']} ===")
-            for i, entry in enumerate(all_entries):
-                start_time = self._get_entry_start_time(entry)
-                entry_type = entry.get('workEntryType', 'unknown')
-                self.logger.info(f"  {i}: {entry_type} - {start_time}")
-            
             # Sort all entries chronologically by entry start time
             all_entries.sort(key=self._get_entry_sort_key)
-            
-            # Log entries after sorting
-            self.logger.info(f"=== DESPUÉS DE ORDENAR - {group['employee_name']} - {group['date']} ===")
-            for i, entry in enumerate(all_entries):
-                start_time = self._get_entry_start_time(entry)
-                sort_key = self._get_entry_sort_key(entry)
-                entry_type = entry.get('workEntryType', 'unknown')
-                self.logger.info(f"  {i}: {entry_type} - {start_time} (sort_key: {sort_key})")
             
             # Process pause redistribution
             processed_entries = self._redistribute_pause_time(all_entries)

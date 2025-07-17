@@ -253,7 +253,6 @@ def test_connection():
                 from services.check_types_service import CheckTypesService
                 check_types_service = CheckTypesService()
                 check_types_service.ensure_check_types_cached()
-                logger.info("Check types cache verified after connection test")
             except Exception as e:
                 logger.warning(f"Failed to verify check types cache after connection test: {str(e)}")
                 # Don't fail the connection test if check types sync fails
