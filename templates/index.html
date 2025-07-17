@@ -393,10 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('from_date').value = formatDate(startOfMonth);
     document.getElementById('to_date').value = formatDate(endOfMonth);
 
-    // Auto-test connection on page load
-    setTimeout(() => {
-        testConnectionBtn.click();
-    }, 1000);
+    // Initial connection status check is already done in checkTokenStatus()
     
     // Function to check report status
     function checkReportStatus(reportId) {

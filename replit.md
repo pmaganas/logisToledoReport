@@ -160,3 +160,6 @@ Preferred communication style: Simple, everyday language.
 - **Night Shift Sorting**: Fixed chronological ordering for night shifts by adjusting entries between 00:00-06:00 to sort after previous night's entries (22:00, 23:00, 00:00, 01:00, 02:00 sequence)
 - **Null Safety**: Added comprehensive null checks for entry times to handle edge cases where work entries may not have end times (e.g., currently active sessions)
 - **UI Cleanup**: Removed unnecessary flash message notification when starting background report generation - the status section already provides visual feedback
+- **Connection Management Separation**: Moved all token configuration to dedicated "Conexión" section with its own page and navigation menu item
+- **Simplified Connection Status**: Main page now shows simple connection indicator (connected/disconnected) with company name, full configuration moved to separate page
+- **Fixed Token Status Check**: Fixed JavaScript error and API response format for proper token status detection after configuration

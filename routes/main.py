@@ -414,23 +414,41 @@ def get_current_token():
     """Get information about current token (masked for security)"""
     try:
         from models import SesameToken
+        from services.sesame_api import SesameAPI
         
         token_info = SesameToken.get_active_token()
         
         if token_info:
+            # Get company name from API
+            api = SesameAPI()
+            result = api.get_token_info()
+            
+            company_name = "Empresa no identificada"
+            if result:
+                if 'data' in result and 'company' in result['data']:
+                    company_name = result['data']['company'].get('name', 'Empresa no identificada')
+                elif 'company' in result:
+                    company_name = result['company'].get('name', 'Empresa no identificada')
+            
             # Mask the token for security
             masked_token = token_info.token[:8] + '*' * (len(token_info.token) - 12) + token_info.token[-4:]
             
             return jsonify({
                 'status': 'success',
+                'has_token': True,
                 'token': masked_token,
+                'token_preview': masked_token,
+                'token_length': len(token_info.token),
+                'masked_token': masked_token,
                 'region': token_info.region,
                 'description': token_info.description or '',
+                'company': company_name,
                 'created_at': token_info.created_at.isoformat()
             })
         else:
             return jsonify({
                 'status': 'error',
+                'has_token': False,
                 'message': 'No hay token configurado'
             })
             
@@ -438,6 +456,7 @@ def get_current_token():
         logger.error(f"Error getting current token: {str(e)}")
         return jsonify({
             'status': 'error',
+            'has_token': False,
             'message': f'Error al obtener información del token: {str(e)}'
         }), 500
 
