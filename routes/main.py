@@ -248,6 +248,16 @@ def test_connection():
             elif 'company' in result:
                 company_name = result['company'].get('name', 'Empresa no identificada')
             
+            # Sync check types when connection is tested successfully
+            try:
+                from services.check_types_service import CheckTypesService
+                check_types_service = CheckTypesService()
+                check_types_service.ensure_check_types_cached()
+                logger.info("Check types cache verified after connection test")
+            except Exception as e:
+                logger.warning(f"Failed to verify check types cache after connection test: {str(e)}")
+                # Don't fail the connection test if check types sync fails
+            
             return jsonify({
                 "status": "success",
                 "message": "Conexión exitosa",
@@ -394,6 +404,16 @@ def apply_token():
                 company_name = result['data']['company'].get('name', 'Empresa no identificada')
             elif 'company' in result:
                 company_name = result['company'].get('name', 'Empresa no identificada')
+            
+            # Sync check types when token is successfully configured
+            try:
+                from services.check_types_service import CheckTypesService
+                check_types_service = CheckTypesService()
+                check_types_service.sync_check_types()
+                logger.info("Check types synchronized successfully after token configuration")
+            except Exception as e:
+                logger.warning(f"Failed to sync check types after token configuration: {str(e)}")
+                # Don't fail the token configuration if check types sync fails
         
         return jsonify({
             'status': 'success',

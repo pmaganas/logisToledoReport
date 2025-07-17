@@ -164,3 +164,7 @@ Preferred communication style: Simple, everyday language.
 - **Simplified Connection Status**: Main page now shows simple connection indicator (connected/disconnected) with company name, full configuration moved to separate page
 - **Fixed Token Status Check**: Fixed JavaScript error and API response format for proper token status detection after configuration
 - **Visual Status Indicator**: Added colored circle (green/red/yellow) at the beginning of connection status for immediate visual feedback
+- **Activity Name Resolution**: Implemented real activity name display in reports using workEntryType and workBreakId lookup
+- **Check Types Database Cache**: Added CheckType model and CheckTypesService for caching activity types from /schedule/v1/check-types endpoint
+- **Automatic Check Types Sync**: Added automatic synchronization of check types when token is configured or connection is tested
+- **Activity Name Logic**: If workEntryType='work' and workBreakId=null, display "Normal"; if workBreakId has value, lookup name from cached check types

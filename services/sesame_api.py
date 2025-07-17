@@ -183,6 +183,13 @@ class SesameAPI:
 
         return self._make_request("/schedule/v1/work-breaks", params=params)
 
+    def get_check_types(self,
+                       page: int = 1,
+                       limit: int = 100) -> Optional[Dict]:
+        """Get check types (activity types) for work entries"""
+        params = {"page": page, "limit": limit}
+        return self._make_request("/schedule/v1/check-types", params=params)
+
     def get_all_employees_data(self, company_id: str = None) -> List[Dict]:
         """Get all employees with pagination"""
         all_employees = []

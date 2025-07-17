@@ -5,10 +5,12 @@ from typing import Dict, List, Optional
 from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment
 from services.sesame_api import SesameAPI
+from services.check_types_service import CheckTypesService
 
 class NoBreaksReportGenerator:
     def __init__(self):
         self.sesame_api = SesameAPI()
+        self.check_types_service = CheckTypesService()
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(level=logging.INFO)
 
@@ -19,6 +21,11 @@ class NoBreaksReportGenerator:
         
         try:
             self.logger.info("=== GENERANDO REPORTE SOLO CON FICHAJES ===")
+            
+            # Ensure check types are cached
+            self.logger.info("=== VERIFICANDO CACHE DE TIPOS DE FICHAJE ===")
+            if not self.check_types_service.ensure_check_types_cached():
+                self.logger.warning("Failed to cache check types, activity names may be incomplete")
             
             # Get work entries with safe incremental loading
             self.logger.info("=== INICIANDO FETCH INCREMENTAL DE REGISTROS ===")
@@ -78,13 +85,8 @@ class NoBreaksReportGenerator:
             if not all_work_entries:
                 return self._create_empty_report()
 
-            # Get check types for activity name resolution (limit to first 100 to save API calls)
-            check_types_response = self.sesame_api.get_check_types(page=1, per_page=100)
-            check_types_map = {}
-            if check_types_response and check_types_response.get('data'):
-                for check_type in check_types_response['data']:
-                    check_types_map[check_type.get('id')] = check_type.get(
-                        'name', 'Actividad no especificada')
+            # Check types are now cached in database via CheckTypesService
+            check_types_map = {}  # Not needed anymore, keeping for compatibility
 
             self.logger.info(f"Processing {len(all_work_entries)} fichajes for report")
             self.logger.info(f"Loaded {len(check_types_map)} check types")
@@ -444,7 +446,7 @@ class NoBreaksReportGenerator:
             total_worked_seconds = 0
             
             for entry in processed_entries:
-                row_data = self._extract_entry_data(entry, group['employee_info'], check_types_map)
+                row_data = self._extract_entry_data(entry, group['employee_info'])
                 
                 # Write to Excel
                 ws.cell(row=current_row, column=1, value=row_data['employee_name'])
@@ -476,7 +478,7 @@ class NoBreaksReportGenerator:
         
         return current_row
     
-    def _extract_entry_data(self, entry, employee_info, check_types_map):
+    def _extract_entry_data(self, entry, employee_info):
         """Extract data from a work entry for Excel output"""
         # Employee name
         employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
@@ -487,13 +489,10 @@ class NoBreaksReportGenerator:
         employee_nid = employee_info.get('nid', 'No disponible')
         employee_id_type = employee_info.get('identityNumberType', 'DNI')
         
-        # Get activity name from workCheckTypeId using check types mapping
-        activity_name = "Actividad no especificada"
-        work_check_type_id = entry.get('workCheckTypeId')
-        if work_check_type_id and work_check_type_id in check_types_map:
-            activity_name = check_types_map[work_check_type_id]
-        elif entry.get('workEntryType'):
-            activity_name = entry.get('workEntryType', 'Actividad no especificada')
+        # Get activity name based on workEntryType and workBreakId
+        work_entry_type = entry.get('workEntryType', '')
+        work_break_id = entry.get('workBreakId')
+        activity_name = self.check_types_service.get_activity_name(work_entry_type, work_break_id)
         
         # Group name left empty as requested
         group_name = ""
