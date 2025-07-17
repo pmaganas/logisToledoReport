@@ -86,7 +86,7 @@ class CheckTypesService:
         try:
             # If workEntryType is 'work' and workBreakId is null, it's normal work
             if work_entry_type == 'work' and not work_break_id:
-                return 'Normal'
+                return 'Registro normal'
             
             # If workBreakId has a value, look up the check type name
             if work_break_id:
