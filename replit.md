@@ -168,3 +168,7 @@ Preferred communication style: Simple, everyday language.
 - **Check Types Database Cache**: Added CheckType model and CheckTypesService for caching activity types from /schedule/v1/check-types endpoint
 - **Automatic Check Types Sync**: Added automatic synchronization of check types when token is configured or connection is tested
 - **Activity Name Logic**: If workEntryType='work' and workBreakId=null, display "Normal"; if workBreakId has value, lookup name from cached check types
+- **Circular Import Fix**: Resolved circular import issues by moving check types service imports inside functions to avoid module loading conflicts
+- **Manual Check Types Refresh**: Added /refresh-check-types endpoint for manual synchronization of activity types when needed
+- **Database Persistence**: Check types are now permanently stored in PostgreSQL database, eliminating API calls during report generation
+- **Activity Names Working**: System now displays real activity names like "BAÑO", "AUDITORIA", "ABASTECER" instead of generic "work" labels

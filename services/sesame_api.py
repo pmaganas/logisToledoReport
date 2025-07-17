@@ -493,17 +493,7 @@ class SesameAPI:
 
         return all_departments
 
-    def get_check_types(self,
-                        company_id: str = None,
-                        page: int = 1,
-                        per_page: int = 100) -> Optional[Dict]:
-        """Get list of check types"""
-        params = {'page': page, 'per_page': per_page}
 
-        if company_id:
-            params['companyId'] = company_id
-
-        return self._make_request("/schedule/v1/check-types", params=params)
 
     def get_all_check_types_data(self, company_id: str = None) -> List[Dict]:
         """Get all check types with pagination"""

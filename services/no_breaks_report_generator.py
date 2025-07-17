@@ -5,12 +5,10 @@ from typing import Dict, List, Optional
 from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment
 from services.sesame_api import SesameAPI
-from services.check_types_service import CheckTypesService
 
 class NoBreaksReportGenerator:
     def __init__(self):
         self.sesame_api = SesameAPI()
-        self.check_types_service = CheckTypesService()
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(level=logging.INFO)
 
@@ -24,7 +22,9 @@ class NoBreaksReportGenerator:
             
             # Ensure check types are cached
             self.logger.info("=== VERIFICANDO CACHE DE TIPOS DE FICHAJE ===")
-            if not self.check_types_service.ensure_check_types_cached():
+            from services.check_types_service import CheckTypesService
+            check_types_service = CheckTypesService()
+            if not check_types_service.ensure_check_types_cached():
                 self.logger.warning("Failed to cache check types, activity names may be incomplete")
             
             # Get work entries with safe incremental loading
@@ -492,7 +492,11 @@ class NoBreaksReportGenerator:
         # Get activity name based on workEntryType and workBreakId
         work_entry_type = entry.get('workEntryType', '')
         work_break_id = entry.get('workBreakId')
-        activity_name = self.check_types_service.get_activity_name(work_entry_type, work_break_id)
+        
+        # Import here to avoid circular import
+        from services.check_types_service import CheckTypesService
+        check_types_service = CheckTypesService()
+        activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
         
         # Group name left empty as requested
         group_name = ""

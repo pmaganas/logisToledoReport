@@ -277,6 +277,32 @@ def test_connection():
         }), 500
 
 
+@main_bp.route('/refresh-check-types', methods=['POST'])
+def refresh_check_types():
+    """Refresh check types from API"""
+    try:
+        from services.check_types_service import CheckTypesService
+        check_types_service = CheckTypesService()
+        result = check_types_service.refresh_check_types()
+        
+        if result:
+            return jsonify({
+                "status": "success",
+                "message": "Tipos de fichajes actualizados correctamente"
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Error al actualizar tipos de fichajes"
+            }), 500
+    except Exception as e:
+        logger.error(f"Error refreshing check types: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error al actualizar tipos de fichajes: {str(e)}"
+        }), 500
+
+
 def _process_break_redistribution(time_entries, break_entries):
     """Process break time redistribution based on workEntryType"""
     # Group entries by date and employee
