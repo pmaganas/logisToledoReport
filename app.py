@@ -4,8 +4,10 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+# Configure logging - suppress urllib3 debug logs
+logging.basicConfig(level=logging.WARNING)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("requests.packages.urllib3.connectionpool").setLevel(logging.WARNING)
 
 class Base(DeclarativeBase):
     pass

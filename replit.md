@@ -173,3 +173,4 @@ Preferred communication style: Simple, everyday language.
 - **Database Persistence**: Check types are now permanently stored in PostgreSQL database, eliminating API calls during report generation
 - **Activity Names Working**: System now displays real activity names like "BAÑO", "AUDITORIA", "ABASTECER" instead of generic "work" labels
 - **Production Logs Cleanup**: Removed all debugging logs (DEBUG, INFO) from services to reduce log noise in production, keeping only ERROR and WARNING logs for essential monitoring
+- **urllib3 Debug Logs Suppression**: Configured logging to suppress urllib3 debug logs that show HTTP request details, keeping only WARNING and ERROR logs for clean production output
