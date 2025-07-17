@@ -159,3 +159,4 @@ Preferred communication style: Simple, everyday language.
 - **Employee-Date Grouping**: Maintained grouping by employee and date for proper daily totals while ensuring chronological ordering within each group
 - **Night Shift Sorting**: Fixed chronological ordering for night shifts by adjusting entries between 00:00-06:00 to sort after previous night's entries (22:00, 23:00, 00:00, 01:00, 02:00 sequence)
 - **Null Safety**: Added comprehensive null checks for entry times to handle edge cases where work entries may not have end times (e.g., currently active sessions)
+- **UI Cleanup**: Removed unnecessary flash message notification when starting background report generation - the status section already provides visual feedback

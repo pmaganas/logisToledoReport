@@ -178,7 +178,7 @@ def index():
         thread.daemon = True
         thread.start()
         
-        flash('Reporte iniciado en segundo plano. Se mostrará el enlace de descarga cuando esté listo.', 'info')
+
         return render_template('index.html', report_id=report_id)
 
     except Exception as e:
