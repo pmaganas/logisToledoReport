@@ -163,3 +163,4 @@ Preferred communication style: Simple, everyday language.
 - **Connection Management Separation**: Moved all token configuration to dedicated "Conexión" section with its own page and navigation menu item
 - **Simplified Connection Status**: Main page now shows simple connection indicator (connected/disconnected) with company name, full configuration moved to separate page
 - **Fixed Token Status Check**: Fixed JavaScript error and API response format for proper token status detection after configuration
+- **Visual Status Indicator**: Added colored circle (green/red/yellow) at the beginning of connection status for immediate visual feedback

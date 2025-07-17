@@ -43,6 +43,7 @@
             <div class="mb-6">
                 <div id="connectionStatus" class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl">
                     <div class="flex items-center">
+                        <div class="w-2 h-2 rounded-full bg-gray-400 mr-3" id="connectionDot"></div>
                         <i class="ti ti-loader animate-spin text-gray-600 mr-2" id="connectionIcon"></i>
                         <span class="text-sm text-gray-700" id="connectionText">Verificando conexión...</span>
                     </div>
@@ -185,12 +186,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkTokenStatus() {
         const connectionIcon = document.getElementById('connectionIcon');
         const connectionText = document.getElementById('connectionText');
+        const connectionDot = document.getElementById('connectionDot');
         
         fetch('/get-current-token')
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success' && data.has_token) {
                     // Token exists - enable report generation and update connection status
+                    connectionDot.className = 'w-2 h-2 rounded-full bg-green-500 mr-3';
                     connectionIcon.className = 'ti ti-check text-green-600 mr-2';
                     connectionText.textContent = `Conectado: ${data.company || 'Empresa no identificada'}`;
                     
@@ -199,6 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
                 } else {
                     // No token - disable report generation and update connection status
+                    connectionDot.className = 'w-2 h-2 rounded-full bg-yellow-500 mr-3';
                     connectionIcon.className = 'ti ti-alert-circle text-yellow-600 mr-2';
                     connectionText.textContent = 'No hay token configurado';
                     
@@ -210,6 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error checking token status:', error);
                 // Show error status
+                connectionDot.className = 'w-2 h-2 rounded-full bg-red-500 mr-3';
                 connectionIcon.className = 'ti ti-x text-red-600 mr-2';
                 connectionText.textContent = 'Error al verificar conexión';
                 
