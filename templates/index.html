@@ -47,9 +47,15 @@
                         <i class="ti ti-loader animate-spin text-gray-600 mr-2" id="connectionIcon"></i>
                         <span class="text-sm text-gray-700" id="connectionText">Verificando conexión...</span>
                     </div>
-                    <a href="{{ url_for('main.connection') }}" class="text-xs text-indigo-600 hover:text-indigo-800">
-                        Configurar conexión
-                    </a>
+                    <div class="flex space-x-2">
+                        <a href="{{ url_for('main.connection') }}" class="text-xs text-indigo-600 hover:text-indigo-800">
+                            Configurar conexión
+                        </a>
+                        <span class="text-gray-300">|</span>
+                        <a href="{{ url_for('main.logout') }}" class="text-xs text-red-600 hover:text-red-800">
+                            Cerrar sesión
+                        </a>
+                    </div>
                 </div>
             </div>
 

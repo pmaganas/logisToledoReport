@@ -7,6 +7,7 @@ import uuid
 import os
 import glob
 from services.no_breaks_report_generator import NoBreaksReportGenerator
+from auth import requires_auth, check_auth, login_user, logout_user, authenticate
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -108,10 +109,15 @@ def generate_report_background(report_id, form_data, app_context):
         
     # Update status outside app context to avoid DB SSL issues
     try:
+        # Initialize variables
+        filename = None
+        file_path = None
+        report_data = None
+        
         if report_data:
             background_reports[report_id]['status'] = 'completed'
-            background_reports[report_id]['filename'] = filename
-            background_reports[report_id]['file_path'] = file_path
+            background_reports[report_id]['filename'] = filename or f"{report_id}_reporte.xlsx"
+            background_reports[report_id]['file_path'] = file_path or f"temp_reports/{report_id}_reporte.xlsx"
         else:
             background_reports[report_id]['status'] = 'error'
             background_reports[report_id]['error'] = 'Error al generar el reporte'
@@ -121,7 +127,30 @@ def generate_report_background(report_id, form_data, app_context):
         background_reports[report_id]['error'] = 'Error en el proceso final'
 
 
+@main_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page"""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if check_auth(username, password):
+            login_user()
+            return redirect(url_for('main.index'))
+        else:
+            flash('Usuario o contraseña incorrectos', 'error')
+    
+    return render_template('login.html')
+
+@main_bp.route('/logout')
+def logout():
+    """Logout"""
+    logout_user()
+    flash('Sesión cerrada exitosamente', 'success')
+    return redirect(url_for('main.login'))
+
 @main_bp.route('/', methods=['GET', 'POST'])
+@requires_auth
 def index():
     """Main page with report generation form and background report generation"""
     if request.method == 'GET':
@@ -188,6 +217,7 @@ def index():
 
 
 @main_bp.route('/report-status/<report_id>')
+@requires_auth
 def report_status(report_id):
     """Check the status of a background report"""
     if report_id not in background_reports:
@@ -203,6 +233,7 @@ def report_status(report_id):
 
 
 @main_bp.route('/download-report/<report_id>')
+@requires_auth
 def download_report(report_id):
     """Download a completed background report"""
     if report_id not in background_reports:
@@ -233,6 +264,7 @@ def download_report(report_id):
 
 
 @main_bp.route('/test-connection')
+@requires_auth
 def test_connection():
     """Test API connection"""
     try:
@@ -277,6 +309,7 @@ def test_connection():
 
 
 @main_bp.route('/refresh-check-types', methods=['POST'])
+@requires_auth
 def refresh_check_types():
     """Refresh check types from API"""
     try:
@@ -392,12 +425,14 @@ def _format_duration(duration):
 
 
 @main_bp.route('/conexion')
+@requires_auth
 def connection():
     """Connection management page"""
     return render_template('connection.html')
 
 
 @main_bp.route('/apply-token', methods=['POST'])
+@requires_auth
 def apply_token():
     """Apply new API token"""
     try:
@@ -455,6 +490,7 @@ def apply_token():
 
 
 @main_bp.route('/get-current-token')
+@requires_auth
 def get_current_token():
     """Get information about current token (masked for security)"""
     try:
@@ -507,6 +543,7 @@ def get_current_token():
 
 
 @main_bp.route('/descargas')
+@requires_auth
 def downloads():
     """Downloads page - show all generated reports"""
     try:
@@ -564,6 +601,7 @@ def downloads():
 
 
 @main_bp.route('/descargas/download/<report_id>')
+@requires_auth
 def download_report_by_id(report_id):
     """Download a specific report by ID"""
     try:
@@ -596,6 +634,7 @@ def download_report_by_id(report_id):
 
 
 @main_bp.route('/descargas/delete/<report_id>', methods=['POST'])
+@requires_auth
 def delete_report(report_id):
     """Delete a specific report"""
     try:
