@@ -178,3 +178,6 @@ Preferred communication style: Simple, everyday language.
 - **Protected Routes**: All application routes now require authentication with @requires_auth decorator, unauthorized users redirected to login page
 - **Authentication UI**: Added professional login page with Tailwind CSS styling and proper error handling for invalid credentials
 - **Logout Functionality**: Added logout links in navigation and proper session cleanup with success messaging
+- **Restored Office and Department Filters**: Re-enabled center and department selection dropdowns with API endpoints /get-offices and /get-departments
+- **Dynamic Dropdown Loading**: Implemented JavaScript functions to populate office and department selectors from Sesame API data
+- **Enhanced User Interface**: Restored filtering capabilities that were previously disabled due to SSL performance concerns

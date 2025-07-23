@@ -188,6 +188,32 @@ class SesameAPI:
         params = {"page": page, "limit": limit}
         return self._make_request("/schedule/v1/check-types", params=params)
 
+    def get_offices(self) -> Optional[Dict]:
+        """Get list of offices"""
+        if not self.token:
+            self.logger.error("No token configured for offices request")
+            return None
+            
+        try:
+            response = self._make_request('/core/v3/offices')
+            return response
+        except Exception as e:
+            self.logger.error(f"Error fetching offices: {str(e)}")
+            return None
+
+    def get_departments(self) -> Optional[Dict]:
+        """Get list of departments"""
+        if not self.token:
+            self.logger.error("No token configured for departments request")
+            return None
+            
+        try:
+            response = self._make_request('/core/v3/departments')
+            return response
+        except Exception as e:
+            self.logger.error(f"Error fetching departments: {str(e)}")
+            return None
+
     def get_all_employees_data(self, company_id: str = None) -> List[Dict]:
         """Get all employees with pagination"""
         all_employees = []

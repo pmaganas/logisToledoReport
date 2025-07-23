@@ -188,6 +188,12 @@ document.addEventListener('DOMContentLoaded', function() {
         checkReportStatus(reportId);
     }
     
+    // Load offices and departments when token is available
+    setTimeout(() => {
+        loadOffices();
+        loadDepartments();
+    }, 1000); // Give time for token check to complete
+    
     // Function to check token status and configure UI
     function checkTokenStatus() {
         const connectionIcon = document.getElementById('connectionIcon');
@@ -347,17 +353,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-    // Funciones de carga de oficinas y departamentos eliminadas - solo trabajamos con fichajes
+    // Load offices and departments
     function loadOffices() {
-        // Disabled - only work with fichajes
-        officeSelect.innerHTML = `<option value="">Filtros de oficina deshabilitados</option>`;
-        officeSelect.disabled = true;
+        fetch('/get-offices')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    officeSelect.innerHTML = '<option value="">Todos los centros</option>';
+                    data.offices.forEach(office => {
+                        officeSelect.innerHTML += `<option value="${office.id}">${office.name}</option>`;
+                    });
+                    officeSelect.disabled = false;
+                } else {
+                    officeSelect.innerHTML = '<option value="">Error cargando centros</option>';
+                    officeSelect.disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading offices:', error);
+                officeSelect.innerHTML = '<option value="">Error cargando centros</option>';
+                officeSelect.disabled = true;
+            });
     }
 
     function loadDepartments() {
-        // Disabled - only work with fichajes
-        departmentSelect.innerHTML = `<option value="">Filtros de departamento deshabilitados</option>`;
-        departmentSelect.disabled = true;
+        fetch('/get-departments')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    departmentSelect.innerHTML = '<option value="">Todos los departamentos</option>';
+                    data.departments.forEach(department => {
+                        departmentSelect.innerHTML += `<option value="${department.id}">${department.name}</option>`;
+                    });
+                    departmentSelect.disabled = false;
+                } else {
+                    departmentSelect.innerHTML = '<option value="">Error cargando departamentos</option>';
+                    departmentSelect.disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading departments:', error);
+                departmentSelect.innerHTML = '<option value="">Error cargando departamentos</option>';
+                departmentSelect.disabled = true;
+            });
     }
 
 

@@ -7,6 +7,7 @@ import uuid
 import os
 import glob
 from services.no_breaks_report_generator import NoBreaksReportGenerator
+from services.sesame_api import SesameAPI
 from auth import requires_auth, check_auth, login_user, logout_user, authenticate
 
 main_bp = Blueprint('main', __name__)
@@ -668,4 +669,60 @@ def delete_report(report_id):
         return jsonify({
             'status': 'error',
             'message': f'Error al eliminar el reporte: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/get-offices')
+@requires_auth
+def get_offices():
+    """Get list of offices"""
+    try:
+        api = SesameAPI()
+        response = api.get_offices()
+        
+        if response and 'data' in response:
+            offices = response['data']
+            return jsonify({
+                'status': 'success',
+                'offices': offices
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'No se pudieron cargar las oficinas'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error getting offices: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al obtener oficinas: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/get-departments')
+@requires_auth
+def get_departments():
+    """Get list of departments"""
+    try:
+        api = SesameAPI()
+        response = api.get_departments()
+        
+        if response and 'data' in response:
+            departments = response['data']
+            return jsonify({
+                'status': 'success',
+                'departments': departments
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'No se pudieron cargar los departamentos'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error getting departments: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al obtener departamentos: {str(e)}'
         }), 500
