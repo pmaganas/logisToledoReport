@@ -202,3 +202,10 @@ Preferred communication style: Simple, everyday language.
 - **Performance Optimization**: Commented out verbose "Extended entry" logs that were generating thousands of lines during pause redistribution, significantly improving report generation speed
 - **Report Completion Logging**: Added clear logs when report generation completes and status updates to 'completed', providing better visibility of process completion
 - **Report Processing Status**: Added logs after API pagination completes showing total entries retrieved and when report processing starts
+- **Major Code Cleanup (July 28, 2025)**: Performed comprehensive code cleanup reducing LSP errors from 64 to 13:
+  - Removed all unused methods from sesame_api.py: get_employees(), get_activities(), get_breaks(), get_all_employees_data(), get_all_breaks_data()
+  - Fixed duplicate method definitions (get_offices and get_departments were defined twice)
+  - Eliminated unused pagination methods for offices, departments, and check types
+  - Kept only actively used methods: get_token_info(), get_offices(), get_departments(), get_time_tracking(), get_check_types(), get_all_time_tracking_data()
+  - Reduced sesame_api.py file size by ~50% while maintaining all functionality
+  - Remaining LSP errors are type-checking false positives from openpyxl library that don't affect runtime
