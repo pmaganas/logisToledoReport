@@ -14,7 +14,8 @@
 }
 
 .progress-bar-5min {
-    animation: progress-fill 300s linear forwards;
+    width: 0%;
+    transition: width 0.5s ease;
 }
 </style>
 {% endblock %}
@@ -441,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </p>
                     <div class="mt-3">
                         <div class="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
-                            <div class="bg-indigo-600 h-2 rounded-full progress-bar-5min"></div>
+                            <div class="bg-indigo-600 h-2 rounded-full progress-bar-5min" id="progressBar"></div>
                         </div>
                     </div>
                     <div class="mt-2 text-xs text-blue-600">
@@ -453,6 +454,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Submit the form
         reportForm.submit();
+        
+        // Start progress bar animation
+        startProgressAnimation('progressBar');
         
         // Reset button state after timeout (in case of errors)
         setTimeout(() => {
@@ -520,7 +524,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </p>
                                 <div class="mt-3">
                                     <div class="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
-                                        <div class="bg-indigo-600 h-2 rounded-full progress-bar-5min"></div>
+                                        <div class="bg-indigo-600 h-2 rounded-full progress-bar-5min" id="progressBarStatus"></div>
                                     </div>
                                 </div>
                                 <div class="mt-2 text-xs text-blue-600">
@@ -529,6 +533,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     `;
+                    
+                    // Start progress animation for existing report
+                    startProgressAnimation('progressBarStatus');
                     
                     // Continue checking
                     setTimeout(() => checkReportStatus(reportId), 2000);
@@ -591,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </p>
                                 <div class="mt-3">
                                     <div class="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
-                                        <div class="bg-indigo-600 h-2 rounded-full progress-bar-5min"></div>
+                                        <div class="bg-indigo-600 h-2 rounded-full progress-bar-5min" id="progressBarElse"></div>
                                     </div>
                                 </div>
                                 <div class="mt-2 text-xs text-blue-600">
@@ -600,6 +607,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     `;
+                    
+                    // Start progress animation for starting report
+                    startProgressAnimation('progressBarElse');
+                    
                     setTimeout(() => checkReportStatus(reportId), 1000);
                 }
             })
@@ -607,6 +618,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error checking report status:', error);
                 setTimeout(() => checkReportStatus(reportId), 3000);
             });
+    }
+    
+    // Progress bar animation function
+    function startProgressAnimation(barId = 'progressBar') {
+        const progressBar = document.getElementById(barId);
+        if (!progressBar) return;
+        
+        let progress = 0;
+        const duration = 300000; // 5 minutes in milliseconds
+        const interval = 1000; // Update every second
+        const increment = (100 / (duration / interval));
+        
+        const progressInterval = setInterval(() => {
+            progress += increment;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(progressInterval);
+            }
+            progressBar.style.width = progress + '%';
+        }, interval);
+        
+        // Store interval ID to clear it later if needed
+        window[`progressInterval_${barId}`] = progressInterval;
     }
 });
 </script>
