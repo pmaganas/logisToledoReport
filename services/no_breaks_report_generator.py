@@ -19,9 +19,12 @@ class NoBreaksReportGenerator:
         """Generate report with only work entries - no employee data processing"""
         
         try:
+            self.logger.info(f"[REPORT] Starting report generation - from_date: {from_date}, to_date: {to_date}, report_type: {report_type}, format: {format}")
+            
             # Ensure check types are cached
             from services.check_types_service import CheckTypesService
             check_types_service = CheckTypesService()
+            self.logger.info("[REPORT] Ensuring check types are cached...")
             if not check_types_service.ensure_check_types_cached():
                 self.logger.warning("Failed to cache check types, activity names may be incomplete")
             
@@ -29,8 +32,11 @@ class NoBreaksReportGenerator:
             page = 1
             max_safe_pages = 100  # Limite aumentado para 10,000 registros
             
+            self.logger.info(f"[REPORT] Starting work entries retrieval, max pages: {max_safe_pages}")
+            
             while page <= max_safe_pages:
                 try:
+                    self.logger.info(f"[REPORT] Fetching page {page}...")
                     response = self.sesame_api.get_time_tracking(
                         employee_id=employee_id,
                         from_date=from_date,
@@ -38,6 +44,7 @@ class NoBreaksReportGenerator:
                         page=page,
                         limit=300
                     )
+                    self.logger.info(f"[REPORT] Response received for page {page}")
                     
                     if not response or not response.get('data'):
                         break

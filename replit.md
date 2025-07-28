@@ -196,3 +196,5 @@ Preferred communication style: Simple, everyday language.
 - **Connection Close Functionality**: Implemented complete "Cerrar Conexión" feature with database cleanup, removing all tokens and check types with proper UI feedback
 - **Real-Time Navigation Status**: Fixed navigation connection indicators to update immediately during all connection state changes (loading, connected, disconnected) for accurate visual feedback
 - **5-Minute Progress Bar**: Replaced infinite progress animation with realistic 5-minute progress bar during report generation, including estimated time display and page refresh warnings for better user experience
+- **Fixed Infinite Loop Bug**: Corrected critical bug in background report generation where report_data was reset to None before completion check, causing reports to remain in 'processing' state indefinitely
+- **Enhanced Report Generation Logging**: Added comprehensive logging throughout report generation process with INFO level logging to track thread execution, API calls, and report processing status

@@ -61,18 +61,21 @@ def _enforce_report_limit(temp_dir, max_reports=MAX_REPORTS):
     return deleted_files
 
 
-def generate_report_background(report_id, form_data, app_context):
+def generate_report_background(report_id, form_data, app):
     """Generate report in background thread"""
     try:
-        with app_context:
-            logger.info(f"Starting background report generation - ID: {report_id}")
+        logger.info(f"[THREAD] Starting background thread for report {report_id}")
+        with app.app_context():
+            logger.info(f"[THREAD] Inside app context - Starting background report generation - ID: {report_id}")
             background_reports[report_id]['status'] = 'processing'
             
             # Generate report
             report_data = None
             
-            logger.info(f"Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
+            logger.info(f"[THREAD] Form data: {form_data}")
+            logger.info(f"[THREAD] Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
             no_breaks_generator = NoBreaksReportGenerator()
+            logger.info(f"[THREAD] Created NoBreaksReportGenerator instance")
             report_data = no_breaks_generator.generate_report(
                 from_date=form_data['from_date'],
                 to_date=form_data['to_date'],
@@ -215,9 +218,12 @@ def index():
         
         # Start background thread with app context
         from flask import current_app
-        thread = threading.Thread(target=generate_report_background, args=(report_id, form_data, current_app.app_context()))
+        logger.info(f"[MAIN] About to start thread for report {report_id}")
+        app_ctx = current_app._get_current_object()
+        thread = threading.Thread(target=generate_report_background, args=(report_id, form_data, app_ctx))
         thread.daemon = True
         thread.start()
+        logger.info(f"[MAIN] Thread started for report {report_id}")
         
 
         return render_template('index.html', report_id=report_id)
