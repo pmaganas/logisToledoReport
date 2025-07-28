@@ -76,7 +76,7 @@
     </div>
 {% endif %}
 
-<div class="max-w-7xl mx-auto" {% if reports %}style="margin-top: 120px;"{% endif %}>
+<div class="{% if reports %}h-full flex flex-col{% endif %} max-w-7xl mx-auto" {% if reports %}style="margin-top: 120px; height: calc(100vh - 200px);"{% endif %}>
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-2">Historial de Descargas</h2>
             <p class="text-gray-600">Gestiona tus reportes generados: descarga nuevamente o elimina archivos antiguos.</p>
@@ -96,11 +96,11 @@
         {% endwith %}
 
         <!-- Reports Table -->
-        <div class="card">
+        <div class="card {% if reports %}flex-grow min-h-0{% endif %}">
             {% if reports %}
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                <div class="overflow-x-auto h-full">
+                    <table class="min-w-full divide-y divide-gray-200 h-full">
+                        <thead class="bg-gray-50 sticky top-0 z-10">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Archivo
@@ -174,19 +174,21 @@
                     </table>
                 </div>
             {% else %}
-                <div class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">No hay reportes generados</h3>
-                    <p class="mt-1 text-sm text-gray-500">Comienza generando tu primer reporte.</p>
-                    <div class="mt-6">
-                        <a href="/" class="btn-primary">
-                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                            </svg>
-                            Generar Reporte
-                        </a>
+                <div class="flex items-center justify-center h-full">
+                    <div class="text-center py-12">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No hay reportes generados</h3>
+                        <p class="mt-1 text-sm text-gray-500">Comienza generando tu primer reporte.</p>
+                        <div class="mt-6">
+                            <a href="/" class="btn-primary">
+                                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Generar Reporte
+                            </a>
+                        </div>
                     </div>
                 </div>
             {% endif %}
