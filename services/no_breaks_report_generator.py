@@ -54,6 +54,9 @@ class NoBreaksReportGenerator:
                     
                     # Verificar si hay más páginas
                     meta = response.get('meta', {})
+                    total_pages = meta.get('lastPage', 1)
+                    total_records = meta.get('total', 0)
+                    self.logger.info(f"[REPORT] Página {page} de {total_pages} - Registros en esta página: {len(entries)} - Total acumulado: {len(all_work_entries)} de {total_records}")
                     if page >= meta.get('lastPage', 1):
                         break
                     

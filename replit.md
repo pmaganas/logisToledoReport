@@ -198,3 +198,4 @@ Preferred communication style: Simple, everyday language.
 - **5-Minute Progress Bar**: Replaced infinite progress animation with realistic 5-minute progress bar during report generation, including estimated time display and page refresh warnings for better user experience
 - **Fixed Infinite Loop Bug**: Corrected critical bug in background report generation where report_data was reset to None before completion check, causing reports to remain in 'processing' state indefinitely
 - **Enhanced Report Generation Logging**: Added comprehensive logging throughout report generation process with INFO level logging to track thread execution, API calls, and report processing status
+- **Pagination Progress Logs**: Added detailed pagination logs showing "Página X de Y" with record counts during API calls, displaying current page vs total pages and accumulated records for better progress tracking
