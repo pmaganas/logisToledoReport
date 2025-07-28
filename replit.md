@@ -147,7 +147,7 @@ Preferred communication style: Simple, everyday language.
 - **Code Cleanup**: Removed unused report generator files and simplified codebase to only use NoBreaksReportGenerator
 - **API Sorting**: Added sorting parameters to work-entries endpoint to ensure consistent ordering by date and entry time
 - **UI Cleanup**: Removed "Feature Highlight" section about breakfast breaks and "Report Information" section with column details
-- **Increased Pagination Limit**: Changed API query limit from 100 to 300 records per page to reduce total API calls and improve performance
+- **Increased Pagination Limit**: Changed API query limit from 100 to 300 to 500 records per page to reduce total API calls and improve performance by ~40%
 - **Infinite Progress Bar**: Implemented simple infinite progress bar animation during report generation for better user experience
 - **SSL Connection Handling**: Improved database connection management during long-running report generation to prevent SSL timeout errors
 - **Downloads Management Screen**: Added comprehensive downloads page where users can view all generated reports, re-download files, and delete old reports with confirmation modal

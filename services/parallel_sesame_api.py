@@ -93,7 +93,7 @@ class ParallelSesameAPI:
                          from_date: Optional[str] = None,
                          to_date: Optional[str] = None,
                          page: int = 1,
-                         limit: int = 300) -> Optional[Dict]:
+                         limit: int = 500) -> Optional[Dict]:
         """Get work entries (time tracking data)"""
         params: Dict[str, any] = {"page": page, "limit": limit}
 
@@ -115,7 +115,7 @@ class ParallelSesameAPI:
                           from_date: Optional[str] = None,
                           to_date: Optional[str] = None,
                           page: int = 1,
-                          limit: int = 300) -> Optional[Dict]:
+                          limit: int = 500) -> Optional[Dict]:
         """Get time tracking entries - using work-entries endpoint"""
         return self.get_work_entries(employee_id, company_id, from_date,
                                      to_date, page, limit)
@@ -194,7 +194,7 @@ class ParallelSesameAPI:
                                            max_workers: int = 5) -> List[Dict]:
         """Get all time tracking data with parallel pagination"""
         all_data = []
-        limit = 300
+        limit = 500
         
         # First, get page 1 to determine total pages
         self.logger.info("[PARALLEL] Getting first page to determine total...")
