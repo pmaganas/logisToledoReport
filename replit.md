@@ -209,3 +209,4 @@ Preferred communication style: Simple, everyday language.
   - Kept only actively used methods: get_token_info(), get_offices(), get_departments(), get_time_tracking(), get_check_types(), get_all_time_tracking_data()
   - Reduced sesame_api.py file size by ~50% while maintaining all functionality
   - Remaining LSP errors are type-checking false positives from openpyxl library that don't affect runtime
+- **Report Status Polling Interval**: Changed from 1-3 seconds to 30 seconds for all status checks to reduce server load

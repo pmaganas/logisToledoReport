@@ -508,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     startProgressAnimation('progressBarStatus');
                     
                     // Continue checking
-                    setTimeout(() => checkReportStatus(reportId), 2000);
+                    setTimeout(() => checkReportStatus(reportId), 30000);
                 } else if (data.status === 'completed') {
                     // Report completed - show download link
                     reportStatus.className = 'mb-6 bg-green-50 rounded-xl border border-green-200 p-4';
@@ -579,12 +579,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Start progress animation for starting report
                     startProgressAnimation('progressBarElse');
                     
-                    setTimeout(() => checkReportStatus(reportId), 1000);
+                    setTimeout(() => checkReportStatus(reportId), 30000);
                 }
             })
             .catch(error => {
                 console.error('Error checking report status:', error);
-                setTimeout(() => checkReportStatus(reportId), 3000);
+                setTimeout(() => checkReportStatus(reportId), 30000);
             });
     }
     
