@@ -195,3 +195,4 @@ Preferred communication style: Simple, everyday language.
 - **Responsive Summary Bar**: Extracted summary statistics to full-width fixed top bar that remains visible during scroll, providing constant access to key metrics
 - **Connection Close Functionality**: Implemented complete "Cerrar Conexión" feature with database cleanup, removing all tokens and check types with proper UI feedback
 - **Real-Time Navigation Status**: Fixed navigation connection indicators to update immediately during all connection state changes (loading, connected, disconnected) for accurate visual feedback
+- **5-Minute Progress Bar**: Replaced infinite progress animation with realistic 5-minute progress bar during report generation, including estimated time display and page refresh warnings for better user experience

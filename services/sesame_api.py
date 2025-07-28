@@ -1,7 +1,6 @@
 import requests
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 
@@ -20,7 +19,6 @@ class SesameAPI:
         """Get token and region from database or environment"""
         try:
             from models import SesameToken
-            from app import db
 
             # Try to get token from database
             active_token = SesameToken.get_active_token()
@@ -337,7 +335,7 @@ class SesameAPI:
                 # Safety check to avoid infinite loops - increased to handle large datasets
                 if page > 200:  # Max 20000 entries
                     self.logger.warning(
-                        f"WORK-ENTRIES: Reached safety limit of 200 pages, stopping pagination"
+                        "WORK-ENTRIES: Reached safety limit of 200 pages, stopping pagination"
                     )
                     break
 
@@ -412,7 +410,7 @@ class SesameAPI:
                 # Safety check to avoid infinite loops
                 if page > 100:
                     self.logger.warning(
-                        f"Reached safety limit of 100 break pages, stopping pagination"
+                        "Reached safety limit of 100 break pages, stopping pagination"
                     )
                     break
 
