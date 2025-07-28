@@ -82,8 +82,13 @@ class NoBreaksReportGenerator:
             
             current_row = 2
             
-            # Group entries by employee and date
-            current_row = self._process_grouped_entries(ws, all_work_entries, check_types_map, current_row)
+            # Process entries based on report type
+            if report_type == "by_activity":
+                current_row = self._process_grouped_by_activity(ws, all_work_entries, check_types_map, current_row)
+            elif report_type == "by_group":
+                current_row = self._process_grouped_by_group(ws, all_work_entries, check_types_map, current_row)
+            else:  # by_employee (default)
+                current_row = self._process_grouped_entries(ws, all_work_entries, check_types_map, current_row)
             
             # Save to BytesIO
             output = BytesIO()
@@ -603,3 +608,237 @@ class NoBreaksReportGenerator:
                 'success': False,
                 'error': str(e)
             }
+
+    def _process_grouped_by_activity(self, ws, all_work_entries, check_types_map, current_row):
+        """Process entries grouped by activity type"""
+        # Group entries by activity type and date
+        grouped_entries = {}
+        
+        for entry in all_work_entries:
+            # Get activity name based on workEntryType and workBreakId
+            work_entry_type = entry.get('workEntryType', '')
+            work_break_id = entry.get('workBreakId')
+            
+            # Import here to avoid circular import
+            from services.check_types_service import CheckTypesService
+            check_types_service = CheckTypesService()
+            activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
+            
+            # Extract date from workEntryIn.date
+            entry_date = "No disponible"
+            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                try:
+                    entry_datetime = datetime.fromisoformat(
+                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                    entry_date = entry_datetime.strftime('%d/%m/%Y')
+                except Exception as e:
+                    self.logger.error(f"Error parsing entry date: {e}")
+                    entry_date = "Error en fecha"
+            
+            # Create group key by activity and date
+            group_key = f"{activity_name}_{entry_date}"
+            
+            if group_key not in grouped_entries:
+                grouped_entries[group_key] = {
+                    'activity_name': activity_name,
+                    'date': entry_date,
+                    'all_entries': []
+                }
+            
+            grouped_entries[group_key]['all_entries'].append(entry)
+        
+        # Sort groups by activity name and date
+        sorted_groups = sorted(grouped_entries.values(), 
+                             key=lambda x: (x['activity_name'], x['date']))
+        
+        # Process each group
+        for group in sorted_groups:
+            all_entries = group['all_entries']
+            
+            # Sort all entries chronologically by entry start time
+            all_entries.sort(key=self._get_entry_sort_key)
+            
+            # Process pause redistribution
+            processed_entries = self._redistribute_pause_time(all_entries)
+            
+            # Sort processed entries again to ensure chronological order after pause redistribution
+            processed_entries.sort(key=self._get_entry_sort_key)
+            
+            # Write processed entries to Excel (without pause entries)
+            activity_totals = {}
+            total_worked_seconds = 0
+            
+            for entry in processed_entries:
+                # Get employee info for this entry
+                employee_info = entry.get('employee', {})
+                row_data = self._extract_entry_data(entry, employee_info)
+                
+                # Write to Excel
+                ws.cell(row=current_row, column=1, value=row_data['employee_name'])
+                ws.cell(row=current_row, column=2, value=row_data['employee_id_type'])
+                ws.cell(row=current_row, column=3, value=row_data['employee_nid'])
+                ws.cell(row=current_row, column=4, value=row_data['entry_date'])
+                ws.cell(row=current_row, column=5, value=row_data['activity_name'])
+                ws.cell(row=current_row, column=6, value=row_data['group_name'])
+                ws.cell(row=current_row, column=7, value=row_data['start_time'])
+                ws.cell(row=current_row, column=8, value=row_data['end_time'])
+                ws.cell(row=current_row, column=9, value=row_data['final_duration'])
+                
+                # Accumulate totals
+                worked_seconds = row_data['worked_seconds']
+                total_worked_seconds += worked_seconds
+                
+                current_row += 1
+            
+            # Add TOTAL row for this activity/date combination
+            current_row = self._add_activity_total_row(ws, group, total_worked_seconds, current_row)
+            
+            # Add blank row between different activity/date groups
+            current_row += 1
+        
+        return current_row
+
+    def _process_grouped_by_group(self, ws, all_work_entries, check_types_map, current_row):
+        """Process entries grouped by work groups (currently empty as groups are not available)"""
+        # Since group information is not available from the API, we'll group by a default "Sin Grupo" category
+        # Group entries by group and date
+        grouped_entries = {}
+        
+        for entry in all_work_entries:
+            # Since we don't have group information, all entries go to "Sin Grupo"
+            group_name = "Sin Grupo"
+            
+            # Extract date from workEntryIn.date
+            entry_date = "No disponible"
+            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                try:
+                    entry_datetime = datetime.fromisoformat(
+                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                    entry_date = entry_datetime.strftime('%d/%m/%Y')
+                except Exception as e:
+                    self.logger.error(f"Error parsing entry date: {e}")
+                    entry_date = "Error en fecha"
+            
+            # Create group key by group and date
+            group_key = f"{group_name}_{entry_date}"
+            
+            if group_key not in grouped_entries:
+                grouped_entries[group_key] = {
+                    'group_name': group_name,
+                    'date': entry_date,
+                    'all_entries': []
+                }
+            
+            grouped_entries[group_key]['all_entries'].append(entry)
+        
+        # Sort groups by group name and date
+        sorted_groups = sorted(grouped_entries.values(), 
+                             key=lambda x: (x['group_name'], x['date']))
+        
+        # Process each group
+        for group in sorted_groups:
+            all_entries = group['all_entries']
+            
+            # Sort all entries chronologically by entry start time
+            all_entries.sort(key=self._get_entry_sort_key)
+            
+            # Process pause redistribution
+            processed_entries = self._redistribute_pause_time(all_entries)
+            
+            # Sort processed entries again to ensure chronological order after pause redistribution
+            processed_entries.sort(key=self._get_entry_sort_key)
+            
+            # Write processed entries to Excel (without pause entries)
+            group_totals = {}
+            total_worked_seconds = 0
+            
+            for entry in processed_entries:
+                # Get employee info for this entry
+                employee_info = entry.get('employee', {})
+                row_data = self._extract_entry_data(entry, employee_info)
+                
+                # Override group name with our group
+                row_data['group_name'] = group['group_name']
+                
+                # Write to Excel
+                ws.cell(row=current_row, column=1, value=row_data['employee_name'])
+                ws.cell(row=current_row, column=2, value=row_data['employee_id_type'])
+                ws.cell(row=current_row, column=3, value=row_data['employee_nid'])
+                ws.cell(row=current_row, column=4, value=row_data['entry_date'])
+                ws.cell(row=current_row, column=5, value=row_data['activity_name'])
+                ws.cell(row=current_row, column=6, value=row_data['group_name'])
+                ws.cell(row=current_row, column=7, value=row_data['start_time'])
+                ws.cell(row=current_row, column=8, value=row_data['end_time'])
+                ws.cell(row=current_row, column=9, value=row_data['final_duration'])
+                
+                # Accumulate totals
+                worked_seconds = row_data['worked_seconds']
+                total_worked_seconds += worked_seconds
+                
+                current_row += 1
+            
+            # Add TOTAL row for this group/date combination
+            current_row = self._add_group_total_row(ws, group, total_worked_seconds, current_row)
+            
+            # Add blank row between different group/date groups
+            current_row += 1
+        
+        return current_row
+
+    def _add_activity_total_row(self, ws, group, total_worked_seconds, current_row):
+        """Add TOTAL row for activity/date combination"""
+        activity_name = group['activity_name']
+        entry_date = group['date']
+        
+        # Total duration
+        total_duration = self._format_duration(timedelta(seconds=total_worked_seconds))
+        
+        # Apply bold formatting for TOTAL row
+        total_font = Font(bold=True)
+        total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+        
+        # Write TOTAL row
+        ws.cell(row=current_row, column=1, value="TOTAL").font = total_font
+        ws.cell(row=current_row, column=2, value="").font = total_font
+        ws.cell(row=current_row, column=3, value="").font = total_font
+        ws.cell(row=current_row, column=4, value=entry_date).font = total_font
+        ws.cell(row=current_row, column=5, value=activity_name).font = total_font
+        ws.cell(row=current_row, column=6, value="").font = total_font
+        ws.cell(row=current_row, column=7, value="").font = total_font
+        ws.cell(row=current_row, column=8, value="").font = total_font
+        ws.cell(row=current_row, column=9, value=total_duration).font = total_font
+        
+        # Apply background color to TOTAL row
+        for col in range(1, 10):
+            ws.cell(row=current_row, column=col).fill = total_fill
+        
+        return current_row + 1
+
+    def _add_group_total_row(self, ws, group, total_worked_seconds, current_row):
+        """Add TOTAL row for group/date combination"""
+        group_name = group['group_name']
+        entry_date = group['date']
+        
+        # Total duration
+        total_duration = self._format_duration(timedelta(seconds=total_worked_seconds))
+        
+        # Apply bold formatting for TOTAL row
+        total_font = Font(bold=True)
+        total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+        
+        # Write TOTAL row
+        ws.cell(row=current_row, column=1, value="TOTAL").font = total_font
+        ws.cell(row=current_row, column=2, value="").font = total_font
+        ws.cell(row=current_row, column=3, value="").font = total_font
+        ws.cell(row=current_row, column=4, value=entry_date).font = total_font
+        ws.cell(row=current_row, column=5, value="").font = total_font
+        ws.cell(row=current_row, column=6, value=group_name).font = total_font
+        ws.cell(row=current_row, column=7, value="").font = total_font
+        ws.cell(row=current_row, column=8, value="").font = total_font
+        ws.cell(row=current_row, column=9, value=total_duration).font = total_font
+        
+        # Apply background color to TOTAL row
+        for col in range(1, 10):
+            ws.cell(row=current_row, column=col).fill = total_fill
+        
+        return current_row + 1

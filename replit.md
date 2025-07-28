@@ -81,9 +81,9 @@ Preferred communication style: Simple, everyday language.
 3. **Office/Center Filtering**: Filter employees by office/center
 4. **Department Filtering**: Filter employees by department
 5. **Report Type Selection**: Multiple report formats available:
-   - Grupos y tipos de fichaje por empleado
-   - Grupos y tipos de fichaje por tipo de fichaje
-   - Grupos y tipos de fichaje por grupos
+   - Grupos y tipos de fichaje por empleado (implemented)
+   - Grupos y tipos de fichaje por tipo de fichaje (implemented)
+   - Grupos y tipos de fichaje por grupos (implemented)
 6. **Grouped Reporting**: Data organized by employee and date with totals
 7. **Break Integration**: Breakfast breaks automatically included in adjacent activities
 8. **Connection Testing**: API connectivity verification
@@ -183,3 +183,5 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced User Interface**: Restored filtering capabilities that were previously disabled due to SSL performance concerns
 - **Connection Status Indicator**: Added visual status dot in connection tab (green=connected, red=error, orange=loading) with proper state management during token configuration and testing
 - **Navigation Status Indicator**: Added connection status dot in main navigation tab visible from all pages (green=connected, red=error) with automatic updates every 30 seconds
+- **Footer Layout Fix**: Implemented sticky footer using flexbox layout (html and body h-full, main flex-grow, footer mt-auto) to ensure footer always appears at bottom of screen
+- **Complete Report Types Implementation**: Added missing report generation methods for "by activity type" and "by groups" to complement existing "by employee" functionality, enabling all three report formats with proper grouping and totals calculation
