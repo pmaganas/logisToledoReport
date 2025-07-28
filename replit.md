@@ -181,3 +181,4 @@ Preferred communication style: Simple, everyday language.
 - **Restored Office and Department Filters**: Re-enabled center and department selection dropdowns with API endpoints /get-offices and /get-departments
 - **Dynamic Dropdown Loading**: Implemented JavaScript functions to populate office and department selectors from Sesame API data
 - **Enhanced User Interface**: Restored filtering capabilities that were previously disabled due to SSL performance concerns
+- **Connection Status Indicator**: Added visual status dot in connection tab (green=connected, red=error, orange=loading) with proper state management during token configuration and testing

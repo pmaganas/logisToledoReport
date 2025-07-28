@@ -4,7 +4,8 @@
 <div class="max-w-4xl mx-auto">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="p-6">
-            <h1 class="text-xl font-semibold text-gray-900 mb-6">
+            <h1 class="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                <div class="w-3 h-3 rounded-full bg-gray-400 mr-3" id="connectionDot"></div>
                 <i class="ti ti-settings mr-2"></i>
                 Configuración de Conexión
             </h1>
@@ -133,8 +134,23 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    function updateConnectionStatus(connected, company = null, region = null) {
-        if (connected) {
+    function updateConnectionStatus(connected, company = null, region = null, loading = false) {
+        const connectionDot = document.getElementById('connectionDot');
+        
+        if (loading) {
+            // Estado naranja: conectando/cargando
+            connectionDot.className = 'w-3 h-3 rounded-full bg-orange-500 mr-3';
+            connectionStatus.innerHTML = `
+                <div class="flex items-center p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                    <i class="ti ti-loader animate-spin text-orange-600 mr-2"></i>
+                    <p class="text-sm text-orange-800">
+                        <strong>Probando conexión...</strong> Verificando comunicación con la API.
+                    </p>
+                </div>
+            `;
+        } else if (connected) {
+            // Estado verde: conexión exitosa
+            connectionDot.className = 'w-3 h-3 rounded-full bg-green-500 mr-3';
             connectionStatus.innerHTML = `
                 <div class="flex items-center p-3 bg-green-50 border border-green-200 rounded-xl">
                     <i class="ti ti-check text-green-600 mr-2"></i>
@@ -155,10 +171,12 @@ document.addEventListener('DOMContentLoaded', function() {
             showTokenBtn.style.display = 'inline-flex';
             resetConnectionBtn.style.display = 'inline-flex';
         } else {
+            // Estado rojo: error de conexión
+            connectionDot.className = 'w-3 h-3 rounded-full bg-red-500 mr-3';
             connectionStatus.innerHTML = `
-                <div class="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                    <i class="ti ti-info-circle text-yellow-600 mr-2"></i>
-                    <p class="text-sm text-yellow-800">No hay token configurado. Haz clic en "Configurar Token API" para empezar.</p>
+                <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <i class="ti ti-x text-red-600 mr-2"></i>
+                    <p class="text-sm text-red-800">No hay token configurado o error de conexión. Haz clic en "Configurar Token API" para empezar.</p>
                 </div>
             `;
             
@@ -197,6 +215,9 @@ document.addEventListener('DOMContentLoaded', function() {
         applyTokenBtn.disabled = true;
         applyTokenBtn.innerHTML = '<i class="ti ti-loader animate-spin text-base mr-2"></i>Aplicando...';
         
+        // Mostrar estado de carga
+        updateConnectionStatus(false, null, null, true);
+        
         fetch('/apply-token', {
             method: 'POST',
             headers: {
@@ -215,11 +236,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 newTokenInput.value = '';
                 alert('Token aplicado correctamente');
             } else {
+                updateConnectionStatus(false);
                 alert('Error: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error applying token:', error);
+            updateConnectionStatus(false);
             alert('Error al aplicar el token');
         })
         .finally(() => {
@@ -232,6 +255,9 @@ document.addEventListener('DOMContentLoaded', function() {
     testConnectionBtn.addEventListener('click', function() {
         testConnectionBtn.disabled = true;
         testConnectionBtn.innerHTML = '<i class="ti ti-loader animate-spin text-base mr-2"></i>Probando...';
+        
+        // Mostrar estado de carga
+        updateConnectionStatus(false, null, null, true);
         
         fetch('/test-connection')
             .then(response => response.json())
