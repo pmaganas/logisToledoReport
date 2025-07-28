@@ -4,9 +4,8 @@
 <div class="max-w-4xl mx-auto">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="p-6">
-            <!-- Background Report Status -->
-            {% if report_id %}
-            <div class="mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4" id="reportStatus">
+            <!-- Background Report Status (Hidden by default) -->
+            <div class="mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4 hidden" id="backgroundReportStatus">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <i class="ti ti-loader animate-spin text-blue-600"></i>
@@ -27,7 +26,6 @@
                     </a>
                 </div>
             </div>
-            {% endif %}
 
 
 
@@ -117,8 +115,8 @@
                 </div>
             </form>
 
-            <!-- Report Status Section -->
-            <div id="reportStatus" class=""></div>
+            <!-- Report Status Section (Hidden by default) -->
+            <div id="reportStatus" class="hidden"></div>
 
 
 
@@ -165,10 +163,10 @@ document.addEventListener('DOMContentLoaded', function() {
     checkTokenStatus();
     
     // Check for background report status
+    {% if report_id %}
     const reportId = '{{ report_id }}';
-    if (reportId) {
-        checkReportStatus(reportId);
-    }
+    checkReportStatus(reportId);
+    {% endif %}
     
     // Load offices and departments when token is available
     setTimeout(() => {
@@ -482,6 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const downloadSection = document.getElementById('downloadSection');
                 const downloadLink = document.getElementById('downloadLink');
                 const reportStatus = document.getElementById('reportStatus');
+                reportStatus.classList.remove('hidden'); // Make it visible
                 
                 if (data.status === 'processing') {
                     reportStatus.className = 'mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4';
