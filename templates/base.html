@@ -30,7 +30,7 @@
         }
     </script>
 </head>
-<body class="font-figtree bg-gray-50 min-h-screen">
+<body class="font-figtree bg-gray-50 min-h-screen flex flex-col">
     <nav class="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8">
         <div class="mx-auto max-w-7xl">
             <div class="flex h-16 items-center justify-between">
@@ -112,7 +112,7 @@
         </div>
     </nav>
 
-    <main class="mx-4 sm:mx-14 lg:mx-30 mt-8">
+    <main class="mx-4 sm:mx-14 lg:mx-30 mt-8 flex-grow">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -129,7 +129,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="mt-16 bg-gray-800 py-8">
+    <footer class="mt-auto bg-gray-800 py-8">
         <div class="mx-4 sm:mx-14 lg:mx-30 text-center">
             <p class="text-sm text-gray-300">© 2025 Generador de Informe Grupos y tipos de fichaje</p>
         </div>
