@@ -79,6 +79,9 @@ class NoBreaksReportGenerator:
             if not all_work_entries:
                 return self._create_empty_report(format)
 
+            self.logger.info(f"[REPORT] API pagination completed - Total entries retrieved: {len(all_work_entries)}")
+            self.logger.info("[REPORT] Starting report processing...")
+
             # Check types are now cached in database via CheckTypesService
             check_types_map = {}  # Not needed anymore, keeping for compatibility
             
@@ -330,7 +333,8 @@ class NoBreaksReportGenerator:
                 seconds = int(new_duration.total_seconds() % 60)
                 duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
                 
-                self.logger.info(f"Extended entry: start {start_time.strftime('%H:%M:%S')}, new end {end_time.strftime('%H:%M:%S')}, new duration {duration_str} ({entry['workedSeconds']}s)")
+                # Commented out to reduce log noise - uncomment for debugging
+                # self.logger.debug(f"Extended entry: start {start_time.strftime('%H:%M:%S')}, new end {end_time.strftime('%H:%M:%S')}, new duration {duration_str} ({entry['workedSeconds']}s)")
         except Exception as e:
             self.logger.error(f"Error extending entry to time: {e}")
 

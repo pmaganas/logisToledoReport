@@ -84,7 +84,7 @@ def generate_report_background(report_id, form_data, app):
                 department_id=form_data['department_id'],
                 report_type=form_data['report_type'],
                 format=form_data.get('format', 'xlsx'))
-            logger.info("NO-BREAKS report generation completed successfully")
+            logger.info(f"[THREAD] NO-BREAKS report generation completed successfully for report {report_id}")
 
             if report_data:
                 # Save report to temporary file
@@ -130,6 +130,7 @@ def generate_report_background(report_id, form_data, app):
         if background_reports[report_id]['status'] == 'processing':
             # The report was generated successfully if we get here
             background_reports[report_id]['status'] = 'completed'
+            logger.info(f"[THREAD] Report status updated to COMPLETED - ID: {report_id}")
             # Use the filename and file_path that were set above
             # The variables are already set in the scope above (lines 91 and 98)
         # If status is not 'processing', it means an error occurred earlier

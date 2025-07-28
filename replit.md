@@ -199,3 +199,6 @@ Preferred communication style: Simple, everyday language.
 - **Fixed Infinite Loop Bug**: Corrected critical bug in background report generation where report_data was reset to None before completion check, causing reports to remain in 'processing' state indefinitely
 - **Enhanced Report Generation Logging**: Added comprehensive logging throughout report generation process with INFO level logging to track thread execution, API calls, and report processing status
 - **Pagination Progress Logs**: Added detailed pagination logs showing "Página X de Y" with record counts during API calls, displaying current page vs total pages and accumulated records for better progress tracking
+- **Performance Optimization**: Commented out verbose "Extended entry" logs that were generating thousands of lines during pause redistribution, significantly improving report generation speed
+- **Report Completion Logging**: Added clear logs when report generation completes and status updates to 'completed', providing better visibility of process completion
+- **Report Processing Status**: Added logs after API pagination completes showing total entries retrieved and when report processing starts
