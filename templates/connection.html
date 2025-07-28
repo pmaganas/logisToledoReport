@@ -134,8 +134,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function updateNavigationStatus(connected, loading = false) {
+        // Update navigation indicators in the header
+        const navDot = document.getElementById('navConnectionDot');
+        const navDotMobile = document.getElementById('navConnectionDotMobile');
+        
+        let dotClass = 'w-2 h-2 rounded-full mr-2 ';
+        if (loading) {
+            dotClass += 'bg-orange-500';
+        } else if (connected) {
+            dotClass += 'bg-green-500';
+        } else {
+            dotClass += 'bg-red-500';
+        }
+        
+        if (navDot) navDot.className = dotClass;
+        if (navDotMobile) navDotMobile.className = dotClass;
+    }
+
     function updateConnectionStatus(connected, company = null, region = null, loading = false) {
         const connectionDot = document.getElementById('connectionDot');
+        
+        // Update navigation indicators immediately
+        updateNavigationStatus(connected, loading);
         
         if (loading) {
             // Estado naranja: conectando/cargando
@@ -317,12 +338,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.status === 'success') {
                     updateConnectionStatus(false);
-                    // Update navigation indicator immediately
-                    if (typeof window.updateNavConnectionStatus === 'function') {
-                        window.updateNavConnectionStatus();
-                    } else if (parent && typeof parent.updateNavConnectionStatus === 'function') {
-                        parent.updateNavConnectionStatus();
-                    }
                     alert('Conexión cerrada correctamente. Todos los tokens han sido eliminados.');
                 } else {
                     alert('Error al cerrar la conexión: ' + data.message);

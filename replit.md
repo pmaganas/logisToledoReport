@@ -193,3 +193,5 @@ Preferred communication style: Simple, everyday language.
 - **Fixed Status Indicators**: Resolved JavaScript errors with report generation buttons and implemented comprehensive status monitoring system with visual progress indicators
 - **Full Height Layout**: Modified downloads page to occupy complete viewport height with 10px footer margin, featuring fixed summary bar and scrollable table with sticky headers
 - **Responsive Summary Bar**: Extracted summary statistics to full-width fixed top bar that remains visible during scroll, providing constant access to key metrics
+- **Connection Close Functionality**: Implemented complete "Cerrar Conexión" feature with database cleanup, removing all tokens and check types with proper UI feedback
+- **Real-Time Navigation Status**: Fixed navigation connection indicators to update immediately during all connection state changes (loading, connected, disconnected) for accurate visual feedback
