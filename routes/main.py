@@ -9,6 +9,7 @@ import glob
 from services.no_breaks_report_generator import NoBreaksReportGenerator
 from services.sesame_api import SesameAPI
 from auth import requires_auth, check_auth, login_user, logout_user, authenticate
+from app import db
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -497,6 +498,33 @@ def apply_token():
         return jsonify({
             'status': 'error',
             'message': f'Error al aplicar el token: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/remove-connection', methods=['POST'])
+@requires_auth
+def remove_connection():
+    """Remove/close the current connection"""
+    try:
+        from models import SesameToken, CheckType
+        
+        # Remove all tokens
+        SesameToken.remove_all_tokens()
+        
+        # Also clear check types cache since they're associated with the token
+        CheckType.query.delete()
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Conexión cerrada correctamente. Se han eliminado todos los tokens y datos asociados.'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error removing connection: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al cerrar la conexión: {str(e)}'
         }), 500
 
 

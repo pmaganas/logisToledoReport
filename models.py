@@ -33,6 +33,12 @@ class SesameToken(db.Model):
         db.session.commit()
         
         return new_token
+    
+    @classmethod
+    def remove_all_tokens(cls):
+        """Remove all tokens from the database"""
+        cls.query.delete()
+        db.session.commit()
 
 
 class CheckType(db.Model):

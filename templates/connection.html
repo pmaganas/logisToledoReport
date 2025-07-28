@@ -301,8 +301,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reset connection button
     resetConnectionBtn.addEventListener('click', function() {
         if (confirm('¿Estás seguro de que quieres cerrar la conexión? Se eliminará el token actual.')) {
-            // TODO: Implement reset connection
-            alert('Función no implementada aún');
+            resetConnectionBtn.disabled = true;
+            resetConnectionBtn.innerHTML = '<i class="ti ti-loader animate-spin text-base mr-2"></i>Cerrando...';
+            
+            // Mostrar estado de carga
+            updateConnectionStatus(false, null, null, true);
+            
+            fetch('/remove-connection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateConnectionStatus(false);
+                    alert('Conexión cerrada correctamente. Todos los tokens han sido eliminados.');
+                } else {
+                    alert('Error al cerrar la conexión: ' + data.message);
+                    // Refresh to show current status
+                    checkConnectionStatus();
+                }
+            })
+            .catch(error => {
+                console.error('Error closing connection:', error);
+                alert('Error al cerrar la conexión');
+                // Refresh to show current status
+                checkConnectionStatus();
+            })
+            .finally(() => {
+                resetConnectionBtn.disabled = false;
+                resetConnectionBtn.innerHTML = '<i class="ti ti-logout text-base mr-2"></i>Cerrar Conexión';
+            });
         }
     });
 });
