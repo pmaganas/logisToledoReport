@@ -164,7 +164,7 @@
         });
 
         // Check connection status for navigation indicator
-        function updateNavConnectionStatus() {
+        window.updateNavConnectionStatus = function updateNavConnectionStatus() {
             const navDot = document.getElementById('navConnectionDot');
             const navDotMobile = document.getElementById('navConnectionDotMobile');
             
@@ -193,10 +193,10 @@
 
         // Update navigation status on page load
         document.addEventListener('DOMContentLoaded', function() {
-            updateNavConnectionStatus();
+            window.updateNavConnectionStatus();
             
             // Update every 30 seconds
-            setInterval(updateNavConnectionStatus, 30000);
+            setInterval(window.updateNavConnectionStatus, 30000);
         });
 
         // Navigation loading functionality

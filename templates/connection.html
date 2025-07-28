@@ -317,6 +317,12 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.status === 'success') {
                     updateConnectionStatus(false);
+                    // Update navigation indicator immediately
+                    if (typeof window.updateNavConnectionStatus === 'function') {
+                        window.updateNavConnectionStatus();
+                    } else if (parent && typeof parent.updateNavConnectionStatus === 'function') {
+                        parent.updateNavConnectionStatus();
+                    }
                     alert('Conexión cerrada correctamente. Todos los tokens han sido eliminados.');
                 } else {
                     alert('Error al cerrar la conexión: ' + data.message);
