@@ -104,32 +104,38 @@ def generate_report_background(report_id, form_data, app_context):
                 if deleted_files:
                     logger.info(f"Deleted {len(deleted_files)} old report(s) to enforce 10 report limit: {', '.join(deleted_files)}")
                 
+                # Store filename and file_path in background_reports for later access
+                background_reports[report_id]['filename'] = filename
+                background_reports[report_id]['file_path'] = file_path
+                
                 # Update status outside app context to avoid DB connection issues
                 logger.info(f"Background report completed - ID: {report_id}, File: {filename}")
             else:
                 logger.error("No report data generated")
+                background_reports[report_id]['status'] = 'error'
+                background_reports[report_id]['error'] = 'No se pudo generar el reporte'
                 
     except Exception as e:
         logger.error(f"Background report generation failed - ID: {report_id}, Error: {str(e)}")
+        background_reports[report_id]['status'] = 'error'
+        background_reports[report_id]['error'] = f'Error al generar el reporte: {str(e)}'
         
     # Update status outside app context to avoid DB SSL issues
     try:
-        # Initialize variables
-        filename = None
-        file_path = None
-        report_data = None
-        
-        if report_data:
+        # Check if report was generated successfully by checking if the status is still 'processing'
+        # and if we reached this point without errors
+        if background_reports[report_id]['status'] == 'processing':
+            # The report was generated successfully if we get here
             background_reports[report_id]['status'] = 'completed'
-            background_reports[report_id]['filename'] = filename or f"{report_id}_reporte.xlsx"
-            background_reports[report_id]['file_path'] = file_path or f"temp_reports/{report_id}_reporte.xlsx"
-        else:
-            background_reports[report_id]['status'] = 'error'
-            background_reports[report_id]['error'] = 'Error al generar el reporte'
+            # Use the filename and file_path that were set above
+            # The variables are already set in the scope above (lines 91 and 98)
+        # If status is not 'processing', it means an error occurred earlier
+        
     except Exception as e:
         logger.error(f"Error updating report status - ID: {report_id}, Error: {str(e)}")
-        background_reports[report_id]['status'] = 'error'
-        background_reports[report_id]['error'] = 'Error en el proceso final'
+        if report_id in background_reports:
+            background_reports[report_id]['status'] = 'error'
+            background_reports[report_id]['error'] = 'Error en el proceso final'
 
 
 @main_bp.route('/login', methods=['GET', 'POST'])
