@@ -2,7 +2,7 @@ import openpyxl
 import csv
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from io import BytesIO, StringIO
 from openpyxl.styles import Font, PatternFill, Alignment
 from services.sesame_api import SesameAPI
@@ -12,9 +12,9 @@ class NoBreaksReportGenerator:
         self.sesame_api = SesameAPI()
         self.logger = logging.getLogger(__name__)
 
-    def generate_report(self, from_date: str = None, to_date: str = None, 
-                       employee_id: str = None, office_id: str = None, 
-                       department_id: str = None, report_type: str = "by_employee", 
+    def generate_report(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
+                       employee_id: Optional[str] = None, office_id: Optional[str] = None, 
+                       department_id: Optional[str] = None, report_type: str = "by_employee", 
                        format: str = "xlsx") -> Optional[bytes]:
         """Generate report with only work entries - no employee data processing"""
         
@@ -649,26 +649,60 @@ class NoBreaksReportGenerator:
 
     def _process_grouped_by_activity_csv(self, writer, all_work_entries, check_types_map):
         """Process entries grouped by activity type for CSV output"""
-        self._process_grouped_entries_csv(writer, all_work_entries, check_types_map)
+        # Group entries by activity type first
+        activity_groups = {}
+        
+        for entry in all_work_entries:
+            # Get activity name
+            work_entry_type = entry.get('workEntryType', '')
+            work_break_id = entry.get('workBreakId')
+            
+            from services.check_types_service import CheckTypesService
+            check_types_service = CheckTypesService()
+            activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
+            
+            if activity_name not in activity_groups:
+                activity_groups[activity_name] = []
+            activity_groups[activity_name].append(entry)
+        
+        # Process each activity group separately
+        for activity_name in sorted(activity_groups.keys()):
+            entries = activity_groups[activity_name]
+            
+            # Write activity header row
+            writer.writerow([f"=== ACTIVIDAD: {activity_name} ===", "", "", "", "", "", "", "", ""])
+            
+            # Process entries for this activity using employee grouping logic
+            self._process_grouped_entries_csv(writer, entries, check_types_map)
+            
+            # Add separator between activity groups
+            writer.writerow([])
 
     def _process_grouped_by_group_csv(self, writer, all_work_entries, check_types_map):
         """Process entries grouped by groups for CSV output"""
+        # Since group information is not available from API, we create a single group
+        group_name = "Sin Grupo"
+        
+        # Write group header row
+        writer.writerow([f"=== GRUPO: {group_name} ===", "", "", "", "", "", "", "", ""])
+        
+        # Process all entries as one group using employee grouping logic
         self._process_grouped_entries_csv(writer, all_work_entries, check_types_map)
     
-    def get_data_metrics(self, from_date: str = None, to_date: str = None, 
-                         employee_id: str = None, office_id: str = None, 
-                         department_id: str = None) -> dict:
+    def get_data_metrics(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
+                         employee_id: Optional[str] = None, office_id: Optional[str] = None, 
+                         department_id: Optional[str] = None) -> dict:
         """Get data collection metrics without generating full report"""
         try:
             # Get all work entries
-            all_work_entries = self.api.get_all_time_tracking_data(
+            all_work_entries = self.sesame_api.get_all_time_tracking_data(
                 employee_id=employee_id,
                 from_date=from_date,
                 to_date=to_date
             )
             
             # Get check types mapping
-            check_types_response = self.api.get_check_types()
+            check_types_response = self.sesame_api.get_check_types()
             check_types_map = {}
             if check_types_response and 'data' in check_types_response:
                 for check_type in check_types_response['data']:
@@ -693,7 +727,7 @@ class NoBreaksReportGenerator:
                     except Exception:
                         entry_date = "Error en fecha"
                 
-                row_data = self._extract_entry_data(entry, employee_info, entry_date, check_types_map)
+                row_data = self._extract_entry_data(entry, employee_info)
                 preview_entries.append(row_data)
             
             return {
