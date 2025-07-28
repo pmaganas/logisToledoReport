@@ -185,5 +185,5 @@ Preferred communication style: Simple, everyday language.
 - **Navigation Status Indicator**: Added connection status dot in main navigation tab visible from all pages (green=connected, red=error) with automatic updates every 30 seconds
 - **Footer Layout Fix**: Implemented sticky footer using flexbox layout (html and body h-full, main flex-grow, footer mt-auto) to ensure footer always appears at bottom of screen
 - **Complete Report Types Implementation**: Added missing report generation methods for "by activity type" and "by groups" to complement existing "by employee" functionality, enabling all three report formats with proper grouping and totals calculation
-- **Footer Content Spacing**: Added bottom margin (mb-24) to main content to prevent overlap with sticky footer and ensure proper content visibility
+- **Footer Content Spacing**: Added bottom margin (mb-40) to main content to prevent overlap with sticky footer and ensure proper content visibility
 - **Navigation Loading Screen**: Implemented loading modal with progress bar for tab transitions, providing visual feedback during navigation between pages with realistic progress animation
