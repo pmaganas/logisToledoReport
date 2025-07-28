@@ -57,8 +57,11 @@
                     <a href="{{ url_for('main.connection') }}" 
                        class="{% if current_page == 'main.connection' %}bg-indigo-100 text-indigo-700 border-indigo-300 cursor-not-allowed{% else %}text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-50 cursor-pointer{% endif %} px-3 py-2 rounded-md text-sm font-medium transition-colors border"
                        {% if current_page == 'main.connection' %}onclick="event.preventDefault(); return false;"{% endif %}>
-                        <i class="ti ti-settings mr-1"></i>
-                        Conexión
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 rounded-full bg-gray-400 mr-2" id="navConnectionDot"></div>
+                            <i class="ti ti-settings mr-1"></i>
+                            Conexión
+                        </div>
                     </a>
                     <a href="{{ url_for('main.logout') }}" 
                        class="text-red-600 hover:text-red-900 border-transparent hover:bg-red-50 cursor-pointer px-3 py-2 rounded-md text-sm font-medium transition-colors border">
@@ -93,8 +96,11 @@
                     <a href="{{ url_for('main.connection') }}" 
                        class="{% if current_page == 'main.connection' %}bg-indigo-100 text-indigo-700 border-indigo-300 cursor-not-allowed{% else %}text-gray-600 hover:text-gray-900 border-transparent hover:bg-gray-50 cursor-pointer{% endif %} block px-3 py-2 rounded-md text-base font-medium border"
                        {% if current_page == 'main.connection' %}onclick="event.preventDefault(); return false;"{% endif %}>
-                        <i class="ti ti-settings mr-1"></i>
-                        Conexión
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 rounded-full bg-gray-400 mr-2" id="navConnectionDotMobile"></div>
+                            <i class="ti ti-settings mr-1"></i>
+                            Conexión
+                        </div>
                     </a>
                     <a href="{{ url_for('main.logout') }}" 
                        class="text-red-600 hover:text-red-900 border-transparent hover:bg-red-50 cursor-pointer block px-3 py-2 rounded-md text-base font-medium border">
@@ -136,6 +142,42 @@
         document.getElementById('mobile-menu-button').addEventListener('click', function() {
             const mobileMenu = document.getElementById('mobile-menu');
             mobileMenu.classList.toggle('hidden');
+        });
+
+        // Check connection status for navigation indicator
+        function updateNavConnectionStatus() {
+            const navDot = document.getElementById('navConnectionDot');
+            const navDotMobile = document.getElementById('navConnectionDotMobile');
+            
+            fetch('/get-current-token')
+                .then(response => response.json())
+                .then(data => {
+                    let dotClass = 'w-2 h-2 rounded-full mr-2 ';
+                    if (data.status === 'success' && data.has_token) {
+                        // Connected - green
+                        dotClass += 'bg-green-500';
+                    } else {
+                        // Not connected - red
+                        dotClass += 'bg-red-500';
+                    }
+                    
+                    if (navDot) navDot.className = dotClass;
+                    if (navDotMobile) navDotMobile.className = dotClass;
+                })
+                .catch(error => {
+                    // Error - red
+                    const errorClass = 'w-2 h-2 rounded-full bg-red-500 mr-2';
+                    if (navDot) navDot.className = errorClass;
+                    if (navDotMobile) navDotMobile.className = errorClass;
+                });
+        }
+
+        // Update navigation status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateNavConnectionStatus();
+            
+            // Update every 30 seconds
+            setInterval(updateNavConnectionStatus, 30000);
         });
     </script>
 </body>

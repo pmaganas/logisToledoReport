@@ -182,3 +182,4 @@ Preferred communication style: Simple, everyday language.
 - **Dynamic Dropdown Loading**: Implemented JavaScript functions to populate office and department selectors from Sesame API data
 - **Enhanced User Interface**: Restored filtering capabilities that were previously disabled due to SSL performance concerns
 - **Connection Status Indicator**: Added visual status dot in connection tab (green=connected, red=error, orange=loading) with proper state management during token configuration and testing
+- **Navigation Status Indicator**: Added connection status dot in main navigation tab visible from all pages (green=connected, red=error) with automatic updates every 30 seconds
