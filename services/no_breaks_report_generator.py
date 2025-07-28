@@ -10,7 +10,6 @@ class NoBreaksReportGenerator:
     def __init__(self):
         self.sesame_api = SesameAPI()
         self.logger = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.INFO)
 
     def generate_report(self, from_date: str = None, to_date: str = None, 
                        employee_id: str = None, office_id: str = None, 
@@ -18,11 +17,11 @@ class NoBreaksReportGenerator:
         """Generate report with only work entries - no employee data processing"""
         
         try:
-            self.logger.info("=== GENERANDO REPORTE SOLO CON FICHAJES ===")
-            
-            # Get work entries with safe incremental loading
-            self.logger.info("=== INICIANDO FETCH INCREMENTAL DE REGISTROS ===")
-            self.logger.info(f"Parámetros: employee_id={employee_id}, from_date={from_date}, to_date={to_date}")
+            # Ensure check types are cached
+            from services.check_types_service import CheckTypesService
+            check_types_service = CheckTypesService()
+            if not check_types_service.ensure_check_types_cached():
+                self.logger.warning("Failed to cache check types, activity names may be incomplete")
             
             all_work_entries = []
             page = 1
@@ -39,22 +38,18 @@ class NoBreaksReportGenerator:
                     )
                     
                     if not response or not response.get('data'):
-                        self.logger.info(f"No más datos en página {page}, terminando")
                         break
                     
                     entries = response['data']
                     all_work_entries.extend(entries)
-                    self.logger.info(f"Página {page}: {len(entries)} registros, total: {len(all_work_entries)}")
                     
                     # Verificar si hay más páginas
                     meta = response.get('meta', {})
                     if page >= meta.get('lastPage', 1):
-                        self.logger.info(f"Llegamos a la última página ({meta.get('lastPage', 1)})")
                         break
                     
                     # Si no hay suficientes registros, terminamos
                     if len(entries) < 300:
-                        self.logger.info(f"Página {page} tiene menos de 300 registros, terminando")
                         break
                     
                     page += 1
@@ -69,28 +64,11 @@ class NoBreaksReportGenerator:
                         self.logger.warning(f"Continuando con {len(all_work_entries)} registros obtenidos hasta página {page-1}")
                         break
             
-            if all_work_entries:
-                self.logger.info(f"=== COMPLETADO: {len(all_work_entries)} registros obtenidos en {page-1} páginas ===")
-            else:
-                self.logger.warning("=== NO SE OBTUVIERON REGISTROS ===")
-                return self._create_empty_report()
-
             if not all_work_entries:
                 return self._create_empty_report()
 
-            # Get check types for activity name resolution (limit to first 100 to save API calls)
-            check_types_response = self.sesame_api.get_check_types(page=1, per_page=100)
-            check_types_map = {}
-            if check_types_response and check_types_response.get('data'):
-                for check_type in check_types_response['data']:
-                    check_types_map[check_type.get('id')] = check_type.get(
-                        'name', 'Actividad no especificada')
-
-            self.logger.info(f"Processing {len(all_work_entries)} fichajes for report")
-            self.logger.info(f"Loaded {len(check_types_map)} check types")
-            
-            # Step 3: Create Excel report
-            self.logger.info("Generando archivo Excel...")
+            # Check types are now cached in database via CheckTypesService
+            check_types_map = {}  # Not needed anymore, keeping for compatibility
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Reporte Fichajes"
@@ -112,7 +90,7 @@ class NoBreaksReportGenerator:
             wb.save(output)
             output.seek(0)
             
-            self.logger.info(f"Reporte generado exitosamente con {current_row - 2} registros")
+
             return output.getvalue()
             
         except Exception as e:
@@ -171,10 +149,7 @@ class NoBreaksReportGenerator:
         if not entries:
             return entries
         
-        self.logger.info(f"=== REDISTRIBUYENDO PAUSAS - {len(entries)} registros ===")
-        
         processed_entries = []
-        pause_count = 0
         i = 0
         
         while i < len(entries):
@@ -182,47 +157,33 @@ class NoBreaksReportGenerator:
             work_entry_type = entry.get('workEntryType', '')
             
             if work_entry_type == 'pause':
-                pause_count += 1
-                self.logger.info(f"Procesando pausa #{pause_count} en posición {i}")
-                
                 # This is a pause entry - adjust adjacent work entries to eliminate gap
                 pause_start = self._get_entry_start_time(entry)
                 pause_end = self._get_entry_end_time(entry)
                 
                 if pause_start and pause_end:
-                    self.logger.info(f"Pausa desde {pause_start} hasta {pause_end}")
-                    
-                    # Find next work entry (priority: always add to next)
+                    # Find previous and next work entries
+                    prev_entry = self._find_previous_work_entry(entries, i)
                     next_entry = self._find_next_work_entry(entries, i)
                     
-                    if next_entry:
-                        # Always move next entry to start when pause started
-                        next_old_start = self._get_entry_start_time(next_entry)
-                        self._move_entry_start_to_time(next_entry, pause_start)
-                        next_new_start = self._get_entry_start_time(next_entry)
-                        self.logger.info(f"Siguiente registro movido de {next_old_start} a {next_new_start}")
-                    else:
-                        # If no next entry, find previous entry as fallback
-                        prev_entry = self._find_previous_work_entry(entries, i)
-                        if prev_entry:
-                            # Extend previous entry by pause duration
-                            pause_duration = self._get_entry_duration_seconds(entry)
-                            prev_old_end = self._get_entry_end_time(prev_entry)
-                            self._extend_entry_by_duration(prev_entry, pause_duration)
-                            prev_new_end = self._get_entry_end_time(prev_entry)
-                            self.logger.info(f"Registro anterior extendido de {prev_old_end} a {prev_new_end} (+{pause_duration}s)")
-                        else:
-                            self.logger.warning("No se encontró registro anterior ni siguiente para redistribuir pausa")
+                    if prev_entry:
+                        # PRIORITY: Always try to extend previous entry to cover the pause
+                        prev_start = self._get_entry_start_time(prev_entry)
+                        prev_end = self._get_entry_end_time(prev_entry)
+                        
+                        if prev_start and prev_end:
+                            # Extend previous entry to end of pause
+                            self._extend_entry_to_time(prev_entry, pause_end)
                 
                 # Skip adding this pause entry to processed_entries
                 i += 1
                 continue
             else:
-                # This is a work entry - add it to processed entries
-                processed_entries.append(entry)
+                # This is a work entry - add it to processed entries if not marked to skip
+                if not entry.get('_skip', False):
+                    processed_entries.append(entry)
                 i += 1
         
-        self.logger.info(f"=== REDISTRIBUCIÓN COMPLETADA - {pause_count} pausas eliminadas, {len(processed_entries)} registros de trabajo ===")
         return processed_entries
 
     def _get_entry_duration_seconds(self, entry: Dict) -> int:
@@ -278,20 +239,55 @@ class NoBreaksReportGenerator:
         return None
 
     def _extend_entry_to_time(self, entry: Dict, end_time: datetime):
-        """Extend a work entry to end at the specified time"""
+        """Extend a work entry to end at the specified time and update worked seconds"""
         try:
+            work_entry_in = entry.get('workEntryIn', {})
             work_entry_out = entry.get('workEntryOut', {})
-            if work_entry_out:
+            
+            if work_entry_in and work_entry_in.get('date') and work_entry_out:
+                # Get the start time
+                start_time = datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
+                
+                # Update end time
                 work_entry_out['date'] = end_time.isoformat().replace('+00:00', 'Z')
+                
+                # Update worked seconds to reflect the new duration
+                # Handle night shifts - if end_time appears before start_time, it's next day
+                if end_time < start_time:
+                    # Add 24 hours to end_time for calculation
+                    adjusted_end_time = end_time + timedelta(days=1)
+                    new_duration = adjusted_end_time - start_time
+                else:
+                    new_duration = end_time - start_time
+                
+                entry['workedSeconds'] = int(new_duration.total_seconds())
+                
+                # Format duration as HH:MM:SS
+                hours = int(new_duration.total_seconds() // 3600)
+                minutes = int((new_duration.total_seconds() % 3600) // 60)
+                seconds = int(new_duration.total_seconds() % 60)
+                duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                
+                self.logger.info(f"Extended entry: start {start_time.strftime('%H:%M:%S')}, new end {end_time.strftime('%H:%M:%S')}, new duration {duration_str} ({entry['workedSeconds']}s)")
         except Exception as e:
             self.logger.error(f"Error extending entry to time: {e}")
 
     def _move_entry_start_to_time(self, entry: Dict, start_time: datetime):
-        """Move a work entry to start at the specified time"""
+        """Move a work entry to start at the specified time and update worked seconds"""
         try:
             work_entry_in = entry.get('workEntryIn', {})
+            work_entry_out = entry.get('workEntryOut', {})
+            
             if work_entry_in:
+                # Update start time
                 work_entry_in['date'] = start_time.isoformat().replace('+00:00', 'Z')
+                
+                # Update worked seconds only if we have an end time
+                if work_entry_out and work_entry_out.get('date'):
+                    end_time = datetime.fromisoformat(work_entry_out['date'].replace('Z', '+00:00'))
+                    new_duration = end_time - start_time
+                    entry['workedSeconds'] = int(new_duration.total_seconds())
+
         except Exception as e:
             self.logger.error(f"Error moving entry start time: {e}")
 
@@ -307,13 +303,22 @@ class NoBreaksReportGenerator:
             self.logger.error(f"Error extending entry by duration: {e}")
 
     def _get_entry_sort_key(self, entry: Dict):
-        """Get sort key for chronological ordering by entry start time"""
+        """Get sort key for chronological ordering by entry start time - handles night shifts"""
         try:
             work_entry_in = entry.get('workEntryIn', {})
             if work_entry_in and work_entry_in.get('date'):
                 # Parse the datetime and return it for sorting
                 parsed_time = datetime.fromisoformat(work_entry_in['date'].replace('Z', '+00:00'))
-                return parsed_time
+                
+                # For night shifts: if time is between 00:00 and 06:00, add 24 hours for proper sorting
+                # This ensures night shift entries (like 22:00, 23:00, 00:00, 01:00, 02:00) sort correctly
+                if parsed_time.hour >= 0 and parsed_time.hour <= 6:
+                    # This is likely early morning of next day in a night shift
+                    # Add 24 hours to make it sort after the previous night's entries
+                    sort_time = parsed_time + timedelta(hours=24)
+                    return sort_time
+                else:
+                    return parsed_time
         except Exception as e:
             self.logger.error(f"Error parsing entry date for sorting: {e}")
         
@@ -382,7 +387,7 @@ class NoBreaksReportGenerator:
             total_worked_seconds = 0
             
             for entry in processed_entries:
-                row_data = self._extract_entry_data(entry, group['employee_info'], check_types_map)
+                row_data = self._extract_entry_data(entry, group['employee_info'])
                 
                 # Write to Excel
                 ws.cell(row=current_row, column=1, value=row_data['employee_name'])
@@ -414,7 +419,7 @@ class NoBreaksReportGenerator:
         
         return current_row
     
-    def _extract_entry_data(self, entry, employee_info, check_types_map):
+    def _extract_entry_data(self, entry, employee_info):
         """Extract data from a work entry for Excel output"""
         # Employee name
         employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
@@ -425,13 +430,14 @@ class NoBreaksReportGenerator:
         employee_nid = employee_info.get('nid', 'No disponible')
         employee_id_type = employee_info.get('identityNumberType', 'DNI')
         
-        # Get activity name from workCheckTypeId using check types mapping
-        activity_name = "Actividad no especificada"
-        work_check_type_id = entry.get('workCheckTypeId')
-        if work_check_type_id and work_check_type_id in check_types_map:
-            activity_name = check_types_map[work_check_type_id]
-        elif entry.get('workEntryType'):
-            activity_name = entry.get('workEntryType', 'Actividad no especificada')
+        # Get activity name based on workEntryType and workBreakId
+        work_entry_type = entry.get('workEntryType', '')
+        work_break_id = entry.get('workBreakId')
+        
+        # Import here to avoid circular import
+        from services.check_types_service import CheckTypesService
+        check_types_service = CheckTypesService()
+        activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
         
         # Group name left empty as requested
         group_name = ""

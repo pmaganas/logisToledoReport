@@ -1,3 +1,9 @@
+import logging
+
+# Configure logging to suppress urllib3 debug logs
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("requests.packages.urllib3.connectionpool").setLevel(logging.WARNING)
+
 from app import app
 
 if __name__ == "__main__":

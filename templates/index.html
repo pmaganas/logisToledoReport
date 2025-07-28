@@ -39,64 +39,7 @@
             </div>
             {% endif %}
 
-            <!-- Connection Status -->
-            <div class="mb-6">
-                <div class="flex flex-wrap gap-2 mb-3" id="connectionButtons">
-                    <button type="button" class="inline-flex items-center h-8 px-4 text-sm font-medium text-indigo-600 bg-white border border-indigo-300 rounded-xl hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors" id="configureTokenBtn">
-                        <i class="ti ti-settings text-base mr-2"></i>
-                        Configurar Token API
-                    </button>
-                    <button type="button" class="inline-flex items-center h-8 px-4 text-sm font-medium text-blue-600 bg-white border border-blue-300 rounded-xl hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" id="testConnectionBtn" style="display: none;">
-                        <i class="ti ti-wifi text-base mr-2"></i>
-                        Probar Conexión API
-                    </button>
-                    <button type="button" class="inline-flex items-center h-8 px-4 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors" id="showTokenBtn" style="display: none;">
-                        <i class="ti ti-key text-base mr-2"></i>
-                        Ver Token Actual
-                    </button>
-                    <button type="button" class="inline-flex items-center h-8 px-4 text-sm font-medium text-yellow-600 bg-white border border-yellow-300 rounded-xl hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors" id="resetConnectionBtn" style="display: none;">
-                        <i class="ti ti-logout text-base mr-2"></i>
-                        Cerrar Conexión
-                    </button>
-                </div>
-                <div id="connectionStatus" class="mt-2">
-                    <div class="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                        <i class="ti ti-info-circle text-yellow-600 mr-2"></i>
-                        <p class="text-sm text-yellow-800">No hay token configurado. Haz clic en "Configurar Token API" para empezar.</p>
-                    </div>
-                </div>
-                <div id="tokenInput" class="mt-4" style="display: none;">
-                    <div class="flex items-center p-3 bg-blue-50 border border-blue-200 rounded-xl mb-4">
-                        <i class="ti ti-info-circle text-blue-600 mr-2"></i>
-                        <p class="text-sm text-blue-800"><strong>Configurar Token API:</strong> Introduce el token de Sesame para conectar con la API. El token se guardará de forma segura en la base de datos.</p>
-                    </div>
-                    <div class="mb-4">
-                        <label for="regionSelect" class="block text-sm font-medium text-gray-700 mb-2">Región del API</label>
-                        <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="regionSelect">
-                            <option value="eu1">Europa 1 (eu1)</option>
-                            <option value="eu2">Europa 2 (eu2)</option>
-                            <option value="eu3">Europa 3 (eu3)</option>
-                            <option value="eu4">Europa 4 (eu4)</option>
-                            <option value="eu5">Europa 5 (eu5)</option>
-                            <option value="br1">Brasil 1 (br1)</option>
-                            <option value="br2">Brasil 2 (br2)</option>
-                            <option value="mx1">México 1 (mx1)</option>
-                            <option value="demo1">Demo 1 (demo1)</option>
-                        </select>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="password" class="flex-1 h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="newTokenInput" placeholder="Introduce el token de Sesame API">
-                        <button class="inline-flex items-center h-8 px-4 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors" type="button" id="applyTokenBtn">
-                            <i class="ti ti-check text-base mr-2"></i>
-                            Aplicar Token
-                        </button>
-                        <button class="inline-flex items-center h-8 px-4 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors" type="button" id="cancelTokenBtn">
-                            <i class="ti ti-x text-base mr-2"></i>
-                            Cancelar
-                        </button>
-                    </div>
-                </div>
-            </div>
+
 
             <!-- Report Generation Form -->
             <form method="POST" action="{{ url_for('main.index') }}" id="reportForm">
@@ -120,31 +63,31 @@
                         </select>
                         <p class="mt-1 text-xs text-gray-600">Seleccione un rango de fechas predefinido</p>
                     </div>
-                    <div id="custom_date_range" style="display: none;">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label for="from_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
-                                <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="from_date" name="from_date">
-                            </div>
-                            <div>
-                                <label for="to_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin</label>
-                                <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="to_date" name="to_date">
-                            </div>
-                        </div>
+                    <div>
+                        <label for="report_type" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="ti ti-chart-bar mr-1"></i>
+                            Tipo de informe
+                        </label>
+                        <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="report_type" name="report_type">
+                            <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
+                            <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
+                            <option value="by_group">Grupos y tipos de fichaje por grupos</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-600">Seleccione el tipo de agrupación para el informe</p>
                     </div>
                 </div>
 
-                <div class="mb-6">
-                    <label for="report_type" class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="ti ti-chart-bar mr-1"></i>
-                        Tipo de informe
-                    </label>
-                    <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="report_type" name="report_type">
-                        <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
-                        <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
-                        <option value="by_group">Grupos y tipos de fichaje por grupos</option>
-                    </select>
-                    <p class="mt-1 text-xs text-gray-600">Seleccione el tipo de agrupación para el informe</p>
+                <div id="custom_date_range" style="display: none;" class="mb-6">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="from_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
+                            <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="from_date" name="from_date">
+                        </div>
+                        <div>
+                            <label for="to_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin</label>
+                            <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="to_date" name="to_date">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -207,15 +150,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const configureTokenBtn = document.getElementById('configureTokenBtn');
-    const testConnectionBtn = document.getElementById('testConnectionBtn');
-    const showTokenBtn = document.getElementById('showTokenBtn');
-    const resetConnectionBtn = document.getElementById('resetConnectionBtn');
     const connectionStatus = document.getElementById('connectionStatus');
-    const tokenInput = document.getElementById('tokenInput');
-    const newTokenInput = document.getElementById('newTokenInput');
-    const applyTokenBtn = document.getElementById('applyTokenBtn');
-    const cancelTokenBtn = document.getElementById('cancelTokenBtn');
     const officeSelect = document.getElementById('office_id');
     const departmentSelect = document.getElementById('department_id');
     const dateRangeSelect = document.getElementById('date_range');
@@ -235,68 +170,36 @@ document.addEventListener('DOMContentLoaded', function() {
         checkReportStatus(reportId);
     }
     
+    // Load offices and departments when token is available
+    setTimeout(() => {
+        loadOffices();
+        loadDepartments();
+    }, 1000); // Give time for token check to complete
+    
     // Function to check token status and configure UI
     function checkTokenStatus() {
         fetch('/get-current-token')
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
-                    // Token exists - show management buttons and enable report buttons
-                    configureTokenBtn.style.display = 'none';
-                    testConnectionBtn.style.display = 'inline-block';
-                    showTokenBtn.style.display = 'inline-block';
-                    resetConnectionBtn.style.display = 'inline-block';
-                    
-                    // Enable report button
+                if (data.status === 'success' && data.has_token) {
+                    // Token exists - enable report generation
                     generateBtn.disabled = false;
                     generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
-                    
-                    connectionStatus.innerHTML = `
-                        <div class="flex items-center p-3 bg-green-50 border border-green-200 rounded-xl">
-                            <i class="ti ti-check text-green-600 mr-2"></i>
-                            <p class="text-sm text-green-800">Token configurado correctamente. Región: ${data.region}</p>
-                        </div>
-                    `;
                 } else {
-                    // No token - show configure button only and disable report buttons
-                    configureTokenBtn.style.display = 'inline-block';
-                    testConnectionBtn.style.display = 'none';
-                    showTokenBtn.style.display = 'none';
-                    resetConnectionBtn.style.display = 'none';
-                    
-                    // Disable report buttons
-                    previewBtn.disabled = true;
+                    // No token - disable report generation
                     generateBtn.disabled = true;
-                    previewBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
                     generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
-                    
-                    connectionStatus.innerHTML = `
-                        <div class="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                            <i class="ti ti-info-circle text-yellow-600 mr-2"></i>
-                            <p class="text-sm text-yellow-800">No hay token configurado. Haz clic en "Configurar Token API" para empezar.</p>
-                        </div>
-                    `;
                 }
             })
             .catch(error => {
                 console.error('Error checking token status:', error);
-                // Show configure button on error and disable report buttons
-                configureTokenBtn.style.display = 'inline-block';
-                testConnectionBtn.style.display = 'none';
-                showTokenBtn.style.display = 'none';
-                resetConnectionBtn.style.display = 'none';
-                
                 // Disable report button on error
                 generateBtn.disabled = true;
                 generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
             });
     }
     
-    // Configure token button - show token input form
-    configureTokenBtn.addEventListener('click', function() {
-        tokenInput.style.display = 'block';
-        newTokenInput.focus();
-    });
+
 
 
     
@@ -409,220 +312,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Test connection
-    testConnectionBtn.addEventListener('click', function() {
-        testConnectionBtn.disabled = true;
-        testConnectionBtn.innerHTML = '<i class="ti ti-loader animate-spin mr-2"></i>Probando...';
-        
-        fetch('/test-connection')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    connectionStatus.innerHTML = `
-                        <div class="flex items-center p-3 bg-green-50 border border-green-200 rounded-xl">
-                            <i class="ti ti-check text-green-600 mr-2"></i>
-                            <p class="text-sm text-green-800">Conexión exitosa. Empresa: ${data.company}</p>
-                        </div>
-                    `;
-                    resetConnectionBtn.style.display = 'inline-block';
-                    loadOffices();
-                    loadDepartments();
-                } else {
-                    connectionStatus.innerHTML = `
-                        <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
-                            <i class="ti ti-alert-circle text-red-600 mr-2"></i>
-                            <p class="text-sm text-red-800">${data.message}</p>
-                        </div>
-                    `;
-                    resetConnectionBtn.style.display = 'none';
-                }
-            })
-            .catch(error => {
-                connectionStatus.innerHTML = `
-                    <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
-                        <i class="ti ti-alert-circle text-red-600 mr-2"></i>
-                        <p class="text-sm text-red-800">Error de conexión: ${error.message}</p>
-                    </div>
-                `;
-            })
-            .finally(() => {
-                testConnectionBtn.disabled = false;
-                testConnectionBtn.innerHTML = '<i class="ti ti-wifi mr-2"></i>Probar Conexión API';
-            });
-    });
-
-    // Show current token
-    showTokenBtn.addEventListener('click', function() {
-        showTokenBtn.disabled = true;
-        showTokenBtn.innerHTML = '<i class="ti ti-loader animate-spin mr-2"></i>Consultando...';
-        
-        fetch('/get-current-token')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    connectionStatus.innerHTML = `
-                        <div class="flex items-start p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                            <i class="ti ti-key text-blue-600 mr-2 mt-0.5"></i>
-                            <div>
-                                <p class="text-sm text-blue-800">
-                                    <strong>Token Actual:</strong> ${data.token_preview} (${data.token_length} caracteres)
-                                </p>
-                                <p class="text-xs text-blue-600 mt-1">
-                                    <i class="ti ti-world mr-1"></i>Región: ${data.region} | ${data.description || 'Sin descripción'}
-                                </p>
-                            </div>
-                        </div>
-                    `;
-                    // Show new token input button
-                    tokenInput.style.display = 'block';
-                } else {
-                    connectionStatus.innerHTML = `
-                        <div class="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                            <i class="ti ti-alert-triangle text-yellow-600 mr-2"></i>
-                            <p class="text-sm text-yellow-800">${data.message}</p>
-                        </div>
-                    `;
-                    // Show token input when no token exists
-                    tokenInput.style.display = 'block';
-                }
-            })
-            .catch(error => {
-                connectionStatus.innerHTML = `
-                    <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
-                        <i class="ti ti-alert-circle text-red-600 mr-2"></i>
-                        <p class="text-sm text-red-800">Error al obtener información del token: ${error.message}</p>
-                    </div>
-                `;
-            })
-            .finally(() => {
-                showTokenBtn.disabled = false;
-                showTokenBtn.innerHTML = '<i class="ti ti-key mr-2"></i>Ver Token Actual';
-            });
-    });
-
-    // Reset connection
-    resetConnectionBtn.addEventListener('click', function() {
-        resetConnectionBtn.disabled = true;
-        connectionStatus.innerHTML = `
-            <div class="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                <i class="ti ti-info-circle text-yellow-600 mr-2"></i>
-                <p class="text-sm text-yellow-800">Conexión cerrada. Puedes introducir un nuevo token para conectar con otra cuenta.</p>
-            </div>
-        `;
-        
-        // Update button visibility
-        configureTokenBtn.style.display = 'inline-block';
-        testConnectionBtn.style.display = 'none';
-        showTokenBtn.style.display = 'none';
-        resetConnectionBtn.style.display = 'none';
-        
-        // Disable report buttons when connection is reset
-        previewBtn.disabled = true;
-        generateBtn.disabled = true;
-        previewBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
-        generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
-        
-        tokenInput.style.display = 'block';
-        employeeSelect.innerHTML = '<option value="">Todos los empleados</option>';
-        officeSelect.innerHTML = '<option value="">Todos los centros</option>';
-        departmentSelect.innerHTML = '<option value="">Todos los departamentos</option>';
-        newTokenInput.value = '';
-        newTokenInput.focus();
-    });
-
-    // Apply new token
-    applyTokenBtn.addEventListener('click', function() {
-        const newToken = newTokenInput.value.trim();
-        if (!newToken) {
-            alert('Por favor, introduce un token válido');
-            return;
-        }
-
-        applyTokenBtn.disabled = true;
-        applyTokenBtn.innerHTML = '<i class="ti ti-loader animate-spin mr-2"></i>Aplicando...';
-
-        const region = document.getElementById('regionSelect').value;
-        
-        fetch('/apply-token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                token: newToken,
-                region: region,
-                description: `Token configurado para región ${region}`
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                connectionStatus.innerHTML = `
-                    <div class="flex items-center p-3 bg-green-50 border border-green-200 rounded-xl">
-                        <i class="ti ti-check text-green-600 mr-2"></i>
-                        <p class="text-sm text-green-800">Token aplicado correctamente. Empresa: ${data.company}</p>
-                    </div>
-                `;
-                tokenInput.style.display = 'none';
-                
-                // Update button visibility after successful token application
-                configureTokenBtn.style.display = 'none';
-                testConnectionBtn.style.display = 'inline-block';
-                showTokenBtn.style.display = 'inline-block';
-                resetConnectionBtn.style.display = 'inline-block';
-                
-                // Enable report buttons
-                previewBtn.disabled = false;
-                generateBtn.disabled = false;
-                previewBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-indigo-600 bg-white border border-indigo-300 rounded-xl hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
-                generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
-                
-                loadOffices();
-                loadDepartments();
-            } else {
-                connectionStatus.innerHTML = `
-                    <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
-                        <i class="ti ti-alert-circle text-red-600 mr-2"></i>
-                        <p class="text-sm text-red-800">Error al aplicar el token: ${data.message}</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(error => {
-            connectionStatus.innerHTML = `
-                <div class="flex items-center p-3 bg-red-50 border border-red-200 rounded-xl">
-                    <i class="ti ti-alert-circle text-red-600 mr-2"></i>
-                    <p class="text-sm text-red-800">Error al conectar: ${error.message}</p>
-                </div>
-            `;
-        })
-        .finally(() => {
-            applyTokenBtn.disabled = false;
-            applyTokenBtn.innerHTML = '<i class="ti ti-check mr-2"></i>Aplicar Token';
-        });
-    });
-
-    // Cancel token input
-    cancelTokenBtn.addEventListener('click', function() {
-        tokenInput.style.display = 'none';
-        newTokenInput.value = '';
-        // Check token status again to restore correct state
-        checkTokenStatus();
-    });
 
 
 
-    // Funciones de carga de oficinas y departamentos eliminadas - solo trabajamos con fichajes
+
+    // Load offices and departments
     function loadOffices() {
-        // Disabled - only work with fichajes
-        officeSelect.innerHTML = `<option value="">Filtros de oficina deshabilitados</option>`;
-        officeSelect.disabled = true;
+        fetch('/get-offices')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    officeSelect.innerHTML = '<option value="">Todos los centros</option>';
+                    data.offices.forEach(office => {
+                        officeSelect.innerHTML += `<option value="${office.id}">${office.name}</option>`;
+                    });
+                    officeSelect.disabled = false;
+                } else {
+                    officeSelect.innerHTML = '<option value="">Error cargando centros</option>';
+                    officeSelect.disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading offices:', error);
+                officeSelect.innerHTML = '<option value="">Error cargando centros</option>';
+                officeSelect.disabled = true;
+            });
     }
 
     function loadDepartments() {
-        // Disabled - only work with fichajes
-        departmentSelect.innerHTML = `<option value="">Filtros de departamento deshabilitados</option>`;
-        departmentSelect.disabled = true;
+        fetch('/get-departments')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    departmentSelect.innerHTML = '<option value="">Todos los departamentos</option>';
+                    data.departments.forEach(department => {
+                        departmentSelect.innerHTML += `<option value="${department.id}">${department.name}</option>`;
+                    });
+                    departmentSelect.disabled = false;
+                } else {
+                    departmentSelect.innerHTML = '<option value="">Error cargando departamentos</option>';
+                    departmentSelect.disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading departments:', error);
+                departmentSelect.innerHTML = '<option value="">Error cargando departamentos</option>';
+                departmentSelect.disabled = true;
+            });
     }
 
 
@@ -669,10 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('from_date').value = formatDate(startOfMonth);
     document.getElementById('to_date').value = formatDate(endOfMonth);
 
-    // Auto-test connection on page load
-    setTimeout(() => {
-        testConnectionBtn.click();
-    }, 1000);
+    // Initial connection status check is already done in checkTokenStatus()
     
     // Function to check report status
     function checkReportStatus(reportId) {

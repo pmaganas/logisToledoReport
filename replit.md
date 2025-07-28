@@ -154,6 +154,30 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced Navigation**: Added responsive navigation bar with mobile menu support for easy access to main features
 - **Report Limit Management**: Implemented automatic cleanup system maintaining maximum 10 reports, oldest files deleted automatically when limit exceeded
 - **Preview Functionality Removal**: Eliminated Vista Previa del Informe button and all related functionality including confirmation modal, preview table, and /preview-data endpoint - streamlined interface for direct report generation only
-- **Pause Time Redistribution**: Implemented automatic redistribution of pause entries - pause records are removed from final report and pause time is always added to the next work entry by advancing its start time to eliminate gaps, creating seamless time tracking
+- **Pause Time Redistribution**: Simplified pause elimination logic - when a pause is found, the previous work entry is extended to end at the pause end time, effectively absorbing the pause duration. Next work entries remain unchanged
 - **Chronological Sorting**: Implemented robust chronological sorting of work entries by entry start time (workEntryIn.date) per employee per date to ensure proper temporal ordering
 - **Employee-Date Grouping**: Maintained grouping by employee and date for proper daily totals while ensuring chronological ordering within each group
+- **Night Shift Sorting**: Fixed chronological ordering for night shifts by adjusting entries between 00:00-06:00 to sort after previous night's entries (22:00, 23:00, 00:00, 01:00, 02:00 sequence)
+- **Null Safety**: Added comprehensive null checks for entry times to handle edge cases where work entries may not have end times (e.g., currently active sessions)
+- **UI Cleanup**: Removed unnecessary flash message notification when starting background report generation - the status section already provides visual feedback
+- **Connection Management Separation**: Moved all token configuration to dedicated "Conexión" section with its own page and navigation menu item
+- **Simplified Connection Status**: Main page now shows simple connection indicator (connected/disconnected) with company name, full configuration moved to separate page
+- **Fixed Token Status Check**: Fixed JavaScript error and API response format for proper token status detection after configuration
+- **Visual Status Indicator**: Added colored circle (green/red/yellow) at the beginning of connection status for immediate visual feedback
+- **Activity Name Resolution**: Implemented real activity name display in reports using workEntryType and workBreakId lookup
+- **Check Types Database Cache**: Added CheckType model and CheckTypesService for caching activity types from /schedule/v1/check-types endpoint
+- **Automatic Check Types Sync**: Added automatic synchronization of check types when token is configured or connection is tested
+- **Activity Name Logic**: If workEntryType='work' and workBreakId=null, display "Registro normal"; if workBreakId has value, lookup name from cached check types
+- **Circular Import Fix**: Resolved circular import issues by moving check types service imports inside functions to avoid module loading conflicts
+- **Manual Check Types Refresh**: Added /refresh-check-types endpoint for manual synchronization of activity types when needed
+- **Database Persistence**: Check types are now permanently stored in PostgreSQL database, eliminating API calls during report generation
+- **Activity Names Working**: System now displays real activity names like "BAÑO", "AUDITORIA", "ABASTECER" instead of generic "work" labels
+- **Production Logs Cleanup**: Removed all debugging logs (DEBUG, INFO) from services to reduce log noise in production, keeping only ERROR and WARNING logs for essential monitoring
+- **urllib3 Debug Logs Suppression**: Configured logging to suppress urllib3 debug logs that show HTTP request details, keeping only WARNING and ERROR logs for clean production output
+- **Security Authentication System**: Implemented secure login/logout system using environment variables ADMIN_USERNAME and ADMIN_PASSWORD with session management
+- **Protected Routes**: All application routes now require authentication with @requires_auth decorator, unauthorized users redirected to login page
+- **Authentication UI**: Added professional login page with Tailwind CSS styling and proper error handling for invalid credentials
+- **Logout Functionality**: Added logout links in navigation and proper session cleanup with success messaging
+- **Restored Office and Department Filters**: Re-enabled center and department selection dropdowns with API endpoints /get-offices and /get-departments
+- **Dynamic Dropdown Loading**: Implemented JavaScript functions to populate office and department selectors from Sesame API data
+- **Enhanced User Interface**: Restored filtering capabilities that were previously disabled due to SSL performance concerns

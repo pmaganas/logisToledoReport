@@ -75,9 +75,7 @@ class SesameAPI:
                 verify=True  # Verify SSL certificates
             )
 
-            self.logger.debug(
-                f"API Request: {method} {url} - Status: {response.status_code}"
-            )
+
 
             if response.status_code == 200:
                 return response.json()
@@ -182,6 +180,39 @@ class SesameAPI:
             params["to"] = to_date
 
         return self._make_request("/schedule/v1/work-breaks", params=params)
+
+    def get_check_types(self,
+                       page: int = 1,
+                       limit: int = 100) -> Optional[Dict]:
+        """Get check types (activity types) for work entries"""
+        params = {"page": page, "limit": limit}
+        return self._make_request("/schedule/v1/check-types", params=params)
+
+    def get_offices(self) -> Optional[Dict]:
+        """Get list of offices"""
+        if not self.token:
+            self.logger.error("No token configured for offices request")
+            return None
+            
+        try:
+            response = self._make_request('/core/v3/offices')
+            return response
+        except Exception as e:
+            self.logger.error(f"Error fetching offices: {str(e)}")
+            return None
+
+    def get_departments(self) -> Optional[Dict]:
+        """Get list of departments"""
+        if not self.token:
+            self.logger.error("No token configured for departments request")
+            return None
+            
+        try:
+            response = self._make_request('/core/v3/departments')
+            return response
+        except Exception as e:
+            self.logger.error(f"Error fetching departments: {str(e)}")
+            return None
 
     def get_all_employees_data(self, company_id: str = None) -> List[Dict]:
         """Get all employees with pagination"""
@@ -486,17 +517,7 @@ class SesameAPI:
 
         return all_departments
 
-    def get_check_types(self,
-                        company_id: str = None,
-                        page: int = 1,
-                        per_page: int = 100) -> Optional[Dict]:
-        """Get list of check types"""
-        params = {'page': page, 'per_page': per_page}
 
-        if company_id:
-            params['companyId'] = company_id
-
-        return self._make_request("/schedule/v1/check-types", params=params)
 
     def get_all_check_types_data(self, company_id: str = None) -> List[Dict]:
         """Get all check types with pagination"""

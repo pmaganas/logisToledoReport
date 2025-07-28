@@ -7,6 +7,8 @@ import uuid
 import os
 import glob
 from services.no_breaks_report_generator import NoBreaksReportGenerator
+from services.sesame_api import SesameAPI
+from auth import requires_auth, check_auth, login_user, logout_user, authenticate
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -108,10 +110,15 @@ def generate_report_background(report_id, form_data, app_context):
         
     # Update status outside app context to avoid DB SSL issues
     try:
+        # Initialize variables
+        filename = None
+        file_path = None
+        report_data = None
+        
         if report_data:
             background_reports[report_id]['status'] = 'completed'
-            background_reports[report_id]['filename'] = filename
-            background_reports[report_id]['file_path'] = file_path
+            background_reports[report_id]['filename'] = filename or f"{report_id}_reporte.xlsx"
+            background_reports[report_id]['file_path'] = file_path or f"temp_reports/{report_id}_reporte.xlsx"
         else:
             background_reports[report_id]['status'] = 'error'
             background_reports[report_id]['error'] = 'Error al generar el reporte'
@@ -121,7 +128,30 @@ def generate_report_background(report_id, form_data, app_context):
         background_reports[report_id]['error'] = 'Error en el proceso final'
 
 
+@main_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page"""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if check_auth(username, password):
+            login_user()
+            return redirect(url_for('main.index'))
+        else:
+            flash('Usuario o contraseña incorrectos', 'error')
+    
+    return render_template('login.html')
+
+@main_bp.route('/logout')
+def logout():
+    """Logout"""
+    logout_user()
+    flash('Sesión cerrada exitosamente', 'success')
+    return redirect(url_for('main.login'))
+
 @main_bp.route('/', methods=['GET', 'POST'])
+@requires_auth
 def index():
     """Main page with report generation form and background report generation"""
     if request.method == 'GET':
@@ -178,7 +208,7 @@ def index():
         thread.daemon = True
         thread.start()
         
-        flash('Reporte iniciado en segundo plano. Se mostrará el enlace de descarga cuando esté listo.', 'info')
+
         return render_template('index.html', report_id=report_id)
 
     except Exception as e:
@@ -188,6 +218,7 @@ def index():
 
 
 @main_bp.route('/report-status/<report_id>')
+@requires_auth
 def report_status(report_id):
     """Check the status of a background report"""
     if report_id not in background_reports:
@@ -203,6 +234,7 @@ def report_status(report_id):
 
 
 @main_bp.route('/download-report/<report_id>')
+@requires_auth
 def download_report(report_id):
     """Download a completed background report"""
     if report_id not in background_reports:
@@ -233,6 +265,7 @@ def download_report(report_id):
 
 
 @main_bp.route('/test-connection')
+@requires_auth
 def test_connection():
     """Test API connection"""
     try:
@@ -247,6 +280,15 @@ def test_connection():
                 company_name = result['data']['company'].get('name', 'Empresa no identificada')
             elif 'company' in result:
                 company_name = result['company'].get('name', 'Empresa no identificada')
+            
+            # Sync check types when connection is tested successfully
+            try:
+                from services.check_types_service import CheckTypesService
+                check_types_service = CheckTypesService()
+                check_types_service.ensure_check_types_cached()
+            except Exception as e:
+                logger.warning(f"Failed to verify check types cache after connection test: {str(e)}")
+                # Don't fail the connection test if check types sync fails
             
             return jsonify({
                 "status": "success",
@@ -264,6 +306,33 @@ def test_connection():
         return jsonify({
             "status": "error",
             "message": f"Error de conexión: {str(e)}"
+        }), 500
+
+
+@main_bp.route('/refresh-check-types', methods=['POST'])
+@requires_auth
+def refresh_check_types():
+    """Refresh check types from API"""
+    try:
+        from services.check_types_service import CheckTypesService
+        check_types_service = CheckTypesService()
+        result = check_types_service.refresh_check_types()
+        
+        if result:
+            return jsonify({
+                "status": "success",
+                "message": "Tipos de fichajes actualizados correctamente"
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Error al actualizar tipos de fichajes"
+            }), 500
+    except Exception as e:
+        logger.error(f"Error refreshing check types: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error al actualizar tipos de fichajes: {str(e)}"
         }), 500
 
 
@@ -356,7 +425,15 @@ def _format_duration(duration):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
+@main_bp.route('/conexion')
+@requires_auth
+def connection():
+    """Connection management page"""
+    return render_template('connection.html')
+
+
 @main_bp.route('/apply-token', methods=['POST'])
+@requires_auth
 def apply_token():
     """Apply new API token"""
     try:
@@ -388,6 +465,16 @@ def apply_token():
                 company_name = result['data']['company'].get('name', 'Empresa no identificada')
             elif 'company' in result:
                 company_name = result['company'].get('name', 'Empresa no identificada')
+            
+            # Sync check types when token is successfully configured
+            try:
+                from services.check_types_service import CheckTypesService
+                check_types_service = CheckTypesService()
+                check_types_service.sync_check_types()
+                logger.info("Check types synchronized successfully after token configuration")
+            except Exception as e:
+                logger.warning(f"Failed to sync check types after token configuration: {str(e)}")
+                # Don't fail the token configuration if check types sync fails
         
         return jsonify({
             'status': 'success',
@@ -404,27 +491,46 @@ def apply_token():
 
 
 @main_bp.route('/get-current-token')
+@requires_auth
 def get_current_token():
     """Get information about current token (masked for security)"""
     try:
         from models import SesameToken
+        from services.sesame_api import SesameAPI
         
         token_info = SesameToken.get_active_token()
         
         if token_info:
+            # Get company name from API
+            api = SesameAPI()
+            result = api.get_token_info()
+            
+            company_name = "Empresa no identificada"
+            if result:
+                if 'data' in result and 'company' in result['data']:
+                    company_name = result['data']['company'].get('name', 'Empresa no identificada')
+                elif 'company' in result:
+                    company_name = result['company'].get('name', 'Empresa no identificada')
+            
             # Mask the token for security
             masked_token = token_info.token[:8] + '*' * (len(token_info.token) - 12) + token_info.token[-4:]
             
             return jsonify({
                 'status': 'success',
+                'has_token': True,
                 'token': masked_token,
+                'token_preview': masked_token,
+                'token_length': len(token_info.token),
+                'masked_token': masked_token,
                 'region': token_info.region,
                 'description': token_info.description or '',
+                'company': company_name,
                 'created_at': token_info.created_at.isoformat()
             })
         else:
             return jsonify({
                 'status': 'error',
+                'has_token': False,
                 'message': 'No hay token configurado'
             })
             
@@ -432,11 +538,13 @@ def get_current_token():
         logger.error(f"Error getting current token: {str(e)}")
         return jsonify({
             'status': 'error',
+            'has_token': False,
             'message': f'Error al obtener información del token: {str(e)}'
         }), 500
 
 
 @main_bp.route('/descargas')
+@requires_auth
 def downloads():
     """Downloads page - show all generated reports"""
     try:
@@ -494,6 +602,7 @@ def downloads():
 
 
 @main_bp.route('/descargas/download/<report_id>')
+@requires_auth
 def download_report_by_id(report_id):
     """Download a specific report by ID"""
     try:
@@ -526,6 +635,7 @@ def download_report_by_id(report_id):
 
 
 @main_bp.route('/descargas/delete/<report_id>', methods=['POST'])
+@requires_auth
 def delete_report(report_id):
     """Delete a specific report"""
     try:
@@ -559,4 +669,60 @@ def delete_report(report_id):
         return jsonify({
             'status': 'error',
             'message': f'Error al eliminar el reporte: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/get-offices')
+@requires_auth
+def get_offices():
+    """Get list of offices"""
+    try:
+        api = SesameAPI()
+        response = api.get_offices()
+        
+        if response and 'data' in response:
+            offices = response['data']
+            return jsonify({
+                'status': 'success',
+                'offices': offices
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'No se pudieron cargar las oficinas'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error getting offices: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al obtener oficinas: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/get-departments')
+@requires_auth
+def get_departments():
+    """Get list of departments"""
+    try:
+        api = SesameAPI()
+        response = api.get_departments()
+        
+        if response and 'data' in response:
+            departments = response['data']
+            return jsonify({
+                'status': 'success',
+                'departments': departments
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'No se pudieron cargar los departamentos'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error getting departments: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al obtener departamentos: {str(e)}'
         }), 500
