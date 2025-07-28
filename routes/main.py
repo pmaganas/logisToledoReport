@@ -78,13 +78,16 @@ def generate_report_background(report_id, form_data, app_context):
                 employee_id=form_data['employee_id'],
                 office_id=form_data['office_id'],
                 department_id=form_data['department_id'],
-                report_type=form_data['report_type'])
+                report_type=form_data['report_type'],
+                format=form_data.get('format', 'xlsx'))
             logger.info("NO-BREAKS report generation completed successfully")
 
             if report_data:
                 # Save report to temporary file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"reporte_actividades_{timestamp}.xlsx"
+                format_type = form_data.get('format', 'xlsx')
+                file_extension = 'csv' if format_type == 'csv' else 'xlsx'
+                filename = f"reporte_actividades_{timestamp}.{file_extension}"
                 
                 # Create temp directory if it doesn't exist
                 temp_dir = 'temp_reports'
@@ -193,7 +196,8 @@ def index():
             'employee_id': employee_id,
             'office_id': office_id,
             'department_id': department_id,
-            'report_type': report_type
+            'report_type': report_type,
+            'format': request.form.get('format', 'xlsx')
         }
         
         background_reports[report_id] = {
@@ -252,9 +256,15 @@ def download_report(report_id):
         return redirect(url_for('main.index'))
     
     try:
+        # Determine mimetype based on file extension
+        if report['filename'].endswith('.csv'):
+            mimetype = 'text/csv'
+        else:
+            mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        
         return send_file(
             report['file_path'],
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            mimetype=mimetype,
             as_attachment=True,
             download_name=report['filename']
         )

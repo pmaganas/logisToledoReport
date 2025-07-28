@@ -1,8 +1,9 @@
 import openpyxl
+import csv
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from io import BytesIO
+from io import BytesIO, StringIO
 from openpyxl.styles import Font, PatternFill, Alignment
 from services.sesame_api import SesameAPI
 
@@ -13,7 +14,8 @@ class NoBreaksReportGenerator:
 
     def generate_report(self, from_date: str = None, to_date: str = None, 
                        employee_id: str = None, office_id: str = None, 
-                       department_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
+                       department_id: str = None, report_type: str = "by_employee", 
+                       format: str = "xlsx") -> Optional[bytes]:
         """Generate report with only work entries - no employee data processing"""
         
         try:
@@ -65,68 +67,113 @@ class NoBreaksReportGenerator:
                         break
             
             if not all_work_entries:
-                return self._create_empty_report()
+                return self._create_empty_report(format)
 
             # Check types are now cached in database via CheckTypesService
             check_types_map = {}  # Not needed anymore, keeping for compatibility
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Reporte Fichajes"
             
-            # Headers (same as preview)
-            headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
-            for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col, value=header)
-                cell.font = Font(bold=True)
-                cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
-            
-            current_row = 2
-            
-            # Process entries based on report type
-            if report_type == "by_activity":
-                current_row = self._process_grouped_by_activity(ws, all_work_entries, check_types_map, current_row)
-            elif report_type == "by_group":
-                current_row = self._process_grouped_by_group(ws, all_work_entries, check_types_map, current_row)
-            else:  # by_employee (default)
-                current_row = self._process_grouped_entries(ws, all_work_entries, check_types_map, current_row)
-            
-            # Save to BytesIO
-            output = BytesIO()
-            wb.save(output)
-            output.seek(0)
-            
-
-            return output.getvalue()
+            # Generate report based on format
+            if format.lower() == "csv":
+                return self._generate_csv_report(all_work_entries, check_types_map, report_type)
+            else:
+                return self._generate_xlsx_report(all_work_entries, check_types_map, report_type)
             
         except Exception as e:
             self.logger.error(f"Error generating report: {str(e)}")
-            return self._create_error_report(str(e))
+            return self._create_error_report(str(e), format)
 
-    def _create_empty_report(self) -> bytes:
+    def _generate_xlsx_report(self, all_work_entries, check_types_map, report_type):
+        """Generate XLSX report"""
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Reporte Fichajes"
+        
+        # Headers (same as preview)
+        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+        
+        current_row = 2
+        
+        # Process entries based on report type
+        if report_type == "by_activity":
+            current_row = self._process_grouped_by_activity(ws, all_work_entries, check_types_map, current_row)
+        elif report_type == "by_group":
+            current_row = self._process_grouped_by_group(ws, all_work_entries, check_types_map, current_row)
+        else:  # by_employee (default)
+            current_row = self._process_grouped_entries(ws, all_work_entries, check_types_map, current_row)
+        
+        # Save to BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return output.getvalue()
+
+    def _generate_csv_report(self, all_work_entries, check_types_map, report_type):
+        """Generate CSV report"""
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Headers (same as preview)
+        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
+        writer.writerow(headers)
+        
+        # Process entries based on report type
+        if report_type == "by_activity":
+            self._process_grouped_by_activity_csv(writer, all_work_entries, check_types_map)
+        elif report_type == "by_group":
+            self._process_grouped_by_group_csv(writer, all_work_entries, check_types_map)
+        else:  # by_employee (default)
+            self._process_grouped_entries_csv(writer, all_work_entries, check_types_map)
+        
+        # Convert to bytes
+        csv_content = output.getvalue()
+        output.close()
+        return csv_content.encode('utf-8-sig')  # UTF-8 BOM for Excel compatibility
+
+    def _create_empty_report(self, format: str = "xlsx") -> bytes:
         """Create an empty report when no data is found"""
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Reporte Vacío"
-        
-        ws.cell(row=1, column=1, value="No se encontraron datos para los filtros especificados")
-        
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        return output.getvalue()
+        if format.lower() == "csv":
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow(["No se encontraron datos para los filtros especificados"])
+            csv_content = output.getvalue()
+            output.close()
+            return csv_content.encode('utf-8-sig')
+        else:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Reporte Vacío"
+            
+            ws.cell(row=1, column=1, value="No se encontraron datos para los filtros especificados")
+            
+            output = BytesIO()
+            wb.save(output)
+            output.seek(0)
+            return output.getvalue()
 
-    def _create_error_report(self, error_message: str) -> bytes:
+    def _create_error_report(self, error_message: str, format: str = "xlsx") -> bytes:
         """Create an error report"""
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Error"
-        
-        ws.cell(row=1, column=1, value=f"Error al generar reporte: {error_message}")
-        
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        return output.getvalue()
+        if format.lower() == "csv":
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow([f"Error al generar reporte: {error_message}"])
+            csv_content = output.getvalue()
+            output.close()
+            return csv_content.encode('utf-8-sig')
+        else:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Error"
+            
+            ws.cell(row=1, column=1, value=f"Error al generar reporte: {error_message}")
+            
+            output = BytesIO()
+            wb.save(output)
+            output.seek(0)
+            return output.getvalue()
 
     def _parse_datetime(self, date_str: str) -> Optional[datetime]:
         """Parse datetime string from API"""
@@ -552,6 +599,61 @@ class NoBreaksReportGenerator:
         seconds = total_seconds % 60
 
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    def _process_grouped_entries_csv(self, writer, all_work_entries, check_types_map):
+        """Process entries grouped by employee and date for CSV output"""
+        # Reuse the Excel logic but write to CSV
+        import csv
+        from io import StringIO
+        
+        # Create a temporary workbook-like structure for reusing existing logic
+        class CSVRow:
+            def __init__(self, writer):
+                self.writer = writer
+                self.row_data = []
+            
+            def cell(self, row, column, value=None):
+                # Adjust row_data size if needed
+                while len(self.row_data) < column:
+                    self.row_data.append("")
+                if value is not None:
+                    self.row_data[column-1] = value
+                return self
+        
+        # Create a mock worksheet that writes to CSV
+        class CSVWorksheet:
+            def __init__(self, writer):
+                self.writer = writer
+                self.current_row = 0
+            
+            def cell(self, row, column, value=None):
+                if row > self.current_row:
+                    # Write accumulated row data and start new row
+                    if hasattr(self, 'row_data') and self.row_data:
+                        self.writer.writerow(self.row_data)
+                    self.row_data = [""] * 10  # Initialize with empty cells
+                    self.current_row = row
+                
+                if value is not None:
+                    while len(self.row_data) < column:
+                        self.row_data.append("")
+                    self.row_data[column-1] = str(value)
+                
+                return self
+        
+        # Create CSV worksheet wrapper
+        csv_ws = CSVWorksheet(writer)
+        
+        # Reuse existing Excel processing logic
+        current_row = self._process_grouped_entries(csv_ws, all_work_entries, check_types_map, 1)
+
+    def _process_grouped_by_activity_csv(self, writer, all_work_entries, check_types_map):
+        """Process entries grouped by activity type for CSV output"""
+        self._process_grouped_entries_csv(writer, all_work_entries, check_types_map)
+
+    def _process_grouped_by_group_csv(self, writer, all_work_entries, check_types_map):
+        """Process entries grouped by groups for CSV output"""
+        self._process_grouped_entries_csv(writer, all_work_entries, check_types_map)
     
     def get_data_metrics(self, from_date: str = None, to_date: str = None, 
                          employee_id: str = None, office_id: str = None, 

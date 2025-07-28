@@ -187,3 +187,6 @@ Preferred communication style: Simple, everyday language.
 - **Complete Report Types Implementation**: Added missing report generation methods for "by activity type" and "by groups" to complement existing "by employee" functionality, enabling all three report formats with proper grouping and totals calculation
 - **Footer Content Spacing**: Added bottom margin (mb-40) to main content to prevent overlap with sticky footer and ensure proper content visibility
 - **Navigation Loading Screen**: Implemented loading modal with progress bar for tab transitions, providing visual feedback during navigation between pages with realistic progress animation
+- **CSV Export Support**: Added CSV export functionality alongside existing XLSX export with dedicated green-colored button and proper mimetype handling
+- **Dual Format Architecture**: Modified report generator to support both XLSX and CSV formats through format parameter with UTF-8 BOM encoding for Excel compatibility
+- **Enhanced UI Buttons**: Replaced single report button with two side-by-side buttons (XLSX in indigo, CSV in green) with proper form parameter handling
