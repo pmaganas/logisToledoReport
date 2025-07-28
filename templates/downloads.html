@@ -119,37 +119,37 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             {% for report in reports %}
                                 <tr class="table-row" id="report-{{ report.id }}">
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-6 py-2 whitespace-nowrap">
                                         <div class="flex items-center">
-                                            <div class="flex-shrink-0 w-8 h-8">
-                                                <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <div class="flex-shrink-0 w-6 h-6">
+                                                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                                 </svg>
                                             </div>
-                                            <div class="ml-4">
+                                            <div class="ml-3">
                                                 <div class="text-sm font-medium text-gray-900">
                                                     {{ report.original_filename }}
                                                 </div>
-                                                <div class="text-sm text-gray-500">
+                                                <div class="text-xs text-gray-500">
                                                     ID: {{ report.id }}
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-6 py-2 whitespace-nowrap">
                                         <div class="text-sm text-gray-900">
                                             {{ report.created_at.strftime('%d/%m/%Y') }}
                                         </div>
-                                        <div class="text-sm text-gray-500">
+                                        <div class="text-xs text-gray-500">
                                             {{ report.created_at.strftime('%H:%M:%S') }}
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-6 py-2 whitespace-nowrap">
                                         <div class="text-sm text-gray-900">
                                             {{ report.size_mb }} MB
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
                                         <div class="flex justify-end space-x-2 action-buttons">
                                             <a href="/descargas/download/{{ report.id }}" 
                                                class="btn-primary btn-sm inline-flex items-center group no-underline">
