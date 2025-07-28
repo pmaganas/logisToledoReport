@@ -63,31 +63,31 @@
                         </select>
                         <p class="mt-1 text-xs text-gray-600">Seleccione un rango de fechas predefinido</p>
                     </div>
-                    <div id="custom_date_range" style="display: none;">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label for="from_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
-                                <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="from_date" name="from_date">
-                            </div>
-                            <div>
-                                <label for="to_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin</label>
-                                <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="to_date" name="to_date">
-                            </div>
-                        </div>
+                    <div>
+                        <label for="report_type" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="ti ti-chart-bar mr-1"></i>
+                            Tipo de informe
+                        </label>
+                        <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="report_type" name="report_type">
+                            <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
+                            <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
+                            <option value="by_group">Grupos y tipos de fichaje por grupos</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-600">Seleccione el tipo de agrupación para el informe</p>
                     </div>
                 </div>
 
-                <div class="mb-6">
-                    <label for="report_type" class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="ti ti-chart-bar mr-1"></i>
-                        Tipo de informe
-                    </label>
-                    <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="report_type" name="report_type">
-                        <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
-                        <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
-                        <option value="by_group">Grupos y tipos de fichaje por grupos</option>
-                    </select>
-                    <p class="mt-1 text-xs text-gray-600">Seleccione el tipo de agrupación para el informe</p>
+                <div id="custom_date_range" style="display: none;" class="mb-6">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="from_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
+                            <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="from_date" name="from_date">
+                        </div>
+                        <div>
+                            <label for="to_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin</label>
+                            <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="to_date" name="to_date">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
