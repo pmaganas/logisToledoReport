@@ -6,10 +6,12 @@ from typing import Dict, List, Optional, Union
 from io import BytesIO, StringIO
 from openpyxl.styles import Font, PatternFill, Alignment
 from services.sesame_api import SesameAPI
+from services.parallel_sesame_api import ParallelSesameAPI
 
 class NoBreaksReportGenerator:
     def __init__(self):
-        self.sesame_api = SesameAPI()
+        # Use parallel API for much faster processing
+        self.sesame_api = ParallelSesameAPI()
         self.logger = logging.getLogger(__name__)
 
     def generate_report(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
