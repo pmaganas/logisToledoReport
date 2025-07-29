@@ -182,11 +182,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check for background report status
     {% if report_id %}
     const reportId = '{{ report_id }}';
+    currentProcessingReportId = reportId;
+    
+    // Disable report generation buttons
+    disableReportButtons(true);
+    
+    // Show cancel button
+    showCancelButton(reportId);
+    
+    // Check status
     checkReportStatus(reportId);
     {% endif %}
     
     // Check for any processing reports on page load
     checkForProcessingReports();
+    
+    // Global variable to track current processing report
+    let currentProcessingReportId = null;
     
     // Load offices and departments when token is available
     setTimeout(() => {
@@ -411,8 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formatInput.value = format;
         
         // Disable both buttons during generation
-        generateXlsxBtn.disabled = true;
-        generateCsvBtn.disabled = true;
+        disableReportButtons(true);
         
         // Update button appearance based on format
         if (format === 'xlsx') {
@@ -566,6 +577,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             </a>
                         </div>
                     `;
+                    
+                    // Re-enable buttons and hide cancel button
+                    if (currentProcessingReportId === reportId) {
+                        currentProcessingReportId = null;
+                        disableReportButtons(false);
+                        hideCancelButton();
+                    }
                 } else if (data.status === 'error') {
                     // Report failed - show error
                     reportStatus.className = 'mb-6 bg-red-50 rounded-xl border border-red-200 p-4';
@@ -584,6 +602,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     `;
+                    
+                    // Re-enable buttons and hide cancel button
+                    if (currentProcessingReportId === reportId) {
+                        currentProcessingReportId = null;
+                        disableReportButtons(false);
+                        hideCancelButton();
+                    }
                 } else {
                     // Still starting or unknown status
                     let progressText = 'Iniciando generación del reporte...';
@@ -663,11 +688,105 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'success' && data.has_processing && data.reports.length > 0) {
                     // There are reports being processed - show indicator and check status
                     const firstReport = data.reports[0];
+                    currentProcessingReportId = firstReport.id;
+                    
+                    // Disable report generation buttons
+                    disableReportButtons(true);
+                    
+                    // Show cancel button
+                    showCancelButton(firstReport.id);
+                    
+                    // Check status
                     checkReportStatus(firstReport.id);
+                } else {
+                    // No processing reports - enable buttons
+                    checkTokenStatus();
                 }
             })
             .catch(error => {
                 console.error('Error checking for processing reports:', error);
+            });
+    }
+    
+    // Function to disable/enable report buttons
+    function disableReportButtons(disable) {
+        generateXlsxBtn.disabled = disable;
+        generateCsvBtn.disabled = disable;
+        
+        if (disable) {
+            generateXlsxBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+            generateCsvBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+        } else {
+            // Re-check token status to set proper styles
+            checkTokenStatus();
+        }
+    }
+    
+    // Function to show cancel button
+    function showCancelButton(reportId) {
+        const cancelButtonDiv = document.getElementById('cancelButtonDiv');
+        if (!cancelButtonDiv) {
+            // Create cancel button div
+            const formDiv = reportForm.parentElement;
+            const cancelDiv = document.createElement('div');
+            cancelDiv.id = 'cancelButtonDiv';
+            cancelDiv.className = 'mb-4';
+            cancelDiv.innerHTML = `
+                <button type="button" id="cancelReportBtn" class="w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors shadow-sm">
+                    <i class="ti ti-x mr-2"></i>
+                    Cancelar Generación de Reporte
+                </button>
+            `;
+            formDiv.insertBefore(cancelDiv, reportForm.nextSibling);
+            
+            // Add click handler
+            document.getElementById('cancelReportBtn').addEventListener('click', function() {
+                cancelReport(reportId);
+            });
+        }
+    }
+    
+    // Function to hide cancel button
+    function hideCancelButton() {
+        const cancelButtonDiv = document.getElementById('cancelButtonDiv');
+        if (cancelButtonDiv) {
+            cancelButtonDiv.remove();
+        }
+    }
+    
+    // Function to cancel report
+    function cancelReport(reportId) {
+        if (!confirm('¿Está seguro que desea cancelar la generación del reporte?')) {
+            return;
+        }
+        
+        fetch(`/cancel-report/${reportId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Clear current processing report
+                    currentProcessingReportId = null;
+                    
+                    // Hide cancel button
+                    hideCancelButton();
+                    
+                    // Re-enable buttons
+                    disableReportButtons(false);
+                    
+                    // Clear report status
+                    const reportStatus = document.getElementById('reportStatus');
+                    reportStatus.className = 'hidden';
+                    reportStatus.innerHTML = '';
+                    
+                    // Show success message
+                    alert('Reporte cancelado exitosamente');
+                } else {
+                    alert('Error al cancelar el reporte: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling report:', error);
+                alert('Error al cancelar el reporte');
             });
     }
 });

@@ -236,8 +236,8 @@ def index():
         # Start background thread with app context
         from flask import current_app
         logger.info(f"[MAIN] About to start thread for report {report_id}")
-        app_ctx = current_app._get_current_object()
-        thread = threading.Thread(target=generate_report_background, args=(report_id, form_data, app_ctx))
+        app = current_app  # Get the current app instance
+        thread = threading.Thread(target=generate_report_background, args=(report_id, form_data, app))
         thread.daemon = True
         thread.start()
         logger.info(f"[MAIN] Thread started for report {report_id}")
@@ -628,7 +628,8 @@ def check_processing_reports():
                 processing_reports.append({
                     'id': report_id,
                     'status': 'processing',
-                    'created_at': report_data.get('created_at', '')
+                    'created_at': report_data.get('created_at', ''),
+                    'progress': report_data.get('progress', {})
                 })
         
         return jsonify({
@@ -643,6 +644,46 @@ def check_processing_reports():
         return jsonify({
             'status': 'error',
             'message': f'Error al verificar reportes en proceso: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/cancel-report/<report_id>', methods=['POST'])
+@requires_auth
+def cancel_report(report_id):
+    """Cancel a report that is being processed"""
+    try:
+        if report_id in background_reports:
+            report_status = background_reports[report_id]
+            
+            # Mark as cancelled
+            report_status['status'] = 'cancelled'
+            report_status['cancelled_at'] = datetime.now().isoformat()
+            
+            # Clean up any partial files
+            temp_dir = 'temp_reports'
+            pattern = os.path.join(temp_dir, f"{report_id}_*.xlsx")
+            for file_path in glob.glob(pattern):
+                try:
+                    os.remove(file_path)
+                    logger.info(f"Deleted cancelled report file: {file_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete cancelled report file: {str(e)}")
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Reporte cancelado exitosamente'
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Reporte no encontrado'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error cancelling report: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al cancelar reporte: {str(e)}'
         }), 500
 
 
