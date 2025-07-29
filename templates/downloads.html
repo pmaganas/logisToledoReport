@@ -15,37 +15,6 @@
     }
     .btn-sm { @apply py-1.5 px-3 text-sm; }
     .card { @apply bg-white rounded-lg shadow-md border border-gray-200; }
-    /* Compact table with fixed row heights */
-    .table-fixed {
-        border-collapse: separate !important;
-        border-spacing: 0 !important;
-    }
-    
-    .table-fixed tr {
-        height: 32px !important;
-    }
-    
-    .table-fixed th, .table-fixed td {
-        height: 32px !important;
-        line-height: 1 !important;
-        padding: 4px 16px !important;
-        vertical-align: middle !important;
-    }
-    
-    /* Text styles for compact display */
-    .leading-none {
-        line-height: 1 !important;
-    }
-    
-    /* Hide action buttons by default, show on row hover */
-    .action-buttons {
-        opacity: 0 !important;
-        transition: opacity 0.2s ease !important;
-    }
-    
-    .group:hover .action-buttons {
-        opacity: 1 !important;
-    }
     .loading { @apply opacity-50 pointer-events-none; }
     
     /* Enhanced hover effects for action buttons */
@@ -66,6 +35,16 @@
     
     .btn-primary.no-underline:hover, .btn-secondary.no-underline:hover, .btn-danger.no-underline:hover {
         text-decoration: none;
+    }
+    
+    /* Card hover effects */
+    .report-card {
+        transition: all 0.3s ease;
+    }
+    
+    .report-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     }
 </style>
 {% endblock %}
@@ -94,7 +73,7 @@
     </div>
 {% endif %}
 
-<div class="{% if reports %} h-full flex flex-col{% endif %} max-w-7xl mx-auto" {% if reports %}style="margin-top: 120px; height: calc(100vh - 200px);"{% endif %}>
+<div class="max-w-7xl mx-auto{% if reports %} mt-32{% endif %} px-4 py-8">
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-2">Historial de Descargas</h2>
             <p class="text-gray-600">Gestiona tus reportes generados: descarga nuevamente o elimina archivos antiguos.</p>
@@ -113,91 +92,89 @@
             {% endif %}
         {% endwith %}
 
-        <!-- Reports Table -->
-        <div class="card {% if reports %}flex-grow min-h-0{% endif %}">
-            {% if reports %}
-                <div class="overflow-x-auto h-full">
-                    <table class="min-w-full h-full table-fixed">
-                        <thead class="bg-gray-50 sticky top-0 z-10">
-                            <tr style="height: 32px;">
-                                <th class="w-2/5 px-4 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                                    Archivo
-                                </th>
-                                <th class="w-1/4 px-4 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                                    Fecha de Generación
-                                </th>
-                                <th class="w-1/6 px-4 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                                    Tamaño
-                                </th>
-                                <th class="w-1/4 px-4 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                                    Acciones
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white">
-                            {% for report in reports %}
-                                <tr style="height: 32px;" class="border-b border-gray-100 hover:bg-gray-50 transition-colors group" id="report-{{ report.id }}">
-                                    <td class="px-4 py-1 align-middle">
-                                        <div class="flex items-center">
-                                            <svg class="w-4 h-4 text-green-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                            </svg>
-                                            <div class="min-w-0 flex-1">
-                                                <div class="text-sm font-medium text-gray-900 truncate leading-none">{{ report.original_filename }}</div>
-                                                <div class="text-xs text-gray-500 leading-none mt-0.5">ID: {{ report.id }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-1 align-middle">
-                                        <div class="text-sm text-gray-900 leading-none">{{ report.created_at.strftime('%d/%m/%Y') }}</div>
-                                        <div class="text-xs text-gray-500 leading-none mt-0.5">{{ report.created_at.strftime('%H:%M:%S') }}</div>
-                                    </td>
-                                    <td class="px-4 py-1 align-middle">
-                                        <div class="text-sm text-gray-900 leading-none">{{ report.size_mb }} MB</div>
-                                    </td>
-                                    <td class="px-4 py-1 align-middle text-right">
-                                        <div class="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity action-buttons">
-                                            <a href="/descargas/download/{{ report.id }}" 
-                                               class="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-600 bg-indigo-100 rounded hover:bg-indigo-200 transition-colors no-underline">
-                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                                </svg>
-                                                Descargar
-                                            </a>
-                                            <button onclick="deleteReport('{{ report.id }}')" 
-                                                    class="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-100 rounded hover:bg-red-200 transition-colors">
-                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                </svg>
-                                                Eliminar
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="flex items-center justify-center h-full">
-                    <div class="text-center py-12">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">No hay reportes generados</h3>
-                        <p class="mt-1 text-sm text-gray-500">Comienza generando tu primer reporte.</p>
-                        <div class="mt-6">
-                            <a href="/" class="btn-primary">
-                                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                </svg>
-                                Generar Reporte
-                            </a>
+        <!-- Reports Cards -->
+        {% if reports %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
+                {% for report in reports %}
+                    <div class="report-card bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" id="report-{{ report.id }}">
+                        <!-- Card Header with File Icon -->
+                        <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="bg-white/20 p-3 rounded-lg">
+                                    {% if report.original_filename.endswith('.csv') %}
+                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                    {% else %}
+                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1 overflow-hidden">
+                                    <h3 class="text-white font-semibold text-lg truncate">{{ report.original_filename }}</h3>
+                                    <p class="text-indigo-100 text-sm">ID: {{ report.id }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Card Body -->
+                        <div class="p-6">
+                            <div class="space-y-3 mb-6">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600 text-sm">Fecha de creación</span>
+                                    <span class="text-gray-900 font-medium">{{ report.created_at.strftime('%d/%m/%Y') }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600 text-sm">Hora</span>
+                                    <span class="text-gray-900 font-medium">{{ report.created_at.strftime('%H:%M:%S') }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600 text-sm">Tamaño</span>
+                                    <span class="text-gray-900 font-medium">{{ report.size_mb }} MB</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex space-x-3">
+                                <a href="/descargas/download/{{ report.id }}" 
+                                   class="flex-1 btn-primary text-center no-underline flex items-center justify-center">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    Descargar
+                                </a>
+                                <button onclick="deleteReport('{{ report.id }}')" 
+                                        class="flex-1 btn-danger flex items-center justify-center">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                    Eliminar
+                                </button>
+                            </div>
                         </div>
                     </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="flex items-center justify-center min-h-[400px]">
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No hay reportes generados</h3>
+                    <p class="mt-1 text-sm text-gray-500">Comienza generando tu primer reporte.</p>
+                    <div class="mt-6">
+                        <a href="/" class="btn-primary">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            Generar Reporte
+                        </a>
+                    </div>
                 </div>
-            {% endif %}
-        </div>
+            </div>
+        {% endif %}
 
 
     </div>

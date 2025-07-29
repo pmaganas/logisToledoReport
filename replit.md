@@ -214,3 +214,4 @@ Preferred communication style: Simple, everyday language.
 - **Progress Callback System**: Implemented progress callback mechanism in NoBreaksReportGenerator to track and update pagination progress in background_reports dictionary
 - **Enhanced Report Status UI**: Updated report status interface to display detailed API query progress including page counts and record counts during generation
 - **Progress Text After Pagination**: Once all API pages are consulted, progress text changes from "Consultando página X de Y..." to "Generando informe con los datos obtenidos" for clearer user feedback
+- **Downloads View Redesign**: Replaced table-based downloads view with modern card-based layout - each report now displays as an individual card with gradient header, file details, and prominent download/delete buttons for improved visual hierarchy and mobile responsiveness
