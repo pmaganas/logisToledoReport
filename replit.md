@@ -213,3 +213,4 @@ Preferred communication style: Simple, everyday language.
 - **API Pagination Progress Display**: Added real-time pagination progress display during report generation showing current page, total pages, and records retrieved (e.g., "Consultando página 3 de 25 - 1,500 registros obtenidos de 12,345 totales")
 - **Progress Callback System**: Implemented progress callback mechanism in NoBreaksReportGenerator to track and update pagination progress in background_reports dictionary
 - **Enhanced Report Status UI**: Updated report status interface to display detailed API query progress including page counts and record counts during generation
+- **Progress Text After Pagination**: Once all API pages are consulted, progress text changes from "Consultando página X de Y..." to "Generando informe con los datos obtenidos" for clearer user feedback

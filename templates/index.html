@@ -505,7 +505,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'processing') {
                     let progressText = 'Procesando...';
                     if (data.progress) {
-                        progressText = `Consultando página ${data.progress.current_page} de ${data.progress.total_pages} - ${data.progress.current_records} registros obtenidos de ${data.progress.total_records} totales`;
+                        if (data.progress.pagination_complete) {
+                            progressText = 'Generando informe con los datos obtenidos';
+                        } else {
+                            progressText = `Consultando página ${data.progress.current_page} de ${data.progress.total_pages} - ${data.progress.current_records} registros obtenidos de ${data.progress.total_records} totales`;
+                        }
                     }
                     
                     reportStatus.className = 'mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4';
@@ -584,7 +588,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Still starting or unknown status
                     let progressText = 'Iniciando generación del reporte...';
                     if (data.progress) {
-                        progressText = `Consultando página ${data.progress.current_page} de ${data.progress.total_pages} - ${data.progress.current_records} registros obtenidos de ${data.progress.total_records} totales`;
+                        if (data.progress.pagination_complete) {
+                            progressText = 'Generando informe con los datos obtenidos';
+                        } else {
+                            progressText = `Consultando página ${data.progress.current_page} de ${data.progress.total_pages} - ${data.progress.current_records} registros obtenidos de ${data.progress.total_records} totales`;
+                        }
                     }
                     
                     reportStatus.className = 'mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4';

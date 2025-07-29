@@ -78,11 +78,15 @@ def generate_report_background(report_id, form_data, app):
             # Create a progress callback function
             def update_progress(current_page, total_pages, current_records, total_records):
                 if report_id in background_reports:
+                    # Check if pagination is complete
+                    is_pagination_complete = (current_page >= total_pages)
+                    
                     background_reports[report_id]['progress'] = {
                         'current_page': current_page,
                         'total_pages': total_pages,
                         'current_records': current_records,
-                        'total_records': total_records
+                        'total_records': total_records,
+                        'pagination_complete': is_pagination_complete
                     }
             
             no_breaks_generator = NoBreaksReportGenerator()
