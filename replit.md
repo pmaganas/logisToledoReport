@@ -210,3 +210,6 @@ Preferred communication style: Simple, everyday language.
   - Reduced sesame_api.py file size by ~50% while maintaining all functionality
   - Remaining LSP errors are type-checking false positives from openpyxl library that don't affect runtime
 - **Report Status Polling Interval**: Changed from 1-3 seconds to 30 seconds for all status checks to reduce server load
+- **API Pagination Progress Display**: Added real-time pagination progress display during report generation showing current page, total pages, and records retrieved (e.g., "Consultando página 3 de 25 - 1,500 registros obtenidos de 12,345 totales")
+- **Progress Callback System**: Implemented progress callback mechanism in NoBreaksReportGenerator to track and update pagination progress in background_reports dictionary
+- **Enhanced Report Status UI**: Updated report status interface to display detailed API query progress including page counts and record counts during generation

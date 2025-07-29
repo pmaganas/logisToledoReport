@@ -74,6 +74,17 @@ def generate_report_background(report_id, form_data, app):
             
             logger.info(f"[THREAD] Form data: {form_data}")
             logger.info(f"[THREAD] Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
+            
+            # Create a progress callback function
+            def update_progress(current_page, total_pages, current_records, total_records):
+                if report_id in background_reports:
+                    background_reports[report_id]['progress'] = {
+                        'current_page': current_page,
+                        'total_pages': total_pages,
+                        'current_records': current_records,
+                        'total_records': total_records
+                    }
+            
             no_breaks_generator = NoBreaksReportGenerator()
             logger.info(f"[THREAD] Created NoBreaksReportGenerator instance")
             report_data = no_breaks_generator.generate_report(
@@ -83,7 +94,8 @@ def generate_report_background(report_id, form_data, app):
                 office_id=form_data['office_id'],
                 department_id=form_data['department_id'],
                 report_type=form_data['report_type'],
-                format=form_data.get('format', 'xlsx'))
+                format=form_data.get('format', 'xlsx'),
+                progress_callback=update_progress)
             logger.info(f"[THREAD] NO-BREAKS report generation completed successfully for report {report_id}")
 
             if report_data:
@@ -243,12 +255,18 @@ def report_status(report_id):
         return jsonify({'status': 'not_found'}), 404
     
     report = background_reports[report_id]
-    return jsonify({
+    response_data = {
         'status': report['status'],
         'created_at': report['created_at'].isoformat(),
         'filename': report.get('filename', ''),
         'error': report.get('error', '')
-    })
+    }
+    
+    # Include progress information if available
+    if 'progress' in report:
+        response_data['progress'] = report['progress']
+    
+    return jsonify(response_data)
 
 
 @main_bp.route('/download-report/<report_id>')
@@ -591,6 +609,36 @@ def get_current_token():
             'status': 'error',
             'has_token': False,
             'message': f'Error al obtener información del token: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/check-processing-reports')
+@requires_auth
+def check_processing_reports():
+    """Check if there are any reports currently being processed"""
+    try:
+        # Check for reports in processing state
+        processing_reports = []
+        for report_id, report_data in background_reports.items():
+            if report_data.get('status') == 'processing':
+                processing_reports.append({
+                    'id': report_id,
+                    'status': 'processing',
+                    'created_at': report_data.get('created_at', '')
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'has_processing': len(processing_reports) > 0,
+            'processing_count': len(processing_reports),
+            'reports': processing_reports
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking processing reports: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al verificar reportes en proceso: {str(e)}'
         }), 500
 
 

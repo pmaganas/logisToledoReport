@@ -17,7 +17,7 @@ class NoBreaksReportGenerator:
     def generate_report(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
                        employee_id: Optional[str] = None, office_id: Optional[str] = None, 
                        department_id: Optional[str] = None, report_type: str = "by_employee", 
-                       format: str = "xlsx") -> Optional[bytes]:
+                       format: str = "xlsx", progress_callback = None) -> Optional[bytes]:
         """Generate report with only work entries - no employee data processing"""
         
         try:
@@ -59,6 +59,11 @@ class NoBreaksReportGenerator:
                     total_pages = meta.get('lastPage', 1)
                     total_records = meta.get('total', 0)
                     self.logger.info(f"[REPORT] Página {page} de {total_pages} - Registros en esta página: {len(entries)} - Total acumulado: {len(all_work_entries)} de {total_records}")
+                    
+                    # Call progress callback if provided
+                    if progress_callback:
+                        progress_callback(page, total_pages, len(all_work_entries), total_records)
+                    
                     if page >= meta.get('lastPage', 1):
                         break
                     
