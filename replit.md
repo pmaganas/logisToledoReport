@@ -215,3 +215,4 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced Report Status UI**: Updated report status interface to display detailed API query progress including page counts and record counts during generation
 - **Progress Text After Pagination**: Once all API pages are consulted, progress text changes from "Consultando página X de Y..." to "Generando informe con los datos obtenidos" for clearer user feedback
 - **Downloads View Redesign**: Replaced table-based downloads view with modern card-based layout - each report now displays as an individual card with gradient header, file details, and prominent download/delete buttons for improved visual hierarchy and mobile responsiveness
+- **Report Generation Buttons Standardization**: Changed colorful report generation buttons (indigo XLSX, green CSV) to neutral white buttons with gray borders and text for more professional, standard appearance
