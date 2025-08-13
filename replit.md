@@ -32,6 +32,7 @@ Preferred communication style: Simple, everyday language.
 - **Check Type Management**: Activity types from the Sesame API are cached in the database for persistence and efficient lookup, with automatic synchronization.
 - **Error Handling**: Centralized error handlers, user-friendly messages, and comprehensive logging.
 - **Deployment**: Production-ready with environment-based configuration, designed for robust error handling and static file serving.
+- **Default Configuration**: "Grupos y tipos de fichaje por grupos" set as default report type for streamlined user experience.
 
 ### Feature Specifications
 - **Report Types**: Generation of reports by employee, activity type, and groups.
