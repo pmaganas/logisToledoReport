@@ -724,7 +724,7 @@ class NoBreaksReportGenerator:
 
     def _process_grouped_by_group_csv(self, writer, all_work_entries, collections_mapping):
         """Process entries grouped by groups for CSV output"""
-        # First, create a list of all entries with their group names
+        # First, create a list of all entries with their group names and dates
         entries_with_groups = []
         
         for entry in all_work_entries:
@@ -734,48 +734,99 @@ class NoBreaksReportGenerator:
             if collections_mapping and work_check_type_id:
                 group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
             
-            # Store entry with its group name
+            # Extract date from entry
+            entry_date = "No disponible"
+            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                try:
+                    entry_datetime = datetime.fromisoformat(
+                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                    entry_date = entry_datetime.strftime('%d/%m/%Y')
+                except Exception as e:
+                    self.logger.error(f"Error parsing entry date: {e}")
+            
+            # Store entry with its group name and date
             entries_with_groups.append({
                 'group_name': group_name,
+                'entry_date': entry_date,
                 'entry': entry
             })
         
-        # Sort entries first by group name, then by date/time
+        # Sort entries first by group name, then by date, then by time
         def get_combined_sort_key(item):
             group_name = item['group_name']
+            entry_date = item['entry_date']
             entry_datetime = self._get_entry_sort_key(item['entry'])
-            return (group_name, entry_datetime)
+            return (group_name, entry_date, entry_datetime)
         
         entries_with_groups.sort(key=get_combined_sort_key)
         
-        # Group entries for pause redistribution
+        # Group entries for pause redistribution by group AND date
         grouped_entries = {}
         for item in entries_with_groups:
-            group_name = item['group_name']
-            if group_name not in grouped_entries:
-                grouped_entries[group_name] = []
-            grouped_entries[group_name].append(item['entry'])
+            group_key = f"{item['group_name']}_{item['entry_date']}"
+            if group_key not in grouped_entries:
+                grouped_entries[group_key] = {
+                    'group_name': item['group_name'],
+                    'entry_date': item['entry_date'],
+                    'entries': []
+                }
+            grouped_entries[group_key]['entries'].append(item['entry'])
         
-        # Process each group for pause redistribution
+        # Process each group/date combination for pause redistribution
         all_processed_entries = []
-        for group_name, group_entries in grouped_entries.items():
-            # Process pause redistribution for this group
-            processed_entries = self._redistribute_pause_time(group_entries)
+        for group_key, group_data in grouped_entries.items():
+            # Process pause redistribution for this group/date
+            processed_entries = self._redistribute_pause_time(group_data['entries'])
             
-            # Add group name to each processed entry
+            # Add group name and date to each processed entry
             for entry in processed_entries:
                 all_processed_entries.append({
-                    'group_name': group_name,
+                    'group_name': group_data['group_name'],
+                    'entry_date': group_data['entry_date'],
                     'entry': entry
                 })
         
-        # Sort all processed entries again by group and time
+        # Sort all processed entries again by group, date and time
         all_processed_entries.sort(key=get_combined_sort_key)
         
-        # Write all entries to CSV
-        for item in all_processed_entries:
+        # Write all entries to CSV with subtotals for each group/date
+        current_group = None
+        current_date = None
+        group_date_total_seconds = 0
+        
+        for i, item in enumerate(all_processed_entries):
             group_name = item['group_name']
+            entry_date = item['entry_date']
             entry = item['entry']
+            
+            # Check if we need to add a subtotal (group or date changed)
+            if current_group is not None and (current_group != group_name or current_date != entry_date):
+                # Add total row for the previous group/date combination
+                if group_date_total_seconds > 0:
+                    total_duration = self._format_duration(timedelta(seconds=group_date_total_seconds))
+                    
+                    # Write TOTAL row
+                    writer.writerow([
+                        current_group,  # Grupo
+                        "TOTAL",  # Actividad
+                        current_date,  # Fecha
+                        "",  # Empleado
+                        "",  # Tipo de identificación
+                        "",  # Nº de identificación
+                        "",  # Entrada
+                        "",  # Salida
+                        total_duration  # Tiempo registrado
+                    ])
+                    
+                    # Add blank row after total
+                    writer.writerow([])
+                
+                # Reset totals for new group/date
+                group_date_total_seconds = 0
+            
+            # Update current group and date
+            current_group = group_name
+            current_date = entry_date
             
             # Get employee info for this entry
             employee_info = entry.get('employee', {})
@@ -795,6 +846,27 @@ class NoBreaksReportGenerator:
                 row_data['start_time'],  # Entrada
                 row_data['end_time'],  # Salida
                 row_data['final_duration']  # Tiempo registrado
+            ])
+            
+            # Accumulate totals
+            worked_seconds = row_data['worked_seconds']
+            group_date_total_seconds += worked_seconds
+        
+        # Add final total for the last group/date if exists
+        if current_group is not None and group_date_total_seconds > 0:
+            total_duration = self._format_duration(timedelta(seconds=group_date_total_seconds))
+            
+            # Write TOTAL row
+            writer.writerow([
+                current_group,  # Grupo
+                "TOTAL",  # Actividad
+                current_date,  # Fecha
+                "",  # Empleado
+                "",  # Tipo de identificación
+                "",  # Nº de identificación
+                "",  # Entrada
+                "",  # Salida
+                total_duration  # Tiempo registrado
             ])
     
     def get_data_metrics(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
@@ -944,7 +1016,7 @@ class NoBreaksReportGenerator:
 
     def _process_grouped_by_group(self, ws, all_work_entries, collections_mapping, current_row):
         """Process entries grouped by work groups using check type collections"""
-        # First, create a list of all entries with their group names
+        # First, create a list of all entries with their group names and dates
         entries_with_groups = []
         
         for entry in all_work_entries:
@@ -954,65 +1026,106 @@ class NoBreaksReportGenerator:
             if collections_mapping and work_check_type_id:
                 group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
             
-            # Store entry with its group name
+            # Extract date from entry
+            entry_date = "No disponible"
+            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                try:
+                    entry_datetime = datetime.fromisoformat(
+                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                    entry_date = entry_datetime.strftime('%d/%m/%Y')
+                except Exception as e:
+                    self.logger.error(f"Error parsing entry date: {e}")
+            
+            # Store entry with its group name and date
             entries_with_groups.append({
                 'group_name': group_name,
+                'entry_date': entry_date,
                 'entry': entry
             })
         
-        # Sort entries first by group name, then by date/time
+        # Sort entries first by group name, then by date, then by time
         def get_combined_sort_key(item):
             group_name = item['group_name']
+            entry_date = item['entry_date']
             entry_datetime = self._get_entry_sort_key(item['entry'])
-            return (group_name, entry_datetime)
+            return (group_name, entry_date, entry_datetime)
         
         entries_with_groups.sort(key=get_combined_sort_key)
         
-        # Group entries for pause redistribution
+        # Group entries for pause redistribution by group AND date
         grouped_entries = {}
         for item in entries_with_groups:
-            group_name = item['group_name']
-            if group_name not in grouped_entries:
-                grouped_entries[group_name] = []
-            grouped_entries[group_name].append(item['entry'])
+            group_key = f"{item['group_name']}_{item['entry_date']}"
+            if group_key not in grouped_entries:
+                grouped_entries[group_key] = {
+                    'group_name': item['group_name'],
+                    'entry_date': item['entry_date'],
+                    'entries': []
+                }
+            grouped_entries[group_key]['entries'].append(item['entry'])
         
-        # Process each group for pause redistribution
+        # Process each group/date combination for pause redistribution
         all_processed_entries = []
-        for group_name, group_entries in grouped_entries.items():
-            # Process pause redistribution for this group
-            processed_entries = self._redistribute_pause_time(group_entries)
+        for group_key, group_data in grouped_entries.items():
+            # Process pause redistribution for this group/date
+            processed_entries = self._redistribute_pause_time(group_data['entries'])
             
-            # Add group name to each processed entry
+            # Add group name and date to each processed entry
             for entry in processed_entries:
                 all_processed_entries.append({
-                    'group_name': group_name,
+                    'group_name': group_data['group_name'],
+                    'entry_date': group_data['entry_date'],
                     'entry': entry
                 })
         
-        # Sort all processed entries again by group and time
+        # Sort all processed entries again by group, date and time
         all_processed_entries.sort(key=get_combined_sort_key)
         
-        # Write all entries to Excel
+        # Write all entries to Excel with subtotals for each group/date
         current_group = None
-        group_total_seconds = 0
-        group_start_row = current_row
+        current_date = None
+        group_date_total_seconds = 0
         
-        for item in all_processed_entries:
+        for i, item in enumerate(all_processed_entries):
             group_name = item['group_name']
+            entry_date = item['entry_date']
             entry = item['entry']
             
-            # Check if we're starting a new group
-            if current_group != group_name:
-                # Add total for previous group if exists
-                if current_group is not None and group_total_seconds > 0:
-                    # Optional: Add a subtotal row for the previous group
-                    # Skip this if you don't want subtotals
-                    pass
+            # Check if we need to add a subtotal (group or date changed)
+            if current_group is not None and (current_group != group_name or current_date != entry_date):
+                # Add total row for the previous group/date combination
+                if group_date_total_seconds > 0:
+                    total_duration = self._format_duration(timedelta(seconds=group_date_total_seconds))
+                    
+                    # Apply bold formatting for TOTAL row
+                    total_font = Font(bold=True)
+                    total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+                    
+                    # Write TOTAL row with same format as data rows
+                    ws.cell(row=current_row, column=1, value=current_group).font = total_font
+                    ws.cell(row=current_row, column=2, value="TOTAL").font = total_font
+                    ws.cell(row=current_row, column=3, value=current_date).font = total_font
+                    ws.cell(row=current_row, column=4, value="").font = total_font
+                    ws.cell(row=current_row, column=5, value="").font = total_font
+                    ws.cell(row=current_row, column=6, value="").font = total_font
+                    ws.cell(row=current_row, column=7, value="").font = total_font
+                    ws.cell(row=current_row, column=8, value="").font = total_font
+                    ws.cell(row=current_row, column=9, value=total_duration).font = total_font
+                    
+                    # Apply background color to TOTAL row
+                    for col in range(1, 10):
+                        ws.cell(row=current_row, column=col).fill = total_fill
+                    
+                    current_row += 1
+                    # Add a blank row after total
+                    current_row += 1
                 
-                # Reset for new group
-                current_group = group_name
-                group_total_seconds = 0
-                group_start_row = current_row
+                # Reset totals for new group/date
+                group_date_total_seconds = 0
+            
+            # Update current group and date
+            current_group = group_name
+            current_date = entry_date
             
             # Get employee info for this entry
             employee_info = entry.get('employee', {})
@@ -1034,12 +1147,34 @@ class NoBreaksReportGenerator:
             
             # Accumulate totals
             worked_seconds = row_data['worked_seconds']
-            group_total_seconds += worked_seconds
+            group_date_total_seconds += worked_seconds
             
             current_row += 1
         
-        # Optional: Add a final total for the last group
-        # Skip this if you don't want subtotals
+        # Add final total for the last group/date if exists
+        if current_group is not None and group_date_total_seconds > 0:
+            total_duration = self._format_duration(timedelta(seconds=group_date_total_seconds))
+            
+            # Apply bold formatting for TOTAL row
+            total_font = Font(bold=True)
+            total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+            
+            # Write TOTAL row
+            ws.cell(row=current_row, column=1, value=current_group).font = total_font
+            ws.cell(row=current_row, column=2, value="TOTAL").font = total_font
+            ws.cell(row=current_row, column=3, value=current_date).font = total_font
+            ws.cell(row=current_row, column=4, value="").font = total_font
+            ws.cell(row=current_row, column=5, value="").font = total_font
+            ws.cell(row=current_row, column=6, value="").font = total_font
+            ws.cell(row=current_row, column=7, value="").font = total_font
+            ws.cell(row=current_row, column=8, value="").font = total_font
+            ws.cell(row=current_row, column=9, value=total_duration).font = total_font
+            
+            # Apply background color to TOTAL row
+            for col in range(1, 10):
+                ws.cell(row=current_row, column=col).fill = total_fill
+            
+            current_row += 1
         
         return current_row
 
