@@ -1,139 +1,186 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div class="p-6">
-            <!-- Processing Reports Indicator (Shows when there are reports being processed) -->
-            <div class="mb-6 bg-amber-50 rounded-xl border border-amber-200 p-4 hidden" id="processingReportsIndicator">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <i class="ti ti-alert-circle text-amber-600"></i>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-amber-800">
-                            Reporte en proceso
-                        </h3>
-                        <p class="text-sm text-amber-700 mt-1">
-                            Se está generando un reporte en segundo plano. La generación continuará aunque recargues la página.
-                        </p>
-                    </div>
-                </div>
+<div class="max-w-5xl mx-auto">
+    <!-- Main Card with Gradient Border -->
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-[2px] rounded-2xl shadow-2xl">
+        <div class="bg-white rounded-2xl">
+            <!-- Header Section -->
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 px-8 py-6 rounded-t-2xl border-b border-gray-100">
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center">
+                    <i class="ti ti-report-analytics text-3xl text-indigo-600 mr-3"></i>
+                    Generador de Informes
+                </h1>
+                <p class="text-gray-600 mt-2">Configure los parámetros para generar informes detallados de fichajes</p>
             </div>
 
-            <!-- Background Report Status (Hidden by default) -->
-            <div class="mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4 hidden" id="backgroundReportStatus">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <i class="ti ti-loader animate-spin text-blue-600"></i>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-blue-800">
-                            Generando reporte en segundo plano...
-                        </h3>
-                        <p class="text-sm text-blue-700 mt-1" id="statusMessage">
-                            Procesando datos de la API...
-                        </p>
-                    </div>
-                </div>
-                <div class="mt-3 hidden" id="downloadSection">
-                    <a href="#" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" id="downloadLink">
-                        <i class="ti ti-download mr-2"></i>
-                        Descargar Reporte
-                    </a>
-                </div>
-            </div>
-
-
-
-            <!-- Report Generation Form -->
-            <form method="POST" action="{{ url_for('main.index') }}" id="reportForm">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <label for="date_range" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="ti ti-calendar mr-1"></i>
-                            Selector de fechas
-                        </label>
-                        <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="date_range" name="date_range">
-                            <option value="today">Hoy</option>
-                            <option value="yesterday">Ayer</option>
-                            <option value="current_week">Semana actual</option>
-                            <option value="last_week">Semana pasada</option>
-                            <option value="current_month" selected>Mes actual</option>
-                            <option value="last_month">Mes pasado</option>
-                            <option value="current_quarter">Trimestre actual</option>
-                            <option value="current_year">Año actual</option>
-                            <option value="last_year">Año pasado</option>
-                            <option value="custom">Personalizado</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-600">Seleccione un rango de fechas predefinido</p>
-                    </div>
-                    <div>
-                        <label for="report_type" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="ti ti-chart-bar mr-1"></i>
-                            Tipo de informe
-                        </label>
-                        <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="report_type" name="report_type">
-                            <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
-                            <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
-                            <option value="by_group">Grupos y tipos de fichaje por grupos</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-600">Seleccione el tipo de agrupación para el informe</p>
-                    </div>
-                </div>
-
-                <div id="custom_date_range" style="display: none;" class="mb-6">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label for="from_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
-                            <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="from_date" name="from_date">
+            <div class="p-8">
+                <!-- Processing Reports Indicator (Shows when there are reports being processed) -->
+                <div class="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-4 hidden shadow-sm" id="processingReportsIndicator">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                                <i class="ti ti-alert-circle text-amber-600 text-xl"></i>
+                            </div>
                         </div>
-                        <div>
-                            <label for="to_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin</label>
-                            <input type="date" class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="to_date" name="to_date">
+                        <div class="ml-4">
+                            <h3 class="text-sm font-semibold text-amber-800">
+                                Reporte en proceso
+                            </h3>
+                            <p class="text-sm text-amber-700 mt-1">
+                                Se está generando un reporte en segundo plano. La generación continuará aunque recargues la página.
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <label for="office_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="ti ti-building mr-1"></i>
-                            Centro
-                        </label>
-                        <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="office_id" name="office_id">
-                            <option value="">Todos los centros</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-600">Opcional: Seleccione un centro específico</p>
+                <!-- Background Report Status (Hidden by default) -->
+                <div class="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4 hidden shadow-sm" id="backgroundReportStatus">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="ti ti-loader animate-spin text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <h3 class="text-sm font-semibold text-blue-800">
+                                Generando reporte en segundo plano...
+                            </h3>
+                            <p class="text-sm text-blue-700 mt-1" id="statusMessage">
+                                Procesando datos de la API...
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <label for="department_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="ti ti-users mr-1"></i>
-                            Departamento
-                        </label>
-                        <select class="w-full h-8 px-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" id="department_id" name="department_id">
-                            <option value="">Todos los departamentos</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-600">Opcional: Seleccione un departamento específico</p>
+                    <div class="mt-4 hidden" id="downloadSection">
+                        <a href="#" class="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-md hover:shadow-lg" id="downloadLink">
+                            <i class="ti ti-download mr-2"></i>
+                            Descargar Reporte
+                        </a>
                     </div>
                 </div>
 
-                <div class="mb-6">
-                    <div class="grid grid-cols-2 gap-3">
-                        <button type="submit" name="format" value="xlsx" class="inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm" id="generateXlsxBtn">
-                            <i class="ti ti-file-spreadsheet mr-2"></i>
-                            Generar Reporte XLSX
-                        </button>
-                        <button type="submit" name="format" value="csv" class="inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm" id="generateCsvBtn">
-                            <i class="ti ti-file-text mr-2"></i>
-                            Generar Reporte CSV
-                        </button>
+                <!-- Report Generation Form -->
+                <form method="POST" action="{{ url_for('main.index') }}" id="reportForm">
+                    <!-- Date and Report Type Section -->
+                    <div class="bg-gray-50 rounded-xl p-6 mb-6">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                            <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center mr-2">
+                                <i class="ti ti-settings text-indigo-600"></i>
+                            </div>
+                            Configuración Principal
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="date_range" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="ti ti-calendar text-indigo-500 mr-1"></i>
+                                    Selector de fechas
+                                </label>
+                                <select class="w-full h-11 px-4 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white hover:border-gray-400" id="date_range" name="date_range">
+                                    <option value="today">Hoy</option>
+                                    <option value="yesterday">Ayer</option>
+                                    <option value="current_week">Semana actual</option>
+                                    <option value="last_week">Semana pasada</option>
+                                    <option value="current_month" selected>Mes actual</option>
+                                    <option value="last_month">Mes pasado</option>
+                                    <option value="current_quarter">Trimestre actual</option>
+                                    <option value="current_year">Año actual</option>
+                                    <option value="last_year">Año pasado</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                                <p class="mt-2 text-xs text-gray-500">Seleccione un rango de fechas predefinido</p>
+                            </div>
+                            <div>
+                                <label for="report_type" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="ti ti-chart-bar text-indigo-500 mr-1"></i>
+                                    Tipo de informe
+                                </label>
+                                <select class="w-full h-11 px-4 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white hover:border-gray-400" id="report_type" name="report_type">
+                                    <option value="by_employee">Grupos y tipos de fichaje por empleado</option>
+                                    <option value="by_type">Grupos y tipos de fichaje por tipo de fichaje</option>
+                                    <option value="by_group">Grupos y tipos de fichaje por grupos</option>
+                                </select>
+                                <p class="mt-2 text-xs text-gray-500">Seleccione el tipo de agrupación para el informe</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </form>
 
-            <!-- Report Status Section (Hidden by default) -->
-            <div id="reportStatus" class="hidden"></div>
+                    <!-- Custom Date Range (Hidden by default) -->
+                    <div id="custom_date_range" style="display: none;" class="mb-6 bg-yellow-50 rounded-xl p-6 border border-yellow-200">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                            <div class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-2">
+                                <i class="ti ti-calendar-event text-yellow-600"></i>
+                            </div>
+                            Rango de Fechas Personalizado
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="from_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
+                                <input type="date" class="w-full h-11 px-4 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white hover:border-gray-400" id="from_date" name="from_date">
+                            </div>
+                            <div>
+                                <label for="to_date" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin</label>
+                                <input type="date" class="w-full h-11 px-4 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white hover:border-gray-400" id="to_date" name="to_date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters Section -->
+                    <div class="bg-blue-50 rounded-xl p-6 mb-6">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
+                                <i class="ti ti-filter text-blue-600"></i>
+                            </div>
+                            Filtros Opcionales
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="office_id" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="ti ti-building text-blue-500 mr-1"></i>
+                                    Centro
+                                </label>
+                                <select class="w-full h-11 px-4 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white hover:border-gray-400" id="office_id" name="office_id">
+                                    <option value="">Todos los centros</option>
+                                </select>
+                                <p class="mt-2 text-xs text-gray-500">Opcional: Seleccione un centro específico</p>
+                            </div>
+                            <div>
+                                <label for="department_id" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="ti ti-users text-blue-500 mr-1"></i>
+                                    Departamento
+                                </label>
+                                <select class="w-full h-11 px-4 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white hover:border-gray-400" id="department_id" name="department_id">
+                                    <option value="">Todos los departamentos</option>
+                                </select>
+                                <p class="mt-2 text-xs text-gray-500">Opcional: Seleccione un departamento específico</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                            <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center mr-2">
+                                <i class="ti ti-file-export text-indigo-600"></i>
+                            </div>
+                            Generar Informe
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button type="submit" name="format" value="xlsx" class="group relative inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-xl" id="generateXlsxBtn">
+                                <i class="ti ti-file-spreadsheet mr-2 text-lg"></i>
+                                Generar Reporte XLSX
+                                <div class="absolute inset-0 rounded-lg bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-200"></div>
+                            </button>
+                            <button type="submit" name="format" value="csv" class="group relative inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-xl" id="generateCsvBtn">
+                                <i class="ti ti-file-text mr-2 text-lg"></i>
+                                Generar Reporte CSV
+                                <div class="absolute inset-0 rounded-lg bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-200"></div>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Report Status Section (Hidden by default) -->
+                <div id="reportStatus" class="hidden"></div>
 
 
 
@@ -215,14 +262,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Token exists - enable report generation
                     generateXlsxBtn.disabled = false;
                     generateCsvBtn.disabled = false;
-                    generateXlsxBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm';
-                    generateCsvBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm';
+                    generateXlsxBtn.className = 'group relative inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-xl';
+                    generateCsvBtn.className = 'group relative inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-xl';
                 } else {
                     // No token - disable report generation
                     generateXlsxBtn.disabled = true;
                     generateCsvBtn.disabled = true;
-                    generateXlsxBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
-                    generateCsvBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+                    generateXlsxBtn.className = 'inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed opacity-50';
+                    generateCsvBtn.className = 'inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed opacity-50';
                 }
             })
             .catch(error => {
@@ -714,8 +761,8 @@ document.addEventListener('DOMContentLoaded', function() {
         generateCsvBtn.disabled = disable;
         
         if (disable) {
-            generateXlsxBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
-            generateCsvBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+            generateXlsxBtn.className = 'inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed opacity-50';
+            generateCsvBtn.className = 'inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed opacity-50';
         } else {
             // Re-check token status to set proper styles
             checkTokenStatus();
