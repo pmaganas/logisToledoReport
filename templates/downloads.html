@@ -52,53 +52,65 @@
 {% block content %}
 <!-- Summary Stats - Fixed Top Bar -->
 {% if reports %}
-    <div class="fixed top-16 left-0 right-0 w-full bg-white border-b border-gray-200 py-4 shadow-sm z-40">
+    <div class="fixed top-20 left-0 right-0 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 py-6 shadow-xl z-40">
         <div class="max-w-7xl mx-auto px-4">
-            <h3 class="text-base font-medium text-gray-900 mb-3 text-center">Resumen</h3>
-            <div class="grid grid-cols-3 gap-4">
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-indigo-600">{{ reports|length }}</div>
-                    <div class="text-xs text-gray-500">Reportes Generados</div>
+            <h3 class="text-lg font-bold text-white mb-4 text-center">Resumen de Reportes</h3>
+            <div class="grid grid-cols-3 gap-6">
+                <div class="text-center bg-white/20 backdrop-blur rounded-lg p-3">
+                    <div class="text-3xl font-bold text-white">{{ reports|length }}</div>
+                    <div class="text-sm text-white/90">Reportes Generados</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-green-600">{{ "%.1f"|format(reports|map(attribute='size_mb')|sum) }} MB</div>
-                    <div class="text-xs text-gray-500">Espacio Utilizado</div>
+                <div class="text-center bg-white/20 backdrop-blur rounded-lg p-3">
+                    <div class="text-3xl font-bold text-white">{{ "%.1f"|format(reports|map(attribute='size_mb')|sum) }} MB</div>
+                    <div class="text-sm text-white/90">Espacio Utilizado</div>
                 </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-blue-600">{{ reports[0].created_at.strftime('%d/%m/%Y') if reports else '-' }}</div>
-                    <div class="text-xs text-gray-500">Último Reporte</div>
+                <div class="text-center bg-white/20 backdrop-blur rounded-lg p-3">
+                    <div class="text-3xl font-bold text-white">{{ reports[0].created_at.strftime('%d/%m/%Y') if reports else '-' }}</div>
+                    <div class="text-sm text-white/90">Último Reporte</div>
                 </div>
             </div>
         </div>
     </div>
 {% endif %}
 
-<div class="max-w-7xl mx-auto{% if reports %} mt-32{% endif %} px-4 py-8">
-        <div class="mb-8">
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Historial de Descargas</h2>
-            <p class="text-gray-600">Gestiona tus reportes generados: descarga nuevamente o elimina archivos antiguos.</p>
-        </div>
+<div class="max-w-7xl mx-auto{% if reports %} mt-40{% endif %}">
+    <div class="bg-gradient-to-r from-blue-500 to-cyan-600 p-[2px] rounded-2xl shadow-2xl mb-8">
+        <div class="bg-white rounded-2xl">
+            <div class="bg-gradient-to-r from-blue-50 to-cyan-50 px-8 py-6 rounded-t-2xl border-b border-gray-100">
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center">
+                    <i class="ti ti-download text-3xl text-blue-600 mr-3"></i>
+                    Historial de Descargas
+                </h1>
+                <p class="text-gray-600 mt-2">Gestiona tus reportes generados: descarga nuevamente o elimina archivos antiguos</p>
+            </div>
 
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="mb-6">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} bg-{{ 'red' if category == 'error' else 'green' }}-100 border border-{{ 'red' if category == 'error' else 'green' }}-300 text-{{ 'red' if category == 'error' else 'green' }}-700 px-4 py-3 rounded-lg mb-4">
-                            {{ message }}
+            <div class="p-8">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="mb-6">
+                            {% for category, message in messages %}
+                                <div class="bg-gradient-to-r {% if category == 'error' %}from-red-50 to-pink-50 border-red-200 text-red-700{% else %}from-green-50 to-emerald-50 border-green-200 text-green-700{% endif %} rounded-xl border p-4 mb-4 shadow-sm">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 {% if category == 'error' %}bg-red-100{% else %}bg-green-100{% endif %} rounded-full flex items-center justify-center mr-3">
+                                            <i class="ti ti-{% if category == 'error' %}alert-circle text-red-600{% else %}check-circle text-green-600{% endif %} text-xl"></i>
+                                        </div>
+                                        <span class="font-medium">{{ message }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
                         </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+                    {% endif %}
+                {% endwith %}
 
-        <!-- Reports Cards -->
-        {% if reports %}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
-                {% for report in reports %}
-                    <div class="report-card bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" id="report-{{ report.id }}">
-                        <!-- Card Header with File Icon -->
-                        <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4">
+                <!-- Reports Cards -->
+                {% if reports %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {% for report in reports %}
+                            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-[2px] rounded-xl shadow-xl transform hover:scale-105 transition-all duration-300" id="report-{{ report.id }}">
+                                <div class="bg-white rounded-xl overflow-hidden">
+                                    <!-- Card Header with File Icon -->
+                                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 border-b border-gray-100">
                             <div class="flex items-center space-x-3">
                                 <div class="bg-white/20 p-3 rounded-lg">
                                     {% if report.original_filename.endswith('.csv') %}
