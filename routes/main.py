@@ -61,11 +61,11 @@ def _enforce_report_limit(temp_dir, max_reports=MAX_REPORTS):
     return deleted_files
 
 
-def generate_report_background(report_id, form_data, app):
+def generate_report_background(report_id, form_data, app_instance):
     """Generate report in background thread"""
     try:
         logger.info(f"[THREAD] Starting background thread for report {report_id}")
-        with app.app_context():
+        with app_instance.app_context():
             logger.info(f"[THREAD] Inside app context - Starting background report generation - ID: {report_id}")
             background_reports[report_id]['status'] = 'processing'
             
@@ -234,9 +234,8 @@ def index():
         }
         
         # Start background thread with app context
-        from flask import current_app
+        from app import app
         logger.info(f"[MAIN] About to start thread for report {report_id}")
-        app = current_app  # Get the current app instance
         thread = threading.Thread(target=generate_report_background, args=(report_id, form_data, app))
         thread.daemon = True
         thread.start()

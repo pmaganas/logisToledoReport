@@ -176,6 +176,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const generateCsvBtn = document.getElementById('generateCsvBtn');
     const loadingModal = document.getElementById('loadingModal');
     
+    // Global variable to track current processing report
+    let currentProcessingReportId = null;
+    
     // Check for existing token on page load
     checkTokenStatus();
     
@@ -196,9 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check for any processing reports on page load
     checkForProcessingReports();
-    
-    // Global variable to track current processing report
-    let currentProcessingReportId = null;
     
     // Load offices and departments when token is available
     setTimeout(() => {

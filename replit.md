@@ -1,221 +1,62 @@
 # Replit.md - Sesame Report Generator
 
 ## Overview
-
-This is a Flask-based web application that generates XLSX reports from Sesame Time Tracking API data. The application provides a simple interface to generate employee activity reports with date filtering capabilities. It integrates with the Sesame API to fetch time tracking data and processes it into Excel reports for billing purposes.
+This project is a Flask-based web application designed to generate XLSX and CSV reports from Sesame Time Tracking API data. Its primary purpose is to provide an easy-to-use interface for businesses to create detailed employee activity reports, filtered by various criteria like date ranges, employees, offices, departments, and report types. These reports are crucial for billing and time management. The application aims for robust performance, user-friendly design, and secure handling of API credentials, supporting multiple Sesame API regions.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
-- **Framework**: Basic HTML templates with Tailwind CSS framework
-- **UI Components**: Single-page application with form-based interactions
-- **Styling**: Tailwind CSS with Figtree typography and Tabler Icons
-- **JavaScript**: Minimal client-side logic for form validation and API testing
-- **Design System**: Indigo-500 as primary color, 32px button/input height, 12px border-radius
-- **Responsive Design**: 120px margins (desktop), 56px (tablet), 16px (mobile)
+### UI/UX Decisions
+- **Framework**: Basic HTML templates with Tailwind CSS framework.
+- **Styling**: Tailwind CSS with Figtree typography and Tabler Icons, utilizing Indigo-500 as the primary color.
+- **Design Elements**: 32px button/input height, 12px border-radius, and responsive margins (120px desktop, 56px tablet, 16px mobile).
+- **Language**: Spanish language interface.
+- **Theme**: Consistent dark theme.
+- **Interactions**: Single-page application with form-based interactions and minimal client-side JavaScript for validation and API testing.
+- **Report Preview**: A streamlined interface focusing on direct report generation, eliminating the previous preview functionality.
+- **Download Management**: A dedicated downloads page with a modern, card-based layout for viewing, re-downloading, and deleting reports, featuring a fixed summary bar and scrollable table with sticky headers.
+- **Navigation**: Responsive navigation bar with mobile menu support and real-time connection status indicators.
 
-### Backend Architecture
-- **Framework**: Flask (Python web framework)
-- **Structure**: Blueprint-based routing with separation of concerns
-- **Services**: Modular service layer for API integration and report generation
-- **Error Handling**: Centralized error handlers for 404 and 500 errors
+### Technical Implementations
+- **Backend Framework**: Flask (Python web framework).
+- **Structure**: Blueprint-based routing, modular service layer for API integration and report generation.
+- **Services**: `sesame_api.py` for API interaction and `report_generator.py` for XLSX/CSV report creation.
+- **Report Generation**: Supports XLSX and CSV formats, with background generation using threading to prevent UI blocking and real-time status updates via JavaScript polling.
+- **Data Processing**: Includes advanced date range filtering, employee/office/department filtering, grouped reporting by employee/date, chronological sorting including night shifts, and handling of work entry types.
+- **Pause Handling**: Pause entries are effectively eliminated by extending previous work entries to absorb the pause duration.
+- **Authentication**: Secure login/logout system using environment variables for credentials, protecting all application routes.
+- **Token Management**: API bearer tokens are securely stored in a PostgreSQL database with a web interface for configuration and testing.
+- **Check Type Management**: Activity types from the Sesame API are cached in the database for persistence and efficient lookup, with automatic synchronization.
+- **Error Handling**: Centralized error handlers, user-friendly messages, and comprehensive logging.
+- **Deployment**: Production-ready with environment-based configuration, designed for robust error handling and static file serving.
 
-### Key Components
-1. **Main Application** (`app.py`): Flask app initialization and configuration
-2. **Routes** (`routes/main.py`): HTTP request handling and form processing
-3. **Services**:
-   - `sesame_api.py`: Sesame API integration service
-   - `report_generator.py`: XLSX report generation service
-4. **Templates**: Jinja2 templates with Bootstrap styling
-5. **Static Assets**: CSS customizations
-
-## Data Flow
-
-1. **User Input**: Date range and employee ID filtering through web form
-2. **API Integration**: Sesame API requests for employee time tracking data
-3. **Data Processing**: Time calculations and activity consolidation
-4. **Report Generation**: Excel file creation with openpyxl
-5. **File Download**: Direct file serving to user browser
+### Feature Specifications
+- **Report Types**: Generation of reports by employee, activity type, and groups.
+- **Filtering**: Advanced date range filtering (predefined and custom), optional employee ID, office, and department specification.
+- **Output**: Professional XLSX and CSV report generation with formatting, totals, and UTF-8 BOM encoding for Excel compatibility.
+- **API Optimization**: Increased API query limit for time entries to 500 records per page to reduce calls and improve performance.
+- **Connection Management**: Improved SSL connection handling, retry logic, connection pooling, and proper session cleanup to mitigate timeout issues.
+- **Report Progress**: Dynamic progress bar and detailed logging during report generation, displaying API pagination status and record counts.
+- **Security**: Authentication system with username/password, protected routes, and token encryption.
+- **Report Management**: Automatic cleanup of old reports, maintaining a maximum of 10 reports.
+- **Cancellation**: Ability to cancel ongoing report generation.
 
 ## External Dependencies
 
 ### Third-Party APIs
-- **Sesame Time Tracking API**: Primary data source for employee activities
-  - Base URL: `https://api-eu1.sesametime.com`
-  - Authentication: Bearer token
-  - Rate limiting and error handling implemented
+- **Sesame Time Tracking API**: Primary data source for employee activities (`https://api-eu1.sesametime.com`). Used for fetching time tracking data, check types, offices, and departments.
 
 ### Python Libraries
-- **Flask**: Web framework
-- **openpyxl**: Excel file generation
-- **requests**: HTTP client for API calls
-- **datetime**: Date/time processing
+- **Flask**: Web framework.
+- **openpyxl**: Excel file generation.
+- **requests**: HTTP client for API calls.
+- **datetime**: Date/time processing.
+- **psycopg2** (implied by PostgreSQL usage): PostgreSQL database adapter.
 
 ### Frontend Dependencies
-- **Tailwind CSS**: Utility-first CSS framework
-- **Figtree**: Google Fonts typography
-- **Tabler Icons**: Modern icon library
-- **CDN-delivered**: No local frontend build process
-
-## Authentication & Configuration
-
-- **Session Management**: Flask session with configurable secret key
-- **API Authentication**: Bearer token stored in PostgreSQL database
-- **Database Storage**: SesameToken model stores API tokens securely
-- **Environment Variables**:
-  - `DATABASE_URL`: PostgreSQL database connection
-  - `SESSION_SECRET`: Flask session encryption key
-- **Token Management**: Web interface for token configuration and testing
-
-## Key Features
-
-1. **Advanced Date Range Filtering**: Predefined date ranges with custom option
-   - Today, Yesterday, Current/Last Week, Current/Last Month
-   - Current Quarter, Current/Last Year, Custom range selection
-   - Default selection: Current Month for optimal user experience
-2. **Employee Filtering**: Optional employee ID specification
-3. **Office/Center Filtering**: Filter employees by office/center
-4. **Department Filtering**: Filter employees by department
-5. **Report Type Selection**: Multiple report formats available:
-   - Grupos y tipos de fichaje por empleado (implemented)
-   - Grupos y tipos de fichaje por tipo de fichaje (implemented)
-   - Grupos y tipos de fichaje por grupos (implemented)
-6. **Grouped Reporting**: Data organized by employee and date with totals
-7. **Break Integration**: Breakfast breaks automatically included in adjacent activities
-8. **Connection Testing**: API connectivity verification
-9. **Error Handling**: User-friendly error messages and logging
-10. **Excel Export**: Professional XLSX report generation with formatting and totals
-11. **Database Token Storage**: Secure token management in PostgreSQL database
-12. **Multi-Region Support**: Support for all Sesame API regions (eu1-eu5, br1-br2, mx1, demo1)
-13. **Simplified Report Generation**: Optimized processing for stability and performance
-14. **Report Preview**: Table format preview of report data before Excel generation
-
-## Deployment Strategy
-
-- **Development**: Local Flask development server
-- **Production Ready**: Environment-based configuration
-- **Logging**: Configurable logging levels
-- **Error Handling**: Comprehensive error catching and user feedback
-- **Static Files**: Flask static file serving
-- **Port Configuration**: Configurable host and port settings
-
-## Development Notes
-
-- Spanish language interface (UI text in Spanish)
-- Dark theme consistency throughout
-- Responsive design with Bootstrap grid system
-- Modular service architecture for easy testing and maintenance
-- Comprehensive error logging for debugging
-
-## Recent Changes (July 2025)
-
-- **RESOLVED**: Fixed critical pagination issue - API was returning correct data (1177 records across 12 pages) but metadata field inconsistency caused incorrect logging
-- Enhanced loading modal with progress bar and real-time status updates
-- Improved debugging with detailed pagination logs showing page-by-page progress
-- Corrected API response parsing to use "total" field instead of "totalItems" for accurate record counting
-- Completed full application redesign with Tailwind CSS, Figtree typography, and Tabler Icons
-- Implemented activity name resolution using workCheckTypeId with /schedule/v1/check-types endpoint lookup
-- Overhauled break redistribution logic to redistribute non-work/remote activity time to adjacent work entries and eliminate pause lines from final output
-- **Column Structure Simplification**: Replaced 4 columns (Tiempo Original, Tiempo Descanso, Tiempo Final, Procesado) with single "Tiempo Registrado" column for cleaner preview and Excel reports
-- **Preview Optimization**: Limited preview to 10 records for faster loading, while Excel reports contain all data
-- **Group Column**: Set to empty as group information is not yet available from API
-- **Excel Report Consistency**: Updated both ReportGenerator and SimpleReportGenerator to use same 9-column structure as preview with complete data pagination
-- **Break Time Redistribution**: Implemented elimination of pause entries with redistribution of pause time to adjacent work entries for cleaner reports
-- **CRITICAL SSL ISSUE**: Persistent SSL connection timeouts during report generation causing "Internal Server Error"
-- **Triple Fallback System**: Implemented three-tier report generation system:
-  1. SimpleReportGenerator (full features)
-  2. BasicReportGenerator (limited API calls)
-  3. UltraBasicReportGenerator (minimal API calls, employee info only)
-- **SSL Optimization**: Reduced API timeouts from (30,60) to (10,30) to (5,15) seconds
-- **Connection Management**: Added connection pooling, retry logic, and proper session cleanup
-- **Error Diagnostics**: Enhanced error reporting with specific SSL troubleshooting information
-- **UI Simplification**: Removed employee selector due to SSL performance issues when loading 3000+ employees
-- **Work-Breaks Elimination**: Removed all work-breaks API calls as requested, system now only processes work-entries data
-- **New NoBreaksReportGenerator**: Created simplified report generator that focuses only on work-entries without break processing
-- **Employee Data Elimination**: Removed all employee, office, and department endpoints - application now works exclusively with fichajes (work entries)
-- **Background Report Generation**: Implemented async report generation system with real-time status updates
-- **Download Link System**: Reports now generate in background with download links appearing below the button when ready
-- **Consolidated Main Route**: Eliminated separate /generate-report endpoint - all functionality now handled in main route
-- **Thread-Based Processing**: Background reports use threading to prevent SSL timeout blocking the UI
-- **Real-Time Status Updates**: JavaScript polling system checks report status every 1-2 seconds with visual feedback
-- **Date Range Calculation Fix**: Fixed timezone issues with current_month calculation using manual date formatting instead of toISOString()
-- **Show All Entries**: Reverted break elimination logic - now shows ALL entries including breaks/pauses without redistribution
-- **Code Cleanup**: Removed unused report generator files and simplified codebase to only use NoBreaksReportGenerator
-- **API Sorting**: Added sorting parameters to work-entries endpoint to ensure consistent ordering by date and entry time
-- **UI Cleanup**: Removed "Feature Highlight" section about breakfast breaks and "Report Information" section with column details
-- **Increased Pagination Limit**: Changed API query limit from 100 to 300 to 500 records per page to reduce total API calls and improve performance by ~40%
-- **Infinite Progress Bar**: Implemented simple infinite progress bar animation during report generation for better user experience
-- **SSL Connection Handling**: Improved database connection management during long-running report generation to prevent SSL timeout errors
-- **Downloads Management Screen**: Added comprehensive downloads page where users can view all generated reports, re-download files, and delete old reports with confirmation modal
-- **Enhanced Navigation**: Added responsive navigation bar with mobile menu support for easy access to main features
-- **Report Limit Management**: Implemented automatic cleanup system maintaining maximum 10 reports, oldest files deleted automatically when limit exceeded
-- **Preview Functionality Removal**: Eliminated Vista Previa del Informe button and all related functionality including confirmation modal, preview table, and /preview-data endpoint - streamlined interface for direct report generation only
-- **Pause Time Redistribution**: Simplified pause elimination logic - when a pause is found, the previous work entry is extended to end at the pause end time, effectively absorbing the pause duration. Next work entries remain unchanged
-- **Chronological Sorting**: Implemented robust chronological sorting of work entries by entry start time (workEntryIn.date) per employee per date to ensure proper temporal ordering
-- **Employee-Date Grouping**: Maintained grouping by employee and date for proper daily totals while ensuring chronological ordering within each group
-- **Night Shift Sorting**: Fixed chronological ordering for night shifts by adjusting entries between 00:00-06:00 to sort after previous night's entries (22:00, 23:00, 00:00, 01:00, 02:00 sequence)
-- **Null Safety**: Added comprehensive null checks for entry times to handle edge cases where work entries may not have end times (e.g., currently active sessions)
-- **UI Cleanup**: Removed unnecessary flash message notification when starting background report generation - the status section already provides visual feedback
-- **Connection Management Separation**: Moved all token configuration to dedicated "Conexión" section with its own page and navigation menu item
-- **Simplified Connection Status**: Main page now shows simple connection indicator (connected/disconnected) with company name, full configuration moved to separate page
-- **Fixed Token Status Check**: Fixed JavaScript error and API response format for proper token status detection after configuration
-- **Visual Status Indicator**: Added colored circle (green/red/yellow) at the beginning of connection status for immediate visual feedback
-- **Activity Name Resolution**: Implemented real activity name display in reports using workEntryType and workBreakId lookup
-- **Check Types Database Cache**: Added CheckType model and CheckTypesService for caching activity types from /schedule/v1/check-types endpoint
-- **Automatic Check Types Sync**: Added automatic synchronization of check types when token is configured or connection is tested
-- **Activity Name Logic**: If workEntryType='work' and workBreakId=null, display "Registro normal"; if workBreakId has value, lookup name from cached check types
-- **Circular Import Fix**: Resolved circular import issues by moving check types service imports inside functions to avoid module loading conflicts
-- **Manual Check Types Refresh**: Added /refresh-check-types endpoint for manual synchronization of activity types when needed
-- **Database Persistence**: Check types are now permanently stored in PostgreSQL database, eliminating API calls during report generation
-- **Activity Names Working**: System now displays real activity names like "BAÑO", "AUDITORIA", "ABASTECER" instead of generic "work" labels
-- **Production Logs Cleanup**: Removed all debugging logs (DEBUG, INFO) from services to reduce log noise in production, keeping only ERROR and WARNING logs for essential monitoring
-- **urllib3 Debug Logs Suppression**: Configured logging to suppress urllib3 debug logs that show HTTP request details, keeping only WARNING and ERROR logs for clean production output
-- **Security Authentication System**: Implemented secure login/logout system using environment variables ADMIN_USERNAME and ADMIN_PASSWORD with session management
-- **Protected Routes**: All application routes now require authentication with @requires_auth decorator, unauthorized users redirected to login page
-- **Authentication UI**: Added professional login page with Tailwind CSS styling and proper error handling for invalid credentials
-- **Logout Functionality**: Added logout links in navigation and proper session cleanup with success messaging
-- **Restored Office and Department Filters**: Re-enabled center and department selection dropdowns with API endpoints /get-offices and /get-departments
-- **Dynamic Dropdown Loading**: Implemented JavaScript functions to populate office and department selectors from Sesame API data
-- **Enhanced User Interface**: Restored filtering capabilities that were previously disabled due to SSL performance concerns
-- **Connection Status Indicator**: Added visual status dot in connection tab (green=connected, red=error, orange=loading) with proper state management during token configuration and testing
-- **Navigation Status Indicator**: Added connection status dot in main navigation tab visible from all pages (green=connected, red=error) with automatic updates every 30 seconds
-- **Footer Layout Fix**: Implemented sticky footer using flexbox layout (html and body h-full, main flex-grow, footer mt-auto) to ensure footer always appears at bottom of screen
-- **Complete Report Types Implementation**: Added missing report generation methods for "by activity type" and "by groups" to complement existing "by employee" functionality, enabling all three report formats with proper grouping and totals calculation
-- **Footer Content Spacing**: Added bottom margin (mb-40) to main content to prevent overlap with sticky footer and ensure proper content visibility
-- **Navigation Loading Screen**: Implemented loading modal with progress bar for tab transitions, providing visual feedback during navigation between pages with realistic progress animation
-- **CSV Export Support**: Added CSV export functionality alongside existing XLSX export with dedicated green-colored button and proper mimetype handling
-- **Dual Format Architecture**: Modified report generator to support both XLSX and CSV formats through format parameter with UTF-8 BOM encoding for Excel compatibility
-- **Enhanced UI Buttons**: Replaced single report button with two side-by-side buttons (XLSX in indigo, CSV in green) with proper form parameter handling
-- **Fixed Status Indicators**: Resolved JavaScript errors with report generation buttons and implemented comprehensive status monitoring system with visual progress indicators
-- **Full Height Layout**: Modified downloads page to occupy complete viewport height with 10px footer margin, featuring fixed summary bar and scrollable table with sticky headers
-- **Responsive Summary Bar**: Extracted summary statistics to full-width fixed top bar that remains visible during scroll, providing constant access to key metrics
-- **Connection Close Functionality**: Implemented complete "Cerrar Conexión" feature with database cleanup, removing all tokens and check types with proper UI feedback
-- **Real-Time Navigation Status**: Fixed navigation connection indicators to update immediately during all connection state changes (loading, connected, disconnected) for accurate visual feedback
-- **5-Minute Progress Bar**: Replaced infinite progress animation with realistic 5-minute progress bar during report generation, including estimated time display and page refresh warnings for better user experience
-- **Fixed Infinite Loop Bug**: Corrected critical bug in background report generation where report_data was reset to None before completion check, causing reports to remain in 'processing' state indefinitely
-- **Enhanced Report Generation Logging**: Added comprehensive logging throughout report generation process with INFO level logging to track thread execution, API calls, and report processing status
-- **Pagination Progress Logs**: Added detailed pagination logs showing "Página X de Y" with record counts during API calls, displaying current page vs total pages and accumulated records for better progress tracking
-- **Performance Optimization**: Commented out verbose "Extended entry" logs that were generating thousands of lines during pause redistribution, significantly improving report generation speed
-- **Report Completion Logging**: Added clear logs when report generation completes and status updates to 'completed', providing better visibility of process completion
-- **Report Processing Status**: Added logs after API pagination completes showing total entries retrieved and when report processing starts
-- **Major Code Cleanup (July 28, 2025)**: Performed comprehensive code cleanup reducing LSP errors from 64 to 13:
-  - Removed all unused methods from sesame_api.py: get_employees(), get_activities(), get_breaks(), get_all_employees_data(), get_all_breaks_data()
-  - Fixed duplicate method definitions (get_offices and get_departments were defined twice)
-  - Eliminated unused pagination methods for offices, departments, and check types
-  - Kept only actively used methods: get_token_info(), get_offices(), get_departments(), get_time_tracking(), get_check_types(), get_all_time_tracking_data()
-  - Reduced sesame_api.py file size by ~50% while maintaining all functionality
-  - Remaining LSP errors are type-checking false positives from openpyxl library that don't affect runtime
-- **Report Status Polling Interval**: Changed from 1-3 seconds to 30 seconds for all status checks to reduce server load
-- **API Pagination Progress Display**: Added real-time pagination progress display during report generation showing current page, total pages, and records retrieved (e.g., "Consultando página 3 de 25 - 1,500 registros obtenidos de 12,345 totales")
-- **Progress Callback System**: Implemented progress callback mechanism in NoBreaksReportGenerator to track and update pagination progress in background_reports dictionary
-- **Enhanced Report Status UI**: Updated report status interface to display detailed API query progress including page counts and record counts during generation
-- **Progress Text After Pagination**: Once all API pages are consulted, progress text changes from "Consultando página X de Y..." to "Generando informe con los datos obtenidos" for clearer user feedback
-- **Downloads View Redesign**: Replaced table-based downloads view with modern card-based layout - each report now displays as an individual card with gradient header, file details, and prominent download/delete buttons for improved visual hierarchy and mobile responsiveness
-- **Report Generation Buttons Standardization**: Changed colorful report generation buttons (indigo XLSX, green CSV) to neutral white buttons with gray borders and text for more professional, standard appearance
-- **Report Generation Blocking**: Implemented functionality to disable report generation buttons when a report is actively being generated, preventing users from starting multiple simultaneous reports
-- **Cancel Report Feature**: Added cancel button that appears during report generation, allowing users to abort ongoing report creation with confirmation dialog
-- **Automatic State Management**: Report buttons automatically re-enable and cancel button disappears when report completes, fails, or is cancelled
+- **Tailwind CSS**: Utility-first CSS framework.
+- **Figtree**: Google Fonts typography.
+- **Tabler Icons**: Modern icon library.
+- **CDN-delivered**: Frontend assets are delivered via CDN, no local build process.
