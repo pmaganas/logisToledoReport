@@ -397,9 +397,22 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.status === 'success') {
                     officeSelect.innerHTML = '<option value="">Todos los centros</option>';
+                    let tolOfficeId = null;
+                    
+                    // Add offices and look for TOL
                     data.offices.forEach(office => {
                         officeSelect.innerHTML += `<option value="${office.id}">${office.name}</option>`;
+                        // Check if this is the TOL office
+                        if (office.name === 'TOL' || office.name.toUpperCase() === 'TOL') {
+                            tolOfficeId = office.id;
+                        }
                     });
+                    
+                    // Select TOL office by default if it exists
+                    if (tolOfficeId) {
+                        officeSelect.value = tolOfficeId;
+                    }
+                    
                     officeSelect.disabled = false;
                 } else {
                     officeSelect.innerHTML = '<option value="">Error cargando centros</option>';

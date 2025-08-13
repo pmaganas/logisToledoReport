@@ -5,6 +5,7 @@ This project is a Flask-based web application designed to generate XLSX and CSV 
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
+Default office selection: 'TOL' center when available.
 
 ## System Architecture
 
