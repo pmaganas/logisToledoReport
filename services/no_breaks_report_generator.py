@@ -1,41 +1,59 @@
 import openpyxl
+import csv
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from io import BytesIO
+from typing import Dict, List, Optional, Union
+from io import BytesIO, StringIO
 from openpyxl.styles import Font, PatternFill, Alignment
 from services.sesame_api import SesameAPI
+from services.parallel_sesame_api import ParallelSesameAPI
 
 class NoBreaksReportGenerator:
     def __init__(self):
-        self.sesame_api = SesameAPI()
+        # Use parallel API for much faster processing
+        self.sesame_api = ParallelSesameAPI()
+        # Create a regular SesameAPI instance for collections mapping
+        self.regular_api = SesameAPI()
         self.logger = logging.getLogger(__name__)
 
-    def generate_report(self, from_date: str = None, to_date: str = None, 
-                       employee_id: str = None, office_id: str = None, 
-                       department_id: str = None, report_type: str = "by_employee") -> Optional[bytes]:
+    def generate_report(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
+                       employee_id: Optional[str] = None, office_id: Optional[str] = None, 
+                       department_id: Optional[str] = None, report_type: str = "by_employee", 
+                       format: str = "xlsx", progress_callback = None) -> Optional[bytes]:
         """Generate report with only work entries - no employee data processing"""
         
         try:
+            self.logger.info(f"[REPORT] Starting report generation - from_date: {from_date}, to_date: {to_date}, report_type: {report_type}, format: {format}")
+            
             # Ensure check types are cached
             from services.check_types_service import CheckTypesService
             check_types_service = CheckTypesService()
+            self.logger.info("[REPORT] Ensuring check types are cached...")
             if not check_types_service.ensure_check_types_cached():
                 self.logger.warning("Failed to cache check types, activity names may be incomplete")
+            
+            # Get check type collections mapping
+            self.logger.info("[REPORT] Fetching check type collections mapping...")
+            collections_mapping = self.regular_api.get_all_check_type_collections_mapping()
+            self.logger.info(f"[REPORT] Collections mapping obtained with {len(collections_mapping)} check types")
             
             all_work_entries = []
             page = 1
             max_safe_pages = 100  # Limite aumentado para 10,000 registros
             
+            self.logger.info(f"[REPORT] Starting work entries retrieval, max pages: {max_safe_pages}")
+            
             while page <= max_safe_pages:
                 try:
+                    self.logger.info(f"[REPORT] Fetching page {page}...")
                     response = self.sesame_api.get_time_tracking(
                         employee_id=employee_id,
                         from_date=from_date,
                         to_date=to_date,
                         page=page,
-                        limit=300
+                        limit=500
                     )
+                    self.logger.info(f"[REPORT] Response received for page {page}")
                     
                     if not response or not response.get('data'):
                         break
@@ -45,11 +63,19 @@ class NoBreaksReportGenerator:
                     
                     # Verificar si hay más páginas
                     meta = response.get('meta', {})
+                    total_pages = meta.get('lastPage', 1)
+                    total_records = meta.get('total', 0)
+                    self.logger.info(f"[REPORT] Página {page} de {total_pages} - Registros en esta página: {len(entries)} - Total acumulado: {len(all_work_entries)} de {total_records}")
+                    
+                    # Call progress callback if provided
+                    if progress_callback:
+                        progress_callback(page, total_pages, len(all_work_entries), total_records)
+                    
                     if page >= meta.get('lastPage', 1):
                         break
                     
                     # Si no hay suficientes registros, terminamos
-                    if len(entries) < 300:
+                    if len(entries) < 500:
                         break
                     
                     page += 1
@@ -65,63 +91,113 @@ class NoBreaksReportGenerator:
                         break
             
             if not all_work_entries:
-                return self._create_empty_report()
+                return self._create_empty_report(format)
 
-            # Check types are now cached in database via CheckTypesService
-            check_types_map = {}  # Not needed anymore, keeping for compatibility
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Reporte Fichajes"
+            self.logger.info(f"[REPORT] API pagination completed - Total entries retrieved: {len(all_work_entries)}")
+            self.logger.info("[REPORT] Starting report processing...")
             
-            # Headers (same as preview)
-            headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
-            for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col, value=header)
-                cell.font = Font(bold=True)
-                cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
-            
-            current_row = 2
-            
-            # Group entries by employee and date
-            current_row = self._process_grouped_entries(ws, all_work_entries, check_types_map, current_row)
-            
-            # Save to BytesIO
-            output = BytesIO()
-            wb.save(output)
-            output.seek(0)
-            
-
-            return output.getvalue()
+            # Generate report based on format
+            if format.lower() == "csv":
+                return self._generate_csv_report(all_work_entries, collections_mapping, report_type)
+            else:
+                return self._generate_xlsx_report(all_work_entries, collections_mapping, report_type)
             
         except Exception as e:
             self.logger.error(f"Error generating report: {str(e)}")
-            return self._create_error_report(str(e))
+            return self._create_error_report(str(e), format)
 
-    def _create_empty_report(self) -> bytes:
+    def _generate_xlsx_report(self, all_work_entries, collections_mapping, report_type):
+        """Generate XLSX report"""
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Reporte Fichajes"
+        
+        # Headers (same as preview)
+        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+        
+        current_row = 2
+        
+        # Process entries based on report type
+        if report_type == "by_activity":
+            current_row = self._process_grouped_by_activity(ws, all_work_entries, collections_mapping, current_row)
+        elif report_type == "by_group":
+            current_row = self._process_grouped_by_group(ws, all_work_entries, collections_mapping, current_row)
+        else:  # by_employee (default)
+            current_row = self._process_grouped_entries(ws, all_work_entries, collections_mapping, current_row)
+        
+        # Save to BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return output.getvalue()
+
+    def _generate_csv_report(self, all_work_entries, collections_mapping, report_type):
+        """Generate CSV report"""
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Headers (same as preview)
+        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
+        writer.writerow(headers)
+        
+        # Process entries based on report type
+        if report_type == "by_activity":
+            self._process_grouped_by_activity_csv(writer, all_work_entries, collections_mapping)
+        elif report_type == "by_group":
+            self._process_grouped_by_group_csv(writer, all_work_entries, collections_mapping)
+        else:  # by_employee (default)
+            self._process_grouped_entries_csv(writer, all_work_entries, collections_mapping)
+        
+        # Convert to bytes
+        csv_content = output.getvalue()
+        output.close()
+        return csv_content.encode('utf-8-sig')  # UTF-8 BOM for Excel compatibility
+
+    def _create_empty_report(self, format: str = "xlsx") -> bytes:
         """Create an empty report when no data is found"""
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Reporte Vacío"
-        
-        ws.cell(row=1, column=1, value="No se encontraron datos para los filtros especificados")
-        
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        return output.getvalue()
+        if format.lower() == "csv":
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow(["No se encontraron datos para los filtros especificados"])
+            csv_content = output.getvalue()
+            output.close()
+            return csv_content.encode('utf-8-sig')
+        else:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Reporte Vacío"
+            
+            ws.cell(row=1, column=1, value="No se encontraron datos para los filtros especificados")
+            
+            output = BytesIO()
+            wb.save(output)
+            output.seek(0)
+            return output.getvalue()
 
-    def _create_error_report(self, error_message: str) -> bytes:
+    def _create_error_report(self, error_message: str, format: str = "xlsx") -> bytes:
         """Create an error report"""
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Error"
-        
-        ws.cell(row=1, column=1, value=f"Error al generar reporte: {error_message}")
-        
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        return output.getvalue()
+        if format.lower() == "csv":
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow([f"Error al generar reporte: {error_message}"])
+            csv_content = output.getvalue()
+            output.close()
+            return csv_content.encode('utf-8-sig')
+        else:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Error"
+            
+            ws.cell(row=1, column=1, value=f"Error al generar reporte: {error_message}")
+            
+            output = BytesIO()
+            wb.save(output)
+            output.seek(0)
+            return output.getvalue()
 
     def _parse_datetime(self, date_str: str) -> Optional[datetime]:
         """Parse datetime string from API"""
@@ -268,7 +344,8 @@ class NoBreaksReportGenerator:
                 seconds = int(new_duration.total_seconds() % 60)
                 duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
                 
-                self.logger.info(f"Extended entry: start {start_time.strftime('%H:%M:%S')}, new end {end_time.strftime('%H:%M:%S')}, new duration {duration_str} ({entry['workedSeconds']}s)")
+                # Commented out to reduce log noise - uncomment for debugging
+                # self.logger.debug(f"Extended entry: start {start_time.strftime('%H:%M:%S')}, new end {end_time.strftime('%H:%M:%S')}, new duration {duration_str} ({entry['workedSeconds']}s)")
         except Exception as e:
             self.logger.error(f"Error extending entry to time: {e}")
 
@@ -325,7 +402,7 @@ class NoBreaksReportGenerator:
         # Return a very old datetime as fallback for entries without valid dates
         return datetime.min.replace(tzinfo=datetime.now().astimezone().tzinfo)
 
-    def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
+    def _process_grouped_entries(self, ws, all_work_entries, collections_mapping, current_row):
         """Process entries grouped by employee and date, redistributing pause time"""
         # Group entries by employee and date
         grouped_entries = {}
@@ -387,7 +464,7 @@ class NoBreaksReportGenerator:
             total_worked_seconds = 0
             
             for entry in processed_entries:
-                row_data = self._extract_entry_data(entry, group['employee_info'])
+                row_data = self._extract_entry_data(entry, group['employee_info'], collections_mapping)
                 
                 # Write to Excel
                 ws.cell(row=current_row, column=1, value=row_data['employee_name'])
@@ -419,7 +496,7 @@ class NoBreaksReportGenerator:
         
         return current_row
     
-    def _extract_entry_data(self, entry, employee_info):
+    def _extract_entry_data(self, entry, employee_info, collections_mapping=None):
         """Extract data from a work entry for Excel output"""
         # Employee name
         employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
@@ -439,8 +516,12 @@ class NoBreaksReportGenerator:
         check_types_service = CheckTypesService()
         activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
         
-        # Group name left empty as requested
-        group_name = ""
+        # Get group name from collections mapping using workCheckTypeId
+        work_check_type_id = entry.get('workCheckTypeId')
+        group_name = "Sin Grupo"
+        if collections_mapping and work_check_type_id:
+            group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
+            self.logger.debug(f"Work entry with check_type_id {work_check_type_id} mapped to group: {group_name}")
         
         # Extract date from workEntryIn.date
         entry_date = "No disponible"
@@ -547,21 +628,128 @@ class NoBreaksReportGenerator:
         seconds = total_seconds % 60
 
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    def _process_grouped_entries_csv(self, writer, all_work_entries, collections_mapping):
+        """Process entries grouped by employee and date for CSV output"""
+        # Reuse the Excel logic but write to CSV
+        import csv
+        from io import StringIO
+        
+        # Create a temporary workbook-like structure for reusing existing logic
+        class CSVRow:
+            def __init__(self, writer):
+                self.writer = writer
+                self.row_data = []
+            
+            def cell(self, row, column, value=None):
+                # Adjust row_data size if needed
+                while len(self.row_data) < column:
+                    self.row_data.append("")
+                if value is not None:
+                    self.row_data[column-1] = value
+                return self
+        
+        # Create a mock worksheet that writes to CSV
+        class CSVWorksheet:
+            def __init__(self, writer):
+                self.writer = writer
+                self.current_row = 0
+            
+            def cell(self, row, column, value=None):
+                if row > self.current_row:
+                    # Write accumulated row data and start new row
+                    if hasattr(self, 'row_data') and self.row_data:
+                        self.writer.writerow(self.row_data)
+                    self.row_data = [""] * 10  # Initialize with empty cells
+                    self.current_row = row
+                
+                if value is not None:
+                    while len(self.row_data) < column:
+                        self.row_data.append("")
+                    self.row_data[column-1] = str(value)
+                
+                return self
+        
+        # Create CSV worksheet wrapper
+        csv_ws = CSVWorksheet(writer)
+        
+        # Reuse existing Excel processing logic
+        current_row = self._process_grouped_entries(csv_ws, all_work_entries, collections_mapping, 1)
+
+    def _process_grouped_by_activity_csv(self, writer, all_work_entries, collections_mapping):
+        """Process entries grouped by activity type for CSV output"""
+        # Group entries by activity type first
+        activity_groups = {}
+        
+        for entry in all_work_entries:
+            # Get activity name
+            work_entry_type = entry.get('workEntryType', '')
+            work_break_id = entry.get('workBreakId')
+            
+            from services.check_types_service import CheckTypesService
+            check_types_service = CheckTypesService()
+            activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
+            
+            if activity_name not in activity_groups:
+                activity_groups[activity_name] = []
+            activity_groups[activity_name].append(entry)
+        
+        # Process each activity group separately
+        for activity_name in sorted(activity_groups.keys()):
+            entries = activity_groups[activity_name]
+            
+            # Write activity header row
+            writer.writerow([f"=== ACTIVIDAD: {activity_name} ===", "", "", "", "", "", "", "", ""])
+            
+            # Process entries for this activity using employee grouping logic
+            self._process_grouped_entries_csv(writer, entries, collections_mapping)
+            
+            # Add separator between activity groups
+            writer.writerow([])
+
+    def _process_grouped_by_group_csv(self, writer, all_work_entries, collections_mapping):
+        """Process entries grouped by groups for CSV output"""
+        # Group entries by collection name first
+        group_entries = {}
+        
+        for entry in all_work_entries:
+            # Get group name from collections mapping
+            work_check_type_id = entry.get('workCheckTypeId')
+            group_name = "Sin Grupo"
+            if collections_mapping and work_check_type_id:
+                group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
+            
+            if group_name not in group_entries:
+                group_entries[group_name] = []
+            group_entries[group_name].append(entry)
+        
+        # Process each group separately
+        for group_name in sorted(group_entries.keys()):
+            entries = group_entries[group_name]
+            
+            # Write group header row
+            writer.writerow([f"=== GRUPO: {group_name} ===", "", "", "", "", "", "", "", ""])
+            
+            # Process entries for this group using employee grouping logic
+            self._process_grouped_entries_csv(writer, entries, collections_mapping)
+            
+            # Add separator between groups
+            writer.writerow([])
     
-    def get_data_metrics(self, from_date: str = None, to_date: str = None, 
-                         employee_id: str = None, office_id: str = None, 
-                         department_id: str = None) -> dict:
+    def get_data_metrics(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
+                         employee_id: Optional[str] = None, office_id: Optional[str] = None, 
+                         department_id: Optional[str] = None) -> dict:
         """Get data collection metrics without generating full report"""
         try:
             # Get all work entries
-            all_work_entries = self.api.get_all_time_tracking_data(
+            all_work_entries = self.sesame_api.get_all_time_tracking_data(
                 employee_id=employee_id,
                 from_date=from_date,
                 to_date=to_date
             )
             
             # Get check types mapping
-            check_types_response = self.api.get_check_types()
+            check_types_response = self.sesame_api.get_check_types()
             check_types_map = {}
             if check_types_response and 'data' in check_types_response:
                 for check_type in check_types_response['data']:
@@ -586,7 +774,7 @@ class NoBreaksReportGenerator:
                     except Exception:
                         entry_date = "Error en fecha"
                 
-                row_data = self._extract_entry_data(entry, employee_info, entry_date, check_types_map)
+                row_data = self._extract_entry_data(entry, employee_info)
                 preview_entries.append(row_data)
             
             return {
@@ -603,3 +791,240 @@ class NoBreaksReportGenerator:
                 'success': False,
                 'error': str(e)
             }
+
+    def _process_grouped_by_activity(self, ws, all_work_entries, collections_mapping, current_row):
+        """Process entries grouped by activity type"""
+        # Group entries by activity type and date
+        grouped_entries = {}
+        
+        for entry in all_work_entries:
+            # Get activity name based on workEntryType and workBreakId
+            work_entry_type = entry.get('workEntryType', '')
+            work_break_id = entry.get('workBreakId')
+            
+            # Import here to avoid circular import
+            from services.check_types_service import CheckTypesService
+            check_types_service = CheckTypesService()
+            activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
+            
+            # Extract date from workEntryIn.date
+            entry_date = "No disponible"
+            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                try:
+                    entry_datetime = datetime.fromisoformat(
+                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                    entry_date = entry_datetime.strftime('%d/%m/%Y')
+                except Exception as e:
+                    self.logger.error(f"Error parsing entry date: {e}")
+                    entry_date = "Error en fecha"
+            
+            # Create group key by activity and date
+            group_key = f"{activity_name}_{entry_date}"
+            
+            if group_key not in grouped_entries:
+                grouped_entries[group_key] = {
+                    'activity_name': activity_name,
+                    'date': entry_date,
+                    'all_entries': []
+                }
+            
+            grouped_entries[group_key]['all_entries'].append(entry)
+        
+        # Sort groups by activity name and date
+        sorted_groups = sorted(grouped_entries.values(), 
+                             key=lambda x: (x['activity_name'], x['date']))
+        
+        # Process each group
+        for group in sorted_groups:
+            all_entries = group['all_entries']
+            
+            # Sort all entries chronologically by entry start time
+            all_entries.sort(key=self._get_entry_sort_key)
+            
+            # Process pause redistribution
+            processed_entries = self._redistribute_pause_time(all_entries)
+            
+            # Sort processed entries again to ensure chronological order after pause redistribution
+            processed_entries.sort(key=self._get_entry_sort_key)
+            
+            # Write processed entries to Excel (without pause entries)
+            activity_totals = {}
+            total_worked_seconds = 0
+            
+            for entry in processed_entries:
+                # Get employee info for this entry
+                employee_info = entry.get('employee', {})
+                row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
+                
+                # Write to Excel
+                ws.cell(row=current_row, column=1, value=row_data['employee_name'])
+                ws.cell(row=current_row, column=2, value=row_data['employee_id_type'])
+                ws.cell(row=current_row, column=3, value=row_data['employee_nid'])
+                ws.cell(row=current_row, column=4, value=row_data['entry_date'])
+                ws.cell(row=current_row, column=5, value=row_data['activity_name'])
+                ws.cell(row=current_row, column=6, value=row_data['group_name'])
+                ws.cell(row=current_row, column=7, value=row_data['start_time'])
+                ws.cell(row=current_row, column=8, value=row_data['end_time'])
+                ws.cell(row=current_row, column=9, value=row_data['final_duration'])
+                
+                # Accumulate totals
+                worked_seconds = row_data['worked_seconds']
+                total_worked_seconds += worked_seconds
+                
+                current_row += 1
+            
+            # Add TOTAL row for this activity/date combination
+            current_row = self._add_activity_total_row(ws, group, total_worked_seconds, current_row)
+            
+            # Add blank row between different activity/date groups
+            current_row += 1
+        
+        return current_row
+
+    def _process_grouped_by_group(self, ws, all_work_entries, collections_mapping, current_row):
+        """Process entries grouped by work groups using check type collections"""
+        # Now we have group information from check type collections
+        # Group entries by group and date
+        grouped_entries = {}
+        
+        for entry in all_work_entries:
+            # Get group name from collections mapping based on workCheckTypeId
+            work_check_type_id = entry.get('workCheckTypeId')
+            group_name = "Sin Grupo"
+            if collections_mapping and work_check_type_id:
+                group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
+            
+            # Extract date from workEntryIn.date
+            entry_date = "No disponible"
+            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
+                try:
+                    entry_datetime = datetime.fromisoformat(
+                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
+                    entry_date = entry_datetime.strftime('%d/%m/%Y')
+                except Exception as e:
+                    self.logger.error(f"Error parsing entry date: {e}")
+                    entry_date = "Error en fecha"
+            
+            # Create group key by group and date
+            group_key = f"{group_name}_{entry_date}"
+            
+            if group_key not in grouped_entries:
+                grouped_entries[group_key] = {
+                    'group_name': group_name,
+                    'date': entry_date,
+                    'all_entries': []
+                }
+            
+            grouped_entries[group_key]['all_entries'].append(entry)
+        
+        # Sort groups by group name and date
+        sorted_groups = sorted(grouped_entries.values(), 
+                             key=lambda x: (x['group_name'], x['date']))
+        
+        # Process each group
+        for group in sorted_groups:
+            all_entries = group['all_entries']
+            
+            # Sort all entries chronologically by entry start time
+            all_entries.sort(key=self._get_entry_sort_key)
+            
+            # Process pause redistribution
+            processed_entries = self._redistribute_pause_time(all_entries)
+            
+            # Sort processed entries again to ensure chronological order after pause redistribution
+            processed_entries.sort(key=self._get_entry_sort_key)
+            
+            # Write processed entries to Excel (without pause entries)
+            group_totals = {}
+            total_worked_seconds = 0
+            
+            for entry in processed_entries:
+                # Get employee info for this entry
+                employee_info = entry.get('employee', {})
+                row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
+                
+                # Override group name with our group (this ensures the grouped value is used)
+                row_data['group_name'] = group['group_name']
+                
+                # Write to Excel
+                ws.cell(row=current_row, column=1, value=row_data['employee_name'])
+                ws.cell(row=current_row, column=2, value=row_data['employee_id_type'])
+                ws.cell(row=current_row, column=3, value=row_data['employee_nid'])
+                ws.cell(row=current_row, column=4, value=row_data['entry_date'])
+                ws.cell(row=current_row, column=5, value=row_data['activity_name'])
+                ws.cell(row=current_row, column=6, value=row_data['group_name'])
+                ws.cell(row=current_row, column=7, value=row_data['start_time'])
+                ws.cell(row=current_row, column=8, value=row_data['end_time'])
+                ws.cell(row=current_row, column=9, value=row_data['final_duration'])
+                
+                # Accumulate totals
+                worked_seconds = row_data['worked_seconds']
+                total_worked_seconds += worked_seconds
+                
+                current_row += 1
+            
+            # Add TOTAL row for this group/date combination
+            current_row = self._add_group_total_row(ws, group, total_worked_seconds, current_row)
+            
+            # Add blank row between different group/date groups
+            current_row += 1
+        
+        return current_row
+
+    def _add_activity_total_row(self, ws, group, total_worked_seconds, current_row):
+        """Add TOTAL row for activity/date combination"""
+        activity_name = group['activity_name']
+        entry_date = group['date']
+        
+        # Total duration
+        total_duration = self._format_duration(timedelta(seconds=total_worked_seconds))
+        
+        # Apply bold formatting for TOTAL row
+        total_font = Font(bold=True)
+        total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+        
+        # Write TOTAL row
+        ws.cell(row=current_row, column=1, value="TOTAL").font = total_font
+        ws.cell(row=current_row, column=2, value="").font = total_font
+        ws.cell(row=current_row, column=3, value="").font = total_font
+        ws.cell(row=current_row, column=4, value=entry_date).font = total_font
+        ws.cell(row=current_row, column=5, value=activity_name).font = total_font
+        ws.cell(row=current_row, column=6, value="").font = total_font
+        ws.cell(row=current_row, column=7, value="").font = total_font
+        ws.cell(row=current_row, column=8, value="").font = total_font
+        ws.cell(row=current_row, column=9, value=total_duration).font = total_font
+        
+        # Apply background color to TOTAL row
+        for col in range(1, 10):
+            ws.cell(row=current_row, column=col).fill = total_fill
+        
+        return current_row + 1
+
+    def _add_group_total_row(self, ws, group, total_worked_seconds, current_row):
+        """Add TOTAL row for group/date combination"""
+        group_name = group['group_name']
+        entry_date = group['date']
+        
+        # Total duration
+        total_duration = self._format_duration(timedelta(seconds=total_worked_seconds))
+        
+        # Apply bold formatting for TOTAL row
+        total_font = Font(bold=True)
+        total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+        
+        # Write TOTAL row
+        ws.cell(row=current_row, column=1, value="TOTAL").font = total_font
+        ws.cell(row=current_row, column=2, value="").font = total_font
+        ws.cell(row=current_row, column=3, value="").font = total_font
+        ws.cell(row=current_row, column=4, value=entry_date).font = total_font
+        ws.cell(row=current_row, column=5, value="").font = total_font
+        ws.cell(row=current_row, column=6, value=group_name).font = total_font
+        ws.cell(row=current_row, column=7, value="").font = total_font
+        ws.cell(row=current_row, column=8, value="").font = total_font
+        ws.cell(row=current_row, column=9, value=total_duration).font = total_font
+        
+        # Apply background color to TOTAL row
+        for col in range(1, 10):
+            ws.cell(row=current_row, column=col).fill = total_fill
+        
+        return current_row + 1

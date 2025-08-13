@@ -1,22 +1,28 @@
 {% extends "base.html" %}
 
-{% block styles %}
-<style>
-@keyframes infinite-progress {
-    0% { transform: translateX(-100%); }
-    50% { transform: translateX(0%); }
-    100% { transform: translateX(100%); }
-}
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="max-w-4xl mx-auto">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="p-6">
-            <!-- Background Report Status -->
-            {% if report_id %}
-            <div class="mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4" id="reportStatus">
+            <!-- Processing Reports Indicator (Shows when there are reports being processed) -->
+            <div class="mb-6 bg-amber-50 rounded-xl border border-amber-200 p-4 hidden" id="processingReportsIndicator">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="ti ti-alert-circle text-amber-600"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-amber-800">
+                            Reporte en proceso
+                        </h3>
+                        <p class="text-sm text-amber-700 mt-1">
+                            Se está generando un reporte en segundo plano. La generación continuará aunque recargues la página.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Background Report Status (Hidden by default) -->
+            <div class="mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4 hidden" id="backgroundReportStatus">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <i class="ti ti-loader animate-spin text-blue-600"></i>
@@ -37,7 +43,6 @@
                     </a>
                 </div>
             </div>
-            {% endif %}
 
 
 
@@ -114,12 +119,21 @@
                 </div>
 
                 <div class="mb-6">
-                    <button type="submit" class="w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors" id="generateBtn">
-                        <i class="ti ti-file-spreadsheet mr-2"></i>
-                        Generar Reporte XLSX
-                    </button>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="submit" name="format" value="xlsx" class="inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm" id="generateXlsxBtn">
+                            <i class="ti ti-file-spreadsheet mr-2"></i>
+                            Generar Reporte XLSX
+                        </button>
+                        <button type="submit" name="format" value="csv" class="inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm" id="generateCsvBtn">
+                            <i class="ti ti-file-text mr-2"></i>
+                            Generar Reporte CSV
+                        </button>
+                    </div>
                 </div>
             </form>
+
+            <!-- Report Status Section (Hidden by default) -->
+            <div id="reportStatus" class="hidden"></div>
 
 
 
@@ -158,17 +172,33 @@ document.addEventListener('DOMContentLoaded', function() {
     const fromDateInput = document.getElementById('from_date');
     const toDateInput = document.getElementById('to_date');
     const reportForm = document.getElementById('reportForm');
-    const generateBtn = document.getElementById('generateBtn');
+    const generateXlsxBtn = document.getElementById('generateXlsxBtn');
+    const generateCsvBtn = document.getElementById('generateCsvBtn');
     const loadingModal = document.getElementById('loadingModal');
+    
+    // Global variable to track current processing report
+    let currentProcessingReportId = null;
     
     // Check for existing token on page load
     checkTokenStatus();
     
     // Check for background report status
+    {% if report_id %}
     const reportId = '{{ report_id }}';
-    if (reportId) {
-        checkReportStatus(reportId);
-    }
+    currentProcessingReportId = reportId;
+    
+    // Disable report generation buttons
+    disableReportButtons(true);
+    
+    // Show cancel button
+    showCancelButton(reportId);
+    
+    // Check status
+    checkReportStatus(reportId);
+    {% endif %}
+    
+    // Check for any processing reports on page load
+    checkForProcessingReports();
     
     // Load offices and departments when token is available
     setTimeout(() => {
@@ -183,19 +213,25 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.status === 'success' && data.has_token) {
                     // Token exists - enable report generation
-                    generateBtn.disabled = false;
-                    generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
+                    generateXlsxBtn.disabled = false;
+                    generateCsvBtn.disabled = false;
+                    generateXlsxBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm';
+                    generateCsvBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm';
                 } else {
                     // No token - disable report generation
-                    generateBtn.disabled = true;
-                    generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+                    generateXlsxBtn.disabled = true;
+                    generateCsvBtn.disabled = true;
+                    generateXlsxBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+                    generateCsvBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
                 }
             })
             .catch(error => {
                 console.error('Error checking token status:', error);
-                // Disable report button on error
-                generateBtn.disabled = true;
-                generateBtn.className = 'w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+                // Disable report buttons on error
+                generateXlsxBtn.disabled = true;
+                generateCsvBtn.disabled = true;
+                generateXlsxBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+                generateCsvBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
             });
     }
     
@@ -365,8 +401,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-    // Form submission
-    reportForm.addEventListener('submit', function(e) {
+    // Form submission handler for both formats
+    function handleFormSubmission(format) {
         // Process date range before submission
         const dateRange = dateRangeSelect.value;
         if (dateRange !== 'custom') {
@@ -375,16 +411,75 @@ document.addEventListener('DOMContentLoaded', function() {
             toDateInput.value = dates.to;
         }
         
-        generateBtn.disabled = true;
-        generateBtn.innerHTML = '<i class="ti ti-loader animate-spin mr-2"></i>Generando...';
-        loadingModal.classList.remove('hidden');
-
-        // Reset button state after a delay (in case of errors)
+        // Add format to form
+        let formatInput = document.getElementById('format');
+        if (!formatInput) {
+            formatInput = document.createElement('input');
+            formatInput.type = 'hidden';
+            formatInput.id = 'format';
+            formatInput.name = 'format';
+            reportForm.appendChild(formatInput);
+        }
+        formatInput.value = format;
+        
+        // Disable both buttons during generation
+        disableReportButtons(true);
+        
+        // Update button appearance based on format
+        if (format === 'xlsx') {
+            generateXlsxBtn.innerHTML = '<i class="ti ti-loader animate-spin mr-2"></i>Generando XLSX...';
+            generateCsvBtn.innerHTML = '<i class="ti ti-file-csv mr-2"></i>Generar CSV';
+        } else {
+            generateCsvBtn.innerHTML = '<i class="ti ti-loader animate-spin mr-2"></i>Generando CSV...';
+            generateXlsxBtn.innerHTML = '<i class="ti ti-file-spreadsheet mr-2"></i>Generar XLSX';
+        }
+        
+        // Show status section
+        const reportStatus = document.getElementById('reportStatus');
+        reportStatus.className = 'mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4';
+        reportStatus.innerHTML = `
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="ti ti-loader animate-spin text-blue-600"></i>
+                </div>
+                <div class="ml-3 flex-grow">
+                    <h3 class="text-base font-semibold text-blue-800">
+                        Generando reporte
+                    </h3>
+                   
+                    <div class="mt-3">
+                    </div>
+                    <div class="mt-2 text-xs text-blue-600">
+                        ⚠️ Evita actualizar la página durante la generación del reporte
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Submit the form
+        reportForm.submit();
+        
+        // Start progress bar animation
+        startProgressAnimation('progressBar');
+        
+        // Reset button state after timeout (in case of errors)
         setTimeout(() => {
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = '<i class="ti ti-file-spreadsheet mr-2"></i>Generar Reporte XLSX';
-            loadingModal.classList.add('hidden');
-        }, 30000); // 30 seconds timeout
+            generateXlsxBtn.disabled = false;
+            generateCsvBtn.disabled = false;
+            generateXlsxBtn.innerHTML = '<i class="ti ti-file-spreadsheet mr-2"></i>Generar XLSX';
+            generateCsvBtn.innerHTML = '<i class="ti ti-file-csv mr-2"></i>Generar CSV';
+        }, 60000); // 60 seconds timeout
+    }
+    
+    // Attach click handlers to both buttons
+    generateXlsxBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        handleFormSubmission('xlsx');
+    });
+    
+    generateCsvBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        handleFormSubmission('csv');
     });
 
     // Set default dates based on current month (which is selected by default)
@@ -416,8 +511,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 const downloadSection = document.getElementById('downloadSection');
                 const downloadLink = document.getElementById('downloadLink');
                 const reportStatus = document.getElementById('reportStatus');
+                reportStatus.classList.remove('hidden'); // Make it visible
                 
                 if (data.status === 'processing') {
+                    let progressText = 'Procesando...';
+                    if (data.progress) {
+                        if (data.progress.pagination_complete) {
+                            progressText = 'Generando informe con los datos obtenidos';
+                        } else {
+                            progressText = `Consultando página ${data.progress.current_page} de ${data.progress.total_pages} - ${data.progress.current_records} registros obtenidos de ${data.progress.total_records} totales`;
+                        }
+                    }
+                    
                     reportStatus.className = 'mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4';
                     reportStatus.innerHTML = `
                         <div class="flex items-center">
@@ -429,19 +534,25 @@ document.addEventListener('DOMContentLoaded', function() {
                                     Generando reporte
                                 </h3>
                                 <p class="text-sm text-blue-700 mt-1">
-                                    Procesando datos de la API...
+                                    ${progressText}
                                 </p>
                                 <div class="mt-3">
-                                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden animate-pulse">
-                                        <div class="bg-indigo-600 h-2 rounded-full" style="width: 100%; animation: infinite-progress 2s ease-in-out infinite;"></div>
+                                    <div class="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
+                                        <div class="bg-indigo-600 h-2 rounded-full progress-bar-5min" id="progressBarStatus"></div>
                                     </div>
+                                </div>
+                                <div class="mt-2 text-xs text-blue-600">
+                                    ⚠️ Evita actualizar la página durante la generación del reporte
                                 </div>
                             </div>
                         </div>
                     `;
                     
+                    // Start progress animation for existing report
+                    startProgressAnimation('progressBarStatus');
+                    
                     // Continue checking
-                    setTimeout(() => checkReportStatus(reportId), 2000);
+                    setTimeout(() => checkReportStatus(reportId), 30000);
                 } else if (data.status === 'completed') {
                     // Report completed - show download link
                     reportStatus.className = 'mb-6 bg-green-50 rounded-xl border border-green-200 p-4';
@@ -466,6 +577,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             </a>
                         </div>
                     `;
+                    
+                    // Re-enable buttons and hide cancel button
+                    if (currentProcessingReportId === reportId) {
+                        currentProcessingReportId = null;
+                        disableReportButtons(false);
+                        hideCancelButton();
+                    }
                 } else if (data.status === 'error') {
                     // Report failed - show error
                     reportStatus.className = 'mb-6 bg-red-50 rounded-xl border border-red-200 p-4';
@@ -484,30 +602,191 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     `;
+                    
+                    // Re-enable buttons and hide cancel button
+                    if (currentProcessingReportId === reportId) {
+                        currentProcessingReportId = null;
+                        disableReportButtons(false);
+                        hideCancelButton();
+                    }
                 } else {
                     // Still starting or unknown status
-                    reportStatus.className = 'mb-6 bg-yellow-50 rounded-xl border border-yellow-200 p-4';
+                    let progressText = 'Iniciando generación del reporte...';
+                    if (data.progress) {
+                        if (data.progress.pagination_complete) {
+                            progressText = 'Generando informe con los datos obtenidos';
+                        } else {
+                            progressText = `Consultando página ${data.progress.current_page} de ${data.progress.total_pages} - ${data.progress.current_records} registros obtenidos de ${data.progress.total_records} totales`;
+                        }
+                    }
+                    
+                    reportStatus.className = 'mb-6 bg-blue-50 rounded-xl border border-blue-200 p-4';
                     reportStatus.innerHTML = `
                         <div class="flex items-center">
                             <div class="flex-shrink-0">
-                                <i class="ti ti-clock text-yellow-600"></i>
+                                <i class="ti ti-loader animate-spin text-blue-600"></i>
                             </div>
-                            <div class="ml-3">
-                                <h3 class="text-base font-semibold text-yellow-800">
-                                    Iniciando reporte
+                            <div class="ml-3 flex-grow">
+                                <h3 class="text-base font-semibold text-blue-800">
+                                    Generando reporte
                                 </h3>
-                                <p class="text-sm text-yellow-700 mt-1">
-                                    Preparando la generación del reporte...
+                                <p class="text-sm text-blue-700 mt-1">
+                                    ${progressText}
                                 </p>
+                                <div class="mt-3">
+                                    <div class="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
+                                        <div class="bg-indigo-600 h-2 rounded-full progress-bar-5min" id="progressBarElse"></div>
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-xs text-blue-600">
+                                    ⚠️ Evita actualizar la página durante la generación del reporte
+                                </div>
                             </div>
                         </div>
                     `;
-                    setTimeout(() => checkReportStatus(reportId), 1000);
+                    
+                    // Start progress animation for starting report
+                    startProgressAnimation('progressBarElse');
+                    
+                    setTimeout(() => checkReportStatus(reportId), 30000);
                 }
             })
             .catch(error => {
                 console.error('Error checking report status:', error);
-                setTimeout(() => checkReportStatus(reportId), 3000);
+                setTimeout(() => checkReportStatus(reportId), 30000);
+            });
+    }
+    
+    // Progress bar animation function
+    function startProgressAnimation(barId = 'progressBar') {
+        const progressBar = document.getElementById(barId);
+        if (!progressBar) return;
+        
+        let progress = 0;
+        const duration = 300000; // 5 minutes in milliseconds
+        const interval = 1000; // Update every second
+        const increment = (100 / (duration / interval));
+        
+        const progressInterval = setInterval(() => {
+            progress += increment;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(progressInterval);
+            }
+            progressBar.style.width = progress + '%';
+        }, interval);
+        
+        // Store interval ID to clear it later if needed
+        window[`progressInterval_${barId}`] = progressInterval;
+    }
+    
+    // Function to check for processing reports on page load
+    function checkForProcessingReports() {
+        fetch('/check-processing-reports')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success' && data.has_processing && data.reports.length > 0) {
+                    // There are reports being processed - show indicator and check status
+                    const firstReport = data.reports[0];
+                    currentProcessingReportId = firstReport.id;
+                    
+                    // Disable report generation buttons
+                    disableReportButtons(true);
+                    
+                    // Show cancel button
+                    showCancelButton(firstReport.id);
+                    
+                    // Check status
+                    checkReportStatus(firstReport.id);
+                } else {
+                    // No processing reports - enable buttons
+                    checkTokenStatus();
+                }
+            })
+            .catch(error => {
+                console.error('Error checking for processing reports:', error);
+            });
+    }
+    
+    // Function to disable/enable report buttons
+    function disableReportButtons(disable) {
+        generateXlsxBtn.disabled = disable;
+        generateCsvBtn.disabled = disable;
+        
+        if (disable) {
+            generateXlsxBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+            generateCsvBtn.className = 'inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed';
+        } else {
+            // Re-check token status to set proper styles
+            checkTokenStatus();
+        }
+    }
+    
+    // Function to show cancel button
+    function showCancelButton(reportId) {
+        const cancelButtonDiv = document.getElementById('cancelButtonDiv');
+        if (!cancelButtonDiv) {
+            // Create cancel button div
+            const formDiv = reportForm.parentElement;
+            const cancelDiv = document.createElement('div');
+            cancelDiv.id = 'cancelButtonDiv';
+            cancelDiv.className = 'mb-4';
+            cancelDiv.innerHTML = `
+                <button type="button" id="cancelReportBtn" class="w-full inline-flex items-center justify-center h-8 px-4 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors shadow-sm">
+                    <i class="ti ti-x mr-2"></i>
+                    Cancelar Generación de Reporte
+                </button>
+            `;
+            formDiv.insertBefore(cancelDiv, reportForm.nextSibling);
+            
+            // Add click handler
+            document.getElementById('cancelReportBtn').addEventListener('click', function() {
+                cancelReport(reportId);
+            });
+        }
+    }
+    
+    // Function to hide cancel button
+    function hideCancelButton() {
+        const cancelButtonDiv = document.getElementById('cancelButtonDiv');
+        if (cancelButtonDiv) {
+            cancelButtonDiv.remove();
+        }
+    }
+    
+    // Function to cancel report
+    function cancelReport(reportId) {
+        if (!confirm('¿Está seguro que desea cancelar la generación del reporte?')) {
+            return;
+        }
+        
+        fetch(`/cancel-report/${reportId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Clear current processing report
+                    currentProcessingReportId = null;
+                    
+                    // Hide cancel button
+                    hideCancelButton();
+                    
+                    // Re-enable buttons
+                    disableReportButtons(false);
+                    
+                    // Clear report status
+                    const reportStatus = document.getElementById('reportStatus');
+                    reportStatus.className = 'hidden';
+                    reportStatus.innerHTML = '';
+                    
+                    // Show success message
+                    alert('Reporte cancelado exitosamente');
+                } else {
+                    alert('Error al cancelar el reporte: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling report:', error);
+                alert('Error al cancelar el reporte');
             });
     }
 });

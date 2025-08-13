@@ -9,6 +9,7 @@ import glob
 from services.no_breaks_report_generator import NoBreaksReportGenerator
 from services.sesame_api import SesameAPI
 from auth import requires_auth, check_auth, login_user, logout_user, authenticate
+from app import db
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -60,31 +61,53 @@ def _enforce_report_limit(temp_dir, max_reports=MAX_REPORTS):
     return deleted_files
 
 
-def generate_report_background(report_id, form_data, app_context):
+def generate_report_background(report_id, form_data, app_instance):
     """Generate report in background thread"""
     try:
-        with app_context:
-            logger.info(f"Starting background report generation - ID: {report_id}")
+        logger.info(f"[THREAD] Starting background thread for report {report_id}")
+        with app_instance.app_context():
+            logger.info(f"[THREAD] Inside app context - Starting background report generation - ID: {report_id}")
             background_reports[report_id]['status'] = 'processing'
             
             # Generate report
             report_data = None
             
-            logger.info(f"Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
+            logger.info(f"[THREAD] Form data: {form_data}")
+            logger.info(f"[THREAD] Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
+            
+            # Create a progress callback function
+            def update_progress(current_page, total_pages, current_records, total_records):
+                if report_id in background_reports:
+                    # Check if pagination is complete
+                    is_pagination_complete = (current_page >= total_pages)
+                    
+                    background_reports[report_id]['progress'] = {
+                        'current_page': current_page,
+                        'total_pages': total_pages,
+                        'current_records': current_records,
+                        'total_records': total_records,
+                        'pagination_complete': is_pagination_complete
+                    }
+            
             no_breaks_generator = NoBreaksReportGenerator()
+            logger.info(f"[THREAD] Created NoBreaksReportGenerator instance")
             report_data = no_breaks_generator.generate_report(
                 from_date=form_data['from_date'],
                 to_date=form_data['to_date'],
                 employee_id=form_data['employee_id'],
                 office_id=form_data['office_id'],
                 department_id=form_data['department_id'],
-                report_type=form_data['report_type'])
-            logger.info("NO-BREAKS report generation completed successfully")
+                report_type=form_data['report_type'],
+                format=form_data.get('format', 'xlsx'),
+                progress_callback=update_progress)
+            logger.info(f"[THREAD] NO-BREAKS report generation completed successfully for report {report_id}")
 
             if report_data:
                 # Save report to temporary file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"reporte_actividades_{timestamp}.xlsx"
+                format_type = form_data.get('format', 'xlsx')
+                file_extension = 'csv' if format_type == 'csv' else 'xlsx'
+                filename = f"reporte_actividades_{timestamp}.{file_extension}"
                 
                 # Create temp directory if it doesn't exist
                 temp_dir = 'temp_reports'
@@ -100,32 +123,39 @@ def generate_report_background(report_id, form_data, app_context):
                 if deleted_files:
                     logger.info(f"Deleted {len(deleted_files)} old report(s) to enforce 10 report limit: {', '.join(deleted_files)}")
                 
+                # Store filename and file_path in background_reports for later access
+                background_reports[report_id]['filename'] = filename
+                background_reports[report_id]['file_path'] = file_path
+                
                 # Update status outside app context to avoid DB connection issues
                 logger.info(f"Background report completed - ID: {report_id}, File: {filename}")
             else:
                 logger.error("No report data generated")
+                background_reports[report_id]['status'] = 'error'
+                background_reports[report_id]['error'] = 'No se pudo generar el reporte'
                 
     except Exception as e:
         logger.error(f"Background report generation failed - ID: {report_id}, Error: {str(e)}")
+        background_reports[report_id]['status'] = 'error'
+        background_reports[report_id]['error'] = f'Error al generar el reporte: {str(e)}'
         
     # Update status outside app context to avoid DB SSL issues
     try:
-        # Initialize variables
-        filename = None
-        file_path = None
-        report_data = None
-        
-        if report_data:
+        # Check if report was generated successfully by checking if the status is still 'processing'
+        # and if we reached this point without errors
+        if background_reports[report_id]['status'] == 'processing':
+            # The report was generated successfully if we get here
             background_reports[report_id]['status'] = 'completed'
-            background_reports[report_id]['filename'] = filename or f"{report_id}_reporte.xlsx"
-            background_reports[report_id]['file_path'] = file_path or f"temp_reports/{report_id}_reporte.xlsx"
-        else:
-            background_reports[report_id]['status'] = 'error'
-            background_reports[report_id]['error'] = 'Error al generar el reporte'
+            logger.info(f"[THREAD] Report status updated to COMPLETED - ID: {report_id}")
+            # Use the filename and file_path that were set above
+            # The variables are already set in the scope above (lines 91 and 98)
+        # If status is not 'processing', it means an error occurred earlier
+        
     except Exception as e:
         logger.error(f"Error updating report status - ID: {report_id}, Error: {str(e)}")
-        background_reports[report_id]['status'] = 'error'
-        background_reports[report_id]['error'] = 'Error en el proceso final'
+        if report_id in background_reports:
+            background_reports[report_id]['status'] = 'error'
+            background_reports[report_id]['error'] = 'Error en el proceso final'
 
 
 @main_bp.route('/login', methods=['GET', 'POST'])
@@ -193,7 +223,8 @@ def index():
             'employee_id': employee_id,
             'office_id': office_id,
             'department_id': department_id,
-            'report_type': report_type
+            'report_type': report_type,
+            'format': request.form.get('format', 'xlsx')
         }
         
         background_reports[report_id] = {
@@ -203,10 +234,12 @@ def index():
         }
         
         # Start background thread with app context
-        from flask import current_app
-        thread = threading.Thread(target=generate_report_background, args=(report_id, form_data, current_app.app_context()))
+        from app import app
+        logger.info(f"[MAIN] About to start thread for report {report_id}")
+        thread = threading.Thread(target=generate_report_background, args=(report_id, form_data, app))
         thread.daemon = True
         thread.start()
+        logger.info(f"[MAIN] Thread started for report {report_id}")
         
 
         return render_template('index.html', report_id=report_id)
@@ -225,12 +258,18 @@ def report_status(report_id):
         return jsonify({'status': 'not_found'}), 404
     
     report = background_reports[report_id]
-    return jsonify({
+    response_data = {
         'status': report['status'],
         'created_at': report['created_at'].isoformat(),
         'filename': report.get('filename', ''),
         'error': report.get('error', '')
-    })
+    }
+    
+    # Include progress information if available
+    if 'progress' in report:
+        response_data['progress'] = report['progress']
+    
+    return jsonify(response_data)
 
 
 @main_bp.route('/download-report/<report_id>')
@@ -252,9 +291,15 @@ def download_report(report_id):
         return redirect(url_for('main.index'))
     
     try:
+        # Determine mimetype based on file extension
+        if report['filename'].endswith('.csv'):
+            mimetype = 'text/csv'
+        else:
+            mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        
         return send_file(
             report['file_path'],
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            mimetype=mimetype,
             as_attachment=True,
             download_name=report['filename']
         )
@@ -490,6 +535,33 @@ def apply_token():
         }), 500
 
 
+@main_bp.route('/remove-connection', methods=['POST'])
+@requires_auth
+def remove_connection():
+    """Remove/close the current connection"""
+    try:
+        from models import SesameToken, CheckType
+        
+        # Remove all tokens
+        SesameToken.remove_all_tokens()
+        
+        # Also clear check types cache since they're associated with the token
+        CheckType.query.delete()
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Conexión cerrada correctamente. Se han eliminado todos los tokens y datos asociados.'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error removing connection: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al cerrar la conexión: {str(e)}'
+        }), 500
+
+
 @main_bp.route('/get-current-token')
 @requires_auth
 def get_current_token():
@@ -540,6 +612,77 @@ def get_current_token():
             'status': 'error',
             'has_token': False,
             'message': f'Error al obtener información del token: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/check-processing-reports')
+@requires_auth
+def check_processing_reports():
+    """Check if there are any reports currently being processed"""
+    try:
+        # Check for reports in processing state
+        processing_reports = []
+        for report_id, report_data in background_reports.items():
+            if report_data.get('status') == 'processing':
+                processing_reports.append({
+                    'id': report_id,
+                    'status': 'processing',
+                    'created_at': report_data.get('created_at', ''),
+                    'progress': report_data.get('progress', {})
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'has_processing': len(processing_reports) > 0,
+            'processing_count': len(processing_reports),
+            'reports': processing_reports
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking processing reports: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al verificar reportes en proceso: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/cancel-report/<report_id>', methods=['POST'])
+@requires_auth
+def cancel_report(report_id):
+    """Cancel a report that is being processed"""
+    try:
+        if report_id in background_reports:
+            report_status = background_reports[report_id]
+            
+            # Mark as cancelled
+            report_status['status'] = 'cancelled'
+            report_status['cancelled_at'] = datetime.now().isoformat()
+            
+            # Clean up any partial files
+            temp_dir = 'temp_reports'
+            pattern = os.path.join(temp_dir, f"{report_id}_*.xlsx")
+            for file_path in glob.glob(pattern):
+                try:
+                    os.remove(file_path)
+                    logger.info(f"Deleted cancelled report file: {file_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete cancelled report file: {str(e)}")
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Reporte cancelado exitosamente'
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Reporte no encontrado'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error cancelling report: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al cancelar reporte: {str(e)}'
         }), 500
 
 

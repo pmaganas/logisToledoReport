@@ -1,0 +1,688 @@
+{
+  "paths": {
+    "/schedule/v1/check-type-collections": {
+      "get": {
+        "tags": [
+          "Check Type Collections"
+        ],
+        "summary": "List Check Type Collections",
+        "description": "",
+        "operationId": "ListCheckTypeCollection",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "description": "Limit results",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "description": "Request a specific page",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of Objects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Group 1"
+                          },
+                          "color": {
+                            "type": "string",
+                            "example": "ssm-salmon"
+                          },
+                          "companyId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "Y-m-dTH:i:sP",
+                            "example": "2020-01-01T10:00:00+01:00"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "Y-m-dTH:i:sP",
+                            "example": "2020-01-01T10:00:00+01:00"
+                          },
+                          "deletedAt": {
+                            "type": "string",
+                            "format": "Y-m-dTH:i:sP",
+                            "example": "2020-01-01T10:00:00+01:00"
+                          },
+                          "archivedAt": {
+                            "type": "string",
+                            "format": "Y-m-dTH:i:sP",
+                            "example": "2020-01-01T10:00:00+01:00"
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "currentPage": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "perPage": {
+                          "type": "integer",
+                          "example": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/schedule/v1/check-type-collections/{checkTypeCollectionId}": {
+      "get": {
+        "tags": [
+          "Check Type Collections"
+        ],
+        "summary": "Retrieve a Check Type Collection by Id",
+        "description": "",
+        "operationId": "RetrieveCheckTypeCollection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "checkTypeCollectionId",
+            "description": "Check Type Collection UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of Objects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Group 1"
+                          },
+                          "color": {
+                            "type": "string",
+                            "example": "ssm-salmon"
+                          },
+                          "companyId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "Y-m-dTH:i:sP",
+                            "example": "2020-01-01T10:00:00+01:00"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "Y-m-dTH:i:sP",
+                            "example": "2020-01-01T10:00:00+01:00"
+                          },
+                          "deletedAt": {
+                            "type": "string",
+                            "format": "Y-m-dTH:i:sP",
+                            "example": "2020-01-01T10:00:00+01:00"
+                          },
+                          "archivedAt": {
+                            "type": "string",
+                            "format": "Y-m-dTH:i:sP",
+                            "example": "2020-01-01T10:00:00+01:00"
+                          },
+                          "checkTypes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "example": "online"
+                                },
+                                "color": {
+                                  "type": "string",
+                                  "example": "accent-pink-100"
+                                },
+                                "icon": {
+                                  "type": "string",
+                                  "example": "flight"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "currentPage": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "perPage": {
+                          "type": "integer",
+                          "example": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "openapi": "3.0.0",
+  "info": {
+    "description": "",
+    "version": "3.0.0",
+    "title": "Sesame Public API"
+  },
+  "servers": [
+    {
+      "url": "https://api-{region}.sesametime.com",
+      "variables": {
+        "region": {
+          "default": "eu1"
+        }
+      }
+    }
+  ],
+  "tags": [],
+  "components": {
+    "schemas": {
+      "Core-v3-Employee": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "firstName": {
+            "type": "string",
+            "example": "Lucas"
+          },
+          "lastName": {
+            "type": "string",
+            "example": "García"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "workStatus": {
+            "type": "string",
+            "enum": [
+              "online",
+              "offline",
+              "paused",
+              "remote"
+            ]
+          },
+          "imageProfileURL": {
+            "type": "string",
+            "example": "https://sesame-v2-prod-companies.s3.eu-west-3.amazonaws.com/48351485-1659-413d-bf7f-3ca34fadb521/public-read/g892f1fb-55a3-4e32-9cc9-7c19faa70gaa.png"
+          },
+          "code": {
+            "type": "integer",
+            "example": 1
+          },
+          "pin": {
+            "type": "integer",
+            "example": 1000
+          },
+          "phone": {
+            "type": "string",
+            "example": "+34 111 11 11 11"
+          },
+          "company": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "notificationEmail": {
+                "type": "string",
+                "format": "email"
+              },
+              "language": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "Y-m-dTH:i:sP",
+                "example": "2020-01-01T10:00:00+01:00"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "Y-m-dTH:i:sP",
+                "example": "2020-01-01T10:00:00+01:00"
+              }
+            }
+          },
+          "gender": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "female",
+              "male",
+              "no_response"
+            ]
+          },
+          "contractId": {
+            "type": "string",
+            "description": "The identifier of your internal employee contract"
+          },
+          "nid": {
+            "type": "string",
+            "description": "The National Identity Document of the employee"
+          },
+          "identityNumberType": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "dni",
+              "nie",
+              "rut",
+              "other"
+            ]
+          },
+          "ssn": {
+            "type": "string",
+            "description": "The Social Security Number of the employee"
+          },
+          "pricePerHour": {
+            "type": "number",
+            "format": "float",
+            "description": "The Price per hour of the employee"
+          },
+          "accountNumber": {
+            "type": "string",
+            "description": "The Account Number of the employee"
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "description": ""
+          },
+          "customFields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "companyId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "Y-m-dTH:i:sP",
+            "example": "2020-01-01T10:00:00+01:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "Y-m-dTH:i:sP",
+            "example": "2020-01-01T10:00:00+01:00"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "children": {
+            "type": "integer",
+            "example": 2
+          },
+          "disability": {
+            "type": "integer",
+            "example": 25
+          },
+          "address": {
+            "type": "string",
+            "description": "The Address of the employee"
+          },
+          "postalCode": {
+            "type": "string",
+            "description": "The postal code of the employee"
+          },
+          "city": {
+            "type": "string",
+            "description": "The city of the employee"
+          },
+          "province": {
+            "type": "string",
+            "description": "The province of the employee"
+          },
+          "country": {
+            "type": "string",
+            "description": "The country of the employee"
+          },
+          "nationality": {
+            "type": "string",
+            "description": "The nationality of the employee (deprecated: use nationalities instead)",
+            "example": "ES"
+          },
+          "nationalities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The nationalities of the employee",
+            "example": [
+              "ES",
+              "FR"
+            ]
+          },
+          "personalMail": {
+            "type": "string",
+            "format": "email",
+            "nullable": true
+          },
+          "maritalStatus": {
+            "type": "string"
+          },
+          "emergencyPhone": {
+            "type": "string",
+            "description": "The emergency phone of the employee"
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the employee"
+          },
+          "salaryRange": {
+            "type": "string",
+            "description": "The salary range of the employee"
+          },
+          "studyLevel": {
+            "type": "string",
+            "description": "The study level of the employee"
+          },
+          "professionalCategoryCode": {
+            "type": "string",
+            "description": "The professional category code of the employee"
+          },
+          "professionalCategoryDescription": {
+            "type": "string",
+            "description": "The professional category description of the employee"
+          },
+          "bic": {
+            "type": "string"
+          },
+          "jobChargeId": {
+            "type": "string",
+            "description": "The identifier of the job charge"
+          },
+          "jobChargeName": {
+            "type": "string",
+            "description": "The name of the job charge"
+          },
+          "language": {
+            "type": "string",
+            "description": "ISO language code",
+            "example": "es-ES"
+          },
+          "workPhone": {
+            "type": "string",
+            "description": "work phone",
+            "example": "+34 111 11 11 11"
+          },
+          "mainRecruiter": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "firstName": {
+                "type": "string",
+                "example": "Lucas"
+              },
+              "lastName": {
+                "type": "string",
+                "example": "García"
+              },
+              "imageProfileURL": {
+                "type": "string",
+                "example": "https://sesame-v2-prod-companies.s3.eu-west-3.amazonaws.com/48351485-1659-413d-bf7f-3ca34fadb521/public-read/g892f1fb-55a3-4e32-9cc9-7c19faa70gaa.png"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "workStatus": {
+                "type": "string",
+                "enum": [
+                  "online",
+                  "offline",
+                  "paused",
+                  "remote"
+                ]
+              },
+              "workCheckTypeColor": {
+                "type": "string",
+                "example": "#FF0000"
+              },
+              "workCheckTypeName": {
+                "type": "string",
+                "example": "Remote"
+              }
+            }
+          },
+          "nfc": {
+            "type": "string"
+          }
+        }
+      },
+      "Vacation-Configuration": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "requestVacationFrom": {
+            "type": "string",
+            "format": "Y-m",
+            "nullable": true
+          },
+          "renewalPeriod": {
+            "type": "string",
+            "enum": [
+              "working_year",
+              "calendar_year",
+              "each_month"
+            ],
+            "nullable": true
+          },
+          "dayType": {
+            "type": "string",
+            "enum": [
+              "business_day",
+              "calendar_day"
+            ]
+          },
+          "pickMode": {
+            "type": "string",
+            "enum": [
+              "by_days",
+              "by_time_range"
+            ]
+          },
+          "maxDaysOff": {
+            "type": "number",
+            "format": "integer",
+            "nullable": true
+          },
+          "creationDateNextYear": {
+            "type": "string"
+          },
+          "maxDateToTakeVacations": {
+            "type": "number",
+            "format": "integer"
+          },
+          "needsValidation": {
+            "type": "boolean"
+          },
+          "employeeRequestDenyExcessDaysOff": {
+            "type": "boolean"
+          },
+          "hoursQuantityConfigured": {
+            "type": "boolean"
+          },
+          "halfDayVacationConfiguration": {
+            "type": "string",
+            "enum": [
+              "weekly_average",
+              "daily_average"
+            ]
+          },
+          "allowFreeHoursSelection": {
+            "type": "boolean"
+          },
+          "enjoyMonthPeriod": {
+            "type": "number",
+            "format": "integer",
+            "nullable": true
+          },
+          "employeeRequestEnabled": {
+            "type": "boolean"
+          },
+          "notAllowedDateRanges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "format": "Y-m"
+                },
+                "to": {
+                  "type": "string",
+                  "format": "Y-m"
+                }
+              }
+            }
+          },
+          "configurationType": {
+            "type": "string",
+            "enum": [
+              "max_days",
+              "seniority_days",
+              "unlimited_days"
+            ]
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
