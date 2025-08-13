@@ -185,6 +185,15 @@ def logout():
 def index():
     """Main page with report generation form and background report generation"""
     if request.method == 'GET':
+        # Check if there's an active token configured
+        from models import SesameToken
+        active_token = SesameToken.get_active_token()
+        
+        if not active_token:
+            # No token configured, redirect to connection page
+            flash('Debes configurar un token de API antes de generar reportes', 'warning')
+            return redirect(url_for('main.connection'))
+        
         return render_template('index.html')
     
     # Handle POST request for background report generation
@@ -691,6 +700,15 @@ def cancel_report(report_id):
 def downloads():
     """Downloads page - show all generated reports"""
     try:
+        # Check if there's an active token configured
+        from models import SesameToken
+        active_token = SesameToken.get_active_token()
+        
+        if not active_token:
+            # No token configured, redirect to connection page
+            flash('Debes configurar un token de API antes de acceder a las descargas', 'warning')
+            return redirect(url_for('main.connection'))
+        
         # Get all report files from temp directory
         temp_dir = 'temp_reports'
         if not os.path.exists(temp_dir):
