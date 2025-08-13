@@ -10,7 +10,7 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 - **Framework**: Basic HTML templates with Tailwind CSS framework.
-- **Styling**: Tailwind CSS with Figtree typography and Tabler Icons, utilizing Indigo-500 as the primary color.
+- **Styling**: Tailwind CSS with Figtree typography and Font Awesome icons (replaced Tabler Icons for better compatibility), utilizing Indigo-500 as the primary color.
 - **Design Elements**: 32px button/input height, 12px border-radius, and responsive margins (120px desktop, 56px tablet, 16px mobile).
 - **Language**: Spanish language interface.
 - **Theme**: Consistent dark theme.
@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
 - **Report Preview**: A streamlined interface focusing on direct report generation, eliminating the previous preview functionality.
 - **Download Management**: A dedicated downloads page with a modern, card-based layout for viewing, re-downloading, and deleting reports, featuring a fixed summary bar and scrollable table with sticky headers.
 - **Navigation**: Responsive navigation bar with mobile menu support and real-time connection status indicators.
+- **Interface**: Minimalist design without page title headers for cleaner appearance (removed "Generador de Informes" header per user request).
 
 ### Technical Implementations
 - **Backend Framework**: Flask (Python web framework).
