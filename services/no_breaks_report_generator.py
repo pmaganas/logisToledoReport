@@ -516,11 +516,12 @@ class NoBreaksReportGenerator:
         check_types_service = CheckTypesService()
         activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
         
-        # Get group name from collections mapping
-        group_name = ""
-        if collections_mapping and work_break_id:
-            group_name = collections_mapping.get(work_break_id, "Sin Grupo")
-            self.logger.debug(f"Work entry with break_id {work_break_id} mapped to group: {group_name}")
+        # Get group name from collections mapping using workCheckTypeId
+        work_check_type_id = entry.get('workCheckTypeId')
+        group_name = "Sin Grupo"
+        if collections_mapping and work_check_type_id:
+            group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
+            self.logger.debug(f"Work entry with check_type_id {work_check_type_id} mapped to group: {group_name}")
         
         # Extract date from workEntryIn.date
         entry_date = "No disponible"
@@ -713,10 +714,10 @@ class NoBreaksReportGenerator:
         
         for entry in all_work_entries:
             # Get group name from collections mapping
-            work_break_id = entry.get('workBreakId')
+            work_check_type_id = entry.get('workCheckTypeId')
             group_name = "Sin Grupo"
-            if collections_mapping and work_break_id:
-                group_name = collections_mapping.get(work_break_id, "Sin Grupo")
+            if collections_mapping and work_check_type_id:
+                group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
             
             if group_name not in group_entries:
                 group_entries[group_name] = []
@@ -887,11 +888,11 @@ class NoBreaksReportGenerator:
         grouped_entries = {}
         
         for entry in all_work_entries:
-            # Get group name from collections mapping based on workBreakId
-            work_break_id = entry.get('workBreakId')
+            # Get group name from collections mapping based on workCheckTypeId
+            work_check_type_id = entry.get('workCheckTypeId')
             group_name = "Sin Grupo"
-            if collections_mapping and work_break_id:
-                group_name = collections_mapping.get(work_break_id, "Sin Grupo")
+            if collections_mapping and work_check_type_id:
+                group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
             
             # Extract date from workEntryIn.date
             entry_date = "No disponible"
