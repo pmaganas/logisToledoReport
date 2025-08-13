@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m pip install:*)",
+      "Bash(FLASK_ENV=\"development\" )",
+      "Bash(python3:*)",
+      "Bash(curl:*)",
+      "Bash(FLASK_ENV=\"development\" )",
+      "Bash(API_TIMEOUT=30 )",
+      "Bash(API_MAX_RETRIES=3 )",
+      "Bash(API_PAGE_SIZE=500 )",
+      "Bash(REPORT_CHUNK_SIZE=1000 )",
+      "Bash(LOG_LEVEL=\"INFO\" )"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
