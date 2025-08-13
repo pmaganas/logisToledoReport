@@ -112,8 +112,12 @@ class NoBreaksReportGenerator:
         ws = wb.active
         ws.title = "Reporte Fichajes"
         
-        # Headers (same as preview)
-        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
+        # Headers based on report type
+        if report_type == "by_group":
+            headers = ["Grupo", "Actividad", "Fecha", "Empleado", "Tipo de identificación", "Nº de identificación", "Entrada", "Salida", "Tiempo registrado"]
+        else:
+            headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
+        
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = Font(bold=True)
@@ -140,8 +144,11 @@ class NoBreaksReportGenerator:
         output = StringIO()
         writer = csv.writer(output)
         
-        # Headers (same as preview)
-        headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
+        # Headers based on report type
+        if report_type == "by_group":
+            headers = ["Grupo", "Actividad", "Fecha", "Empleado", "Tipo de identificación", "Nº de identificación", "Entrada", "Salida", "Tiempo registrado"]
+        else:
+            headers = ["Empleado", "Tipo ID", "Nº ID", "Fecha", "Actividad", "Grupo", "Entrada", "Salida", "Tiempo Registrado"]
         writer.writerow(headers)
         
         # Process entries based on report type
@@ -727,11 +734,40 @@ class NoBreaksReportGenerator:
         for group_name in sorted(group_entries.keys()):
             entries = group_entries[group_name]
             
-            # Write group header row
-            writer.writerow([f"=== GRUPO: {group_name} ===", "", "", "", "", "", "", "", ""])
+            # Sort all entries chronologically by entry start time
+            entries.sort(key=self._get_entry_sort_key)
             
-            # Process entries for this group using employee grouping logic
-            self._process_grouped_entries_csv(writer, entries, collections_mapping)
+            # Process pause redistribution
+            processed_entries = self._redistribute_pause_time(entries)
+            
+            # Sort processed entries again to ensure chronological order
+            processed_entries.sort(key=self._get_entry_sort_key)
+            
+            group_total_seconds = 0
+            
+            # Write entries with new column order: Grupo, Actividad, Fecha, Empleado, Tipo Doc, NID, Entrada, Salida, Duración
+            for entry in processed_entries:
+                employee_info = entry.get('employee', {})
+                row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
+                
+                # Write CSV row with columns in correct order
+                writer.writerow([
+                    group_name,  # Grupo
+                    row_data['activity_name'],  # Actividad
+                    row_data['entry_date'],  # Fecha
+                    row_data['employee_name'],  # Empleado
+                    row_data['employee_id_type'],  # Tipo de identificación
+                    row_data['employee_nid'],  # Nº de identificación
+                    row_data['start_time'],  # Entrada
+                    row_data['end_time'],  # Salida
+                    row_data['final_duration']  # Tiempo registrado
+                ])
+                
+                group_total_seconds += row_data['worked_seconds']
+            
+            # Add TOTAL row for the group
+            total_duration = self._format_duration(timedelta(seconds=group_total_seconds))
+            writer.writerow([group_name, "TOTAL", "", "", "", "", "", "", total_duration])
             
             # Add separator between groups
             writer.writerow([])
@@ -883,8 +919,7 @@ class NoBreaksReportGenerator:
 
     def _process_grouped_by_group(self, ws, all_work_entries, collections_mapping, current_row):
         """Process entries grouped by work groups using check type collections"""
-        # Now we have group information from check type collections
-        # Group entries by group and date
+        # Group entries by group only (not by date)
         grouped_entries = {}
         
         for entry in all_work_entries:
@@ -894,32 +929,18 @@ class NoBreaksReportGenerator:
             if collections_mapping and work_check_type_id:
                 group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
             
-            # Extract date from workEntryIn.date
-            entry_date = "No disponible"
-            if entry.get('workEntryIn') and entry['workEntryIn'].get('date'):
-                try:
-                    entry_datetime = datetime.fromisoformat(
-                        entry['workEntryIn']['date'].replace('Z', '+00:00'))
-                    entry_date = entry_datetime.strftime('%d/%m/%Y')
-                except Exception as e:
-                    self.logger.error(f"Error parsing entry date: {e}")
-                    entry_date = "Error en fecha"
-            
-            # Create group key by group and date
-            group_key = f"{group_name}_{entry_date}"
-            
-            if group_key not in grouped_entries:
-                grouped_entries[group_key] = {
+            # Use only group name as key
+            if group_name not in grouped_entries:
+                grouped_entries[group_name] = {
                     'group_name': group_name,
-                    'date': entry_date,
                     'all_entries': []
                 }
             
-            grouped_entries[group_key]['all_entries'].append(entry)
+            grouped_entries[group_name]['all_entries'].append(entry)
         
-        # Sort groups by group name and date
+        # Sort groups by group name
         sorted_groups = sorted(grouped_entries.values(), 
-                             key=lambda x: (x['group_name'], x['date']))
+                             key=lambda x: x['group_name'])
         
         # Process each group
         for group in sorted_groups:
@@ -934,10 +955,10 @@ class NoBreaksReportGenerator:
             # Sort processed entries again to ensure chronological order after pause redistribution
             processed_entries.sort(key=self._get_entry_sort_key)
             
-            # Write processed entries to Excel (without pause entries)
-            group_totals = {}
-            total_worked_seconds = 0
+            # Track totals for the entire group
+            group_total_seconds = 0
             
+            # Write processed entries to Excel (without pause entries)
             for entry in processed_entries:
                 # Get employee info for this entry
                 employee_info = entry.get('employee', {})
@@ -946,27 +967,27 @@ class NoBreaksReportGenerator:
                 # Override group name with our group (this ensures the grouped value is used)
                 row_data['group_name'] = group['group_name']
                 
-                # Write to Excel
-                ws.cell(row=current_row, column=1, value=row_data['employee_name'])
-                ws.cell(row=current_row, column=2, value=row_data['employee_id_type'])
-                ws.cell(row=current_row, column=3, value=row_data['employee_nid'])
-                ws.cell(row=current_row, column=4, value=row_data['entry_date'])
-                ws.cell(row=current_row, column=5, value=row_data['activity_name'])
-                ws.cell(row=current_row, column=6, value=row_data['group_name'])
+                # Write to Excel with columns: Grupo, Actividad, Fecha, Empleado, Tipo Doc, NID, Entrada, Salida, Duración
+                ws.cell(row=current_row, column=1, value=row_data['group_name'])
+                ws.cell(row=current_row, column=2, value=row_data['activity_name'])
+                ws.cell(row=current_row, column=3, value=row_data['entry_date'])
+                ws.cell(row=current_row, column=4, value=row_data['employee_name'])
+                ws.cell(row=current_row, column=5, value=row_data['employee_id_type'])
+                ws.cell(row=current_row, column=6, value=row_data['employee_nid'])
                 ws.cell(row=current_row, column=7, value=row_data['start_time'])
                 ws.cell(row=current_row, column=8, value=row_data['end_time'])
                 ws.cell(row=current_row, column=9, value=row_data['final_duration'])
                 
                 # Accumulate totals
                 worked_seconds = row_data['worked_seconds']
-                total_worked_seconds += worked_seconds
+                group_total_seconds += worked_seconds
                 
                 current_row += 1
             
-            # Add TOTAL row for this group/date combination
-            current_row = self._add_group_total_row(ws, group, total_worked_seconds, current_row)
+            # Add TOTAL row for this group
+            current_row = self._add_group_total_row(ws, group, group_total_seconds, current_row)
             
-            # Add blank row between different group/date groups
+            # Add blank row between different groups
             current_row += 1
         
         return current_row
@@ -1001,9 +1022,8 @@ class NoBreaksReportGenerator:
         return current_row + 1
 
     def _add_group_total_row(self, ws, group, total_worked_seconds, current_row):
-        """Add TOTAL row for group/date combination"""
+        """Add TOTAL row for group"""
         group_name = group['group_name']
-        entry_date = group['date']
         
         # Total duration
         total_duration = self._format_duration(timedelta(seconds=total_worked_seconds))
@@ -1012,13 +1032,13 @@ class NoBreaksReportGenerator:
         total_font = Font(bold=True)
         total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
         
-        # Write TOTAL row
-        ws.cell(row=current_row, column=1, value="TOTAL").font = total_font
-        ws.cell(row=current_row, column=2, value="").font = total_font
+        # Write TOTAL row (columns: Grupo, Actividad, Fecha, Empleado, Tipo Doc, NID, Entrada, Salida, Duración)
+        ws.cell(row=current_row, column=1, value=group_name).font = total_font
+        ws.cell(row=current_row, column=2, value="TOTAL").font = total_font
         ws.cell(row=current_row, column=3, value="").font = total_font
-        ws.cell(row=current_row, column=4, value=entry_date).font = total_font
+        ws.cell(row=current_row, column=4, value="").font = total_font
         ws.cell(row=current_row, column=5, value="").font = total_font
-        ws.cell(row=current_row, column=6, value=group_name).font = total_font
+        ws.cell(row=current_row, column=6, value="").font = total_font
         ws.cell(row=current_row, column=7, value="").font = total_font
         ws.cell(row=current_row, column=8, value="").font = total_font
         ws.cell(row=current_row, column=9, value=total_duration).font = total_font
