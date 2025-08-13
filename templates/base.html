@@ -11,8 +11,8 @@
     <!-- Figtree Font -->
     <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Tabler Icons -->
-    <link rel="stylesheet" href="https://unpkg.com/@tabler/icons@latest/iconfont/tabler-icons.min.css">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
@@ -52,7 +52,7 @@
                 <div class="flex h-16 items-center justify-between">
                     <a href="{{ url_for('main.index') }}" class="group flex items-center text-gray-900 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105">
                         <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mr-3 group-hover:shadow-lg transition-shadow">
-                            <i class="ti ti-report-analytics text-white text-xl"></i>
+                            <i class="fas fa-chart-line text-white text-xl"></i>
                         </div>
                         <span class="text-lg font-bold">Generador de Informes</span>
                     </a>
@@ -64,14 +64,14 @@
                            class="group relative {% if current_page == 'main.index' %}bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md{% else %}bg-white text-gray-700 hover:bg-gradient-to-r hover:from-indigo-500 hover:to-purple-600 hover:text-white hover:shadow-md{% endif %} px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 transform hover:scale-105 nav-link"
                            {% if current_page == 'main.index' %}onclick="event.preventDefault(); return false;"{% else %}onclick="showNavLoading('Cargando Generador de Reportes...')"{% endif %}
                            data-page="generator">
-                            <i class="ti ti-plus mr-1.5"></i>
+                            <i class="fas fa-plus mr-1.5"></i>
                             Generar Reporte
                         </a>
                         <a href="{{ url_for('main.downloads') }}" 
                            class="group relative {% if current_page == 'main.downloads' %}bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-md{% else %}bg-white text-gray-700 hover:bg-gradient-to-r hover:from-blue-500 hover:to-cyan-600 hover:text-white hover:shadow-md{% endif %} px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 transform hover:scale-105 nav-link"
                            {% if current_page == 'main.downloads' %}onclick="event.preventDefault(); return false;"{% else %}onclick="showNavLoading('Cargando Descargas...')"{% endif %}
                            data-page="downloads">
-                            <i class="ti ti-download mr-1.5"></i>
+                            <i class="fas fa-download mr-1.5"></i>
                             Descargas
                         </a>
                         <a href="{{ url_for('main.connection') }}" 
@@ -80,13 +80,13 @@
                            data-page="connection">
                             <div class="flex items-center">
                                 <div class="w-2.5 h-2.5 rounded-full mr-2 animate-pulse" id="navConnectionDot"></div>
-                                <i class="ti ti-settings mr-1.5"></i>
+                                <i class="fas fa-cog mr-1.5"></i>
                                 Conexión
                             </div>
                         </a>
                         <a href="{{ url_for('main.logout') }}" 
                            class="group relative bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 transform hover:scale-105 hover:shadow-md">
-                            <i class="ti ti-logout mr-1.5"></i>
+                            <i class="fas fa-sign-out-alt mr-1.5"></i>
                             Cerrar sesión
                         </a>
                     </div>
