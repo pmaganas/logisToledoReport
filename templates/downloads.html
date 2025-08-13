@@ -111,27 +111,23 @@
                                 <div class="bg-white rounded-xl overflow-hidden">
                                     <!-- Card Header with File Icon -->
                                     <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 border-b border-gray-100">
-                            <div class="flex items-center space-x-3">
-                                <div class="bg-white/20 p-3 rounded-lg">
-                                    {% if report.original_filename.endswith('.csv') %}
-                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                        </svg>
-                                    {% else %}
-                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                        </svg>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-1 overflow-hidden">
-                                    <h3 class="text-white font-semibold text-lg truncate">{{ report.original_filename }}</h3>
-                                    <p class="text-indigo-100 text-sm">ID: {{ report.id }}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Card Body -->
-                        <div class="p-6">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-lg flex items-center justify-center">
+                                                {% if report.original_filename.endswith('.csv') %}
+                                                    <i class="ti ti-file-text text-white text-2xl"></i>
+                                                {% else %}
+                                                    <i class="ti ti-file-spreadsheet text-white text-2xl"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="flex-1 overflow-hidden">
+                                                <h3 class="text-gray-800 font-semibold text-lg truncate">{{ report.original_filename }}</h3>
+                                                <p class="text-gray-500 text-sm">ID: {{ report.id }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card Body -->
+                                    <div class="p-6">
                             <div class="space-y-3 mb-6">
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-600 text-sm">Fecha de creación</span>
@@ -163,30 +159,30 @@
                                     </svg>
                                     Eliminar
                                 </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="flex items-center justify-center min-h-[400px]">
+                        <div class="text-center py-12">
+                            <div class="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="ti ti-file-off text-gray-400 text-3xl"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">No hay reportes generados</h3>
+                            <p class="text-sm text-gray-500 mb-6">Comienza generando tu primer reporte.</p>
+                            <a href="/" class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg">
+                                <i class="ti ti-plus mr-2"></i>
+                                Generar Reporte
+                            </a>
                         </div>
                     </div>
-                {% endfor %}
+                {% endif %}
             </div>
-        {% else %}
-            <div class="flex items-center justify-center min-h-[400px]">
-                <div class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">No hay reportes generados</h3>
-                    <p class="mt-1 text-sm text-gray-500">Comienza generando tu primer reporte.</p>
-                    <div class="mt-6">
-                        <a href="/" class="btn-primary">
-                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                            </svg>
-                            Generar Reporte
-                        </a>
-                    </div>
-                </div>
-            </div>
-        {% endif %}
+        </div>
+    </div>
 
 
     </div>
