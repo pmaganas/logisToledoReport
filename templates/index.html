@@ -184,19 +184,6 @@
 
 
 
-<!-- Loading Modal -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" id="loadingModal">
-    <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
-        <div class="text-center">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p class="text-sm text-gray-600" id="loadingText">Generando vista previa...</p>
-            <p class="text-xs text-gray-500 mt-2" id="loadingProgress"></p>
-            <div class="mt-3 bg-gray-200 rounded-full h-2">
-                <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%" id="progressBar"></div>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -212,7 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const reportForm = document.getElementById('reportForm');
     const generateXlsxBtn = document.getElementById('generateXlsxBtn');
     const generateCsvBtn = document.getElementById('generateCsvBtn');
-    const loadingModal = document.getElementById('loadingModal');
     
     // Global variable to track current processing report
     let currentProcessingReportId = null;
@@ -510,9 +496,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Submit the form
         reportForm.submit();
         
-        // Start progress bar animation
-        startProgressAnimation('progressBar');
-        
         // Reset button state after timeout (in case of errors)
         setTimeout(() => {
             generateXlsxBtn.disabled = false;
@@ -525,11 +508,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Attach click handlers to both buttons
     generateXlsxBtn.addEventListener('click', function(e) {
         e.preventDefault();
+        if (generateXlsxBtn.disabled || currentProcessingReportId) {
+            return false;
+        }
         handleFormSubmission('xlsx');
     });
     
     generateCsvBtn.addEventListener('click', function(e) {
         e.preventDefault();
+        if (generateCsvBtn.disabled || currentProcessingReportId) {
+            return false;
+        }
         handleFormSubmission('csv');
     });
 
@@ -765,9 +754,13 @@ document.addEventListener('DOMContentLoaded', function() {
         generateCsvBtn.disabled = disable;
         
         if (disable) {
-            generateXlsxBtn.className = 'inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed opacity-50';
-            generateCsvBtn.className = 'inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed opacity-50';
+            generateXlsxBtn.className = 'group relative inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-gray-400 bg-gray-200 border border-gray-300 rounded-lg cursor-not-allowed opacity-60';
+            generateCsvBtn.className = 'group relative inline-flex items-center justify-center h-12 px-6 text-sm font-semibold text-gray-400 bg-gray-200 border border-gray-300 rounded-lg cursor-not-allowed opacity-60';
+            generateXlsxBtn.style.pointerEvents = 'none';
+            generateCsvBtn.style.pointerEvents = 'none';
         } else {
+            generateXlsxBtn.style.pointerEvents = 'auto';
+            generateCsvBtn.style.pointerEvents = 'auto';
             // Re-check token status to set proper styles
             checkTokenStatus();
         }
