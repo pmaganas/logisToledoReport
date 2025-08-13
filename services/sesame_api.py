@@ -225,3 +225,58 @@ class SesameAPI:
         self.logger.info(
             f"Total time tracking records retrieved: {len(all_data)}")
         return all_data
+    
+    def get_check_type_collections(self, limit: int = 100, page: int = 1) -> Optional[Dict]:
+        """Get all check type collections (groups)"""
+        params = {
+            "limit": limit,
+            "page": page
+        }
+        return self._make_request("/schedule/v1/check-type-collections", params=params)
+    
+    def get_check_type_collection_details(self, collection_id: str) -> Optional[Dict]:
+        """Get details of a specific check type collection including its check types"""
+        return self._make_request(f"/schedule/v1/check-type-collections/{collection_id}")
+    
+    def get_all_check_type_collections_mapping(self) -> Dict[str, str]:
+        """Get mapping of check type ID to collection name"""
+        mapping = {}
+        
+        try:
+            # First get all collections
+            collections_response = self.get_check_type_collections(limit=100)
+            if not collections_response or not collections_response.get("data"):
+                self.logger.warning("No check type collections found")
+                return mapping
+            
+            collections = collections_response["data"]
+            self.logger.info(f"Found {len(collections)} check type collections")
+            
+            # For each collection, get its check types
+            for collection in collections:
+                collection_id = collection.get("id")
+                collection_name = collection.get("name", "Sin Grupo")
+                
+                if not collection_id:
+                    continue
+                
+                # Get collection details with check types
+                details_response = self.get_check_type_collection_details(collection_id)
+                if details_response and details_response.get("data"):
+                    # The response is an array with one item
+                    collection_data = details_response["data"][0] if isinstance(details_response["data"], list) else details_response["data"]
+                    check_types = collection_data.get("checkTypes", [])
+                    
+                    # Map each check type ID to the collection name
+                    for check_type in check_types:
+                        check_type_id = check_type.get("id")
+                        if check_type_id:
+                            mapping[check_type_id] = collection_name
+                            self.logger.debug(f"Mapped check type {check_type_id} to collection {collection_name}")
+            
+            self.logger.info(f"Created mapping for {len(mapping)} check types")
+            return mapping
+            
+        except Exception as e:
+            self.logger.error(f"Error creating check type collections mapping: {str(e)}")
+            return mapping

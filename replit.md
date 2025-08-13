@@ -36,6 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Report Types**: Generation of reports by employee, activity type, and groups.
 - **Filtering**: Advanced date range filtering (predefined and custom), optional employee ID, office, and department specification.
 - **Output**: Professional XLSX and CSV report generation with formatting, totals, and UTF-8 BOM encoding for Excel compatibility.
+- **Check Type Collections Integration**: Integrated Sesame API check-type-collections endpoints to automatically fetch filing groups and associate them with work entries, populating the "Grupo" column in reports with actual group names from the API.
 - **API Optimization**: Increased API query limit for time entries to 500 records per page to reduce calls and improve performance.
 - **Connection Management**: Improved SSL connection handling, retry logic, connection pooling, and proper session cleanup to mitigate timeout issues.
 - **Report Progress**: Dynamic progress bar and detailed logging during report generation, displaying API pagination status and record counts.

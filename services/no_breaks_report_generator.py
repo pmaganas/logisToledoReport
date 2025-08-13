@@ -12,6 +12,8 @@ class NoBreaksReportGenerator:
     def __init__(self):
         # Use parallel API for much faster processing
         self.sesame_api = ParallelSesameAPI()
+        # Create a regular SesameAPI instance for collections mapping
+        self.regular_api = SesameAPI()
         self.logger = logging.getLogger(__name__)
 
     def generate_report(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
@@ -29,6 +31,11 @@ class NoBreaksReportGenerator:
             self.logger.info("[REPORT] Ensuring check types are cached...")
             if not check_types_service.ensure_check_types_cached():
                 self.logger.warning("Failed to cache check types, activity names may be incomplete")
+            
+            # Get check type collections mapping
+            self.logger.info("[REPORT] Fetching check type collections mapping...")
+            collections_mapping = self.regular_api.get_all_check_type_collections_mapping()
+            self.logger.info(f"[REPORT] Collections mapping obtained with {len(collections_mapping)} check types")
             
             all_work_entries = []
             page = 1
@@ -88,21 +95,18 @@ class NoBreaksReportGenerator:
 
             self.logger.info(f"[REPORT] API pagination completed - Total entries retrieved: {len(all_work_entries)}")
             self.logger.info("[REPORT] Starting report processing...")
-
-            # Check types are now cached in database via CheckTypesService
-            check_types_map = {}  # Not needed anymore, keeping for compatibility
             
             # Generate report based on format
             if format.lower() == "csv":
-                return self._generate_csv_report(all_work_entries, check_types_map, report_type)
+                return self._generate_csv_report(all_work_entries, collections_mapping, report_type)
             else:
-                return self._generate_xlsx_report(all_work_entries, check_types_map, report_type)
+                return self._generate_xlsx_report(all_work_entries, collections_mapping, report_type)
             
         except Exception as e:
             self.logger.error(f"Error generating report: {str(e)}")
             return self._create_error_report(str(e), format)
 
-    def _generate_xlsx_report(self, all_work_entries, check_types_map, report_type):
+    def _generate_xlsx_report(self, all_work_entries, collections_mapping, report_type):
         """Generate XLSX report"""
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -119,11 +123,11 @@ class NoBreaksReportGenerator:
         
         # Process entries based on report type
         if report_type == "by_activity":
-            current_row = self._process_grouped_by_activity(ws, all_work_entries, check_types_map, current_row)
+            current_row = self._process_grouped_by_activity(ws, all_work_entries, collections_mapping, current_row)
         elif report_type == "by_group":
-            current_row = self._process_grouped_by_group(ws, all_work_entries, check_types_map, current_row)
+            current_row = self._process_grouped_by_group(ws, all_work_entries, collections_mapping, current_row)
         else:  # by_employee (default)
-            current_row = self._process_grouped_entries(ws, all_work_entries, check_types_map, current_row)
+            current_row = self._process_grouped_entries(ws, all_work_entries, collections_mapping, current_row)
         
         # Save to BytesIO
         output = BytesIO()
@@ -131,7 +135,7 @@ class NoBreaksReportGenerator:
         output.seek(0)
         return output.getvalue()
 
-    def _generate_csv_report(self, all_work_entries, check_types_map, report_type):
+    def _generate_csv_report(self, all_work_entries, collections_mapping, report_type):
         """Generate CSV report"""
         output = StringIO()
         writer = csv.writer(output)
@@ -142,11 +146,11 @@ class NoBreaksReportGenerator:
         
         # Process entries based on report type
         if report_type == "by_activity":
-            self._process_grouped_by_activity_csv(writer, all_work_entries, check_types_map)
+            self._process_grouped_by_activity_csv(writer, all_work_entries, collections_mapping)
         elif report_type == "by_group":
-            self._process_grouped_by_group_csv(writer, all_work_entries, check_types_map)
+            self._process_grouped_by_group_csv(writer, all_work_entries, collections_mapping)
         else:  # by_employee (default)
-            self._process_grouped_entries_csv(writer, all_work_entries, check_types_map)
+            self._process_grouped_entries_csv(writer, all_work_entries, collections_mapping)
         
         # Convert to bytes
         csv_content = output.getvalue()
@@ -398,7 +402,7 @@ class NoBreaksReportGenerator:
         # Return a very old datetime as fallback for entries without valid dates
         return datetime.min.replace(tzinfo=datetime.now().astimezone().tzinfo)
 
-    def _process_grouped_entries(self, ws, all_work_entries, check_types_map, current_row):
+    def _process_grouped_entries(self, ws, all_work_entries, collections_mapping, current_row):
         """Process entries grouped by employee and date, redistributing pause time"""
         # Group entries by employee and date
         grouped_entries = {}
@@ -460,7 +464,7 @@ class NoBreaksReportGenerator:
             total_worked_seconds = 0
             
             for entry in processed_entries:
-                row_data = self._extract_entry_data(entry, group['employee_info'])
+                row_data = self._extract_entry_data(entry, group['employee_info'], collections_mapping)
                 
                 # Write to Excel
                 ws.cell(row=current_row, column=1, value=row_data['employee_name'])
@@ -492,7 +496,7 @@ class NoBreaksReportGenerator:
         
         return current_row
     
-    def _extract_entry_data(self, entry, employee_info):
+    def _extract_entry_data(self, entry, employee_info, collections_mapping=None):
         """Extract data from a work entry for Excel output"""
         # Employee name
         employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
@@ -512,8 +516,11 @@ class NoBreaksReportGenerator:
         check_types_service = CheckTypesService()
         activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
         
-        # Group name left empty as requested
+        # Get group name from collections mapping
         group_name = ""
+        if collections_mapping and work_break_id:
+            group_name = collections_mapping.get(work_break_id, "Sin Grupo")
+            self.logger.debug(f"Work entry with break_id {work_break_id} mapped to group: {group_name}")
         
         # Extract date from workEntryIn.date
         entry_date = "No disponible"
@@ -621,7 +628,7 @@ class NoBreaksReportGenerator:
 
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-    def _process_grouped_entries_csv(self, writer, all_work_entries, check_types_map):
+    def _process_grouped_entries_csv(self, writer, all_work_entries, collections_mapping):
         """Process entries grouped by employee and date for CSV output"""
         # Reuse the Excel logic but write to CSV
         import csv
@@ -666,9 +673,9 @@ class NoBreaksReportGenerator:
         csv_ws = CSVWorksheet(writer)
         
         # Reuse existing Excel processing logic
-        current_row = self._process_grouped_entries(csv_ws, all_work_entries, check_types_map, 1)
+        current_row = self._process_grouped_entries(csv_ws, all_work_entries, collections_mapping, 1)
 
-    def _process_grouped_by_activity_csv(self, writer, all_work_entries, check_types_map):
+    def _process_grouped_by_activity_csv(self, writer, all_work_entries, collections_mapping):
         """Process entries grouped by activity type for CSV output"""
         # Group entries by activity type first
         activity_groups = {}
@@ -694,21 +701,39 @@ class NoBreaksReportGenerator:
             writer.writerow([f"=== ACTIVIDAD: {activity_name} ===", "", "", "", "", "", "", "", ""])
             
             # Process entries for this activity using employee grouping logic
-            self._process_grouped_entries_csv(writer, entries, check_types_map)
+            self._process_grouped_entries_csv(writer, entries, collections_mapping)
             
             # Add separator between activity groups
             writer.writerow([])
 
-    def _process_grouped_by_group_csv(self, writer, all_work_entries, check_types_map):
+    def _process_grouped_by_group_csv(self, writer, all_work_entries, collections_mapping):
         """Process entries grouped by groups for CSV output"""
-        # Since group information is not available from API, we create a single group
-        group_name = "Sin Grupo"
+        # Group entries by collection name first
+        group_entries = {}
         
-        # Write group header row
-        writer.writerow([f"=== GRUPO: {group_name} ===", "", "", "", "", "", "", "", ""])
+        for entry in all_work_entries:
+            # Get group name from collections mapping
+            work_break_id = entry.get('workBreakId')
+            group_name = "Sin Grupo"
+            if collections_mapping and work_break_id:
+                group_name = collections_mapping.get(work_break_id, "Sin Grupo")
+            
+            if group_name not in group_entries:
+                group_entries[group_name] = []
+            group_entries[group_name].append(entry)
         
-        # Process all entries as one group using employee grouping logic
-        self._process_grouped_entries_csv(writer, all_work_entries, check_types_map)
+        # Process each group separately
+        for group_name in sorted(group_entries.keys()):
+            entries = group_entries[group_name]
+            
+            # Write group header row
+            writer.writerow([f"=== GRUPO: {group_name} ===", "", "", "", "", "", "", "", ""])
+            
+            # Process entries for this group using employee grouping logic
+            self._process_grouped_entries_csv(writer, entries, collections_mapping)
+            
+            # Add separator between groups
+            writer.writerow([])
     
     def get_data_metrics(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
                          employee_id: Optional[str] = None, office_id: Optional[str] = None, 
@@ -766,7 +791,7 @@ class NoBreaksReportGenerator:
                 'error': str(e)
             }
 
-    def _process_grouped_by_activity(self, ws, all_work_entries, check_types_map, current_row):
+    def _process_grouped_by_activity(self, ws, all_work_entries, collections_mapping, current_row):
         """Process entries grouped by activity type"""
         # Group entries by activity type and date
         grouped_entries = {}
@@ -828,7 +853,7 @@ class NoBreaksReportGenerator:
             for entry in processed_entries:
                 # Get employee info for this entry
                 employee_info = entry.get('employee', {})
-                row_data = self._extract_entry_data(entry, employee_info)
+                row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
                 
                 # Write to Excel
                 ws.cell(row=current_row, column=1, value=row_data['employee_name'])
@@ -855,15 +880,18 @@ class NoBreaksReportGenerator:
         
         return current_row
 
-    def _process_grouped_by_group(self, ws, all_work_entries, check_types_map, current_row):
-        """Process entries grouped by work groups (currently empty as groups are not available)"""
-        # Since group information is not available from the API, we'll group by a default "Sin Grupo" category
+    def _process_grouped_by_group(self, ws, all_work_entries, collections_mapping, current_row):
+        """Process entries grouped by work groups using check type collections"""
+        # Now we have group information from check type collections
         # Group entries by group and date
         grouped_entries = {}
         
         for entry in all_work_entries:
-            # Since we don't have group information, all entries go to "Sin Grupo"
+            # Get group name from collections mapping based on workBreakId
+            work_break_id = entry.get('workBreakId')
             group_name = "Sin Grupo"
+            if collections_mapping and work_break_id:
+                group_name = collections_mapping.get(work_break_id, "Sin Grupo")
             
             # Extract date from workEntryIn.date
             entry_date = "No disponible"
@@ -912,9 +940,9 @@ class NoBreaksReportGenerator:
             for entry in processed_entries:
                 # Get employee info for this entry
                 employee_info = entry.get('employee', {})
-                row_data = self._extract_entry_data(entry, employee_info)
+                row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
                 
-                # Override group name with our group
+                # Override group name with our group (this ensures the grouped value is used)
                 row_data['group_name'] = group['group_name']
                 
                 # Write to Excel
