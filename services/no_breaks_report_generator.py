@@ -110,7 +110,12 @@ class NoBreaksReportGenerator:
         """Generate XLSX report"""
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Reporte Fichajes"
+        
+        # Set title based on report type
+        if report_type == "by_group":
+            ws.title = "Grupos y tipos de registro"
+        else:
+            ws.title = "Reporte Fichajes"
         
         # Headers based on report type
         if report_type == "by_group":
@@ -513,6 +518,9 @@ class NoBreaksReportGenerator:
         # Employee identification
         employee_nid = employee_info.get('nid', 'No disponible')
         employee_id_type = employee_info.get('identityNumberType', 'DNI')
+        # Convert to lowercase to match the example format
+        if employee_id_type:
+            employee_id_type = employee_id_type.lower()
         
         # Get activity name based on workEntryType and workBreakId
         work_entry_type = entry.get('workEntryType', '')
@@ -716,8 +724,8 @@ class NoBreaksReportGenerator:
 
     def _process_grouped_by_group_csv(self, writer, all_work_entries, collections_mapping):
         """Process entries grouped by groups for CSV output"""
-        # Group entries by collection name first
-        group_entries = {}
+        # First, create a list of all entries with their group names
+        entries_with_groups = []
         
         for entry in all_work_entries:
             # Get group name from collections mapping
@@ -726,51 +734,68 @@ class NoBreaksReportGenerator:
             if collections_mapping and work_check_type_id:
                 group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
             
-            if group_name not in group_entries:
-                group_entries[group_name] = []
-            group_entries[group_name].append(entry)
+            # Store entry with its group name
+            entries_with_groups.append({
+                'group_name': group_name,
+                'entry': entry
+            })
         
-        # Process each group separately
-        for group_name in sorted(group_entries.keys()):
-            entries = group_entries[group_name]
+        # Sort entries first by group name, then by date/time
+        def get_combined_sort_key(item):
+            group_name = item['group_name']
+            entry_datetime = self._get_entry_sort_key(item['entry'])
+            return (group_name, entry_datetime)
+        
+        entries_with_groups.sort(key=get_combined_sort_key)
+        
+        # Group entries for pause redistribution
+        grouped_entries = {}
+        for item in entries_with_groups:
+            group_name = item['group_name']
+            if group_name not in grouped_entries:
+                grouped_entries[group_name] = []
+            grouped_entries[group_name].append(item['entry'])
+        
+        # Process each group for pause redistribution
+        all_processed_entries = []
+        for group_name, group_entries in grouped_entries.items():
+            # Process pause redistribution for this group
+            processed_entries = self._redistribute_pause_time(group_entries)
             
-            # Sort all entries chronologically by entry start time
-            entries.sort(key=self._get_entry_sort_key)
-            
-            # Process pause redistribution
-            processed_entries = self._redistribute_pause_time(entries)
-            
-            # Sort processed entries again to ensure chronological order
-            processed_entries.sort(key=self._get_entry_sort_key)
-            
-            group_total_seconds = 0
-            
-            # Write entries with new column order: Grupo, Actividad, Fecha, Empleado, Tipo Doc, NID, Entrada, Salida, Duración
+            # Add group name to each processed entry
             for entry in processed_entries:
-                employee_info = entry.get('employee', {})
-                row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
-                
-                # Write CSV row with columns in correct order
-                writer.writerow([
-                    group_name,  # Grupo
-                    row_data['activity_name'],  # Actividad
-                    row_data['entry_date'],  # Fecha
-                    row_data['employee_name'],  # Empleado
-                    row_data['employee_id_type'],  # Tipo de identificación
-                    row_data['employee_nid'],  # Nº de identificación
-                    row_data['start_time'],  # Entrada
-                    row_data['end_time'],  # Salida
-                    row_data['final_duration']  # Tiempo registrado
-                ])
-                
-                group_total_seconds += row_data['worked_seconds']
+                all_processed_entries.append({
+                    'group_name': group_name,
+                    'entry': entry
+                })
+        
+        # Sort all processed entries again by group and time
+        all_processed_entries.sort(key=get_combined_sort_key)
+        
+        # Write all entries to CSV
+        for item in all_processed_entries:
+            group_name = item['group_name']
+            entry = item['entry']
             
-            # Add TOTAL row for the group
-            total_duration = self._format_duration(timedelta(seconds=group_total_seconds))
-            writer.writerow([group_name, "TOTAL", "", "", "", "", "", "", total_duration])
+            # Get employee info for this entry
+            employee_info = entry.get('employee', {})
+            row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
             
-            # Add separator between groups
-            writer.writerow([])
+            # Override group name with our group (this ensures the grouped value is used)
+            row_data['group_name'] = group_name
+            
+            # Write CSV row with columns in correct order
+            writer.writerow([
+                row_data['group_name'],  # Grupo
+                row_data['activity_name'],  # Actividad
+                row_data['entry_date'],  # Fecha
+                row_data['employee_name'],  # Empleado
+                row_data['employee_id_type'],  # Tipo de identificación
+                row_data['employee_nid'],  # Nº de identificación
+                row_data['start_time'],  # Entrada
+                row_data['end_time'],  # Salida
+                row_data['final_duration']  # Tiempo registrado
+            ])
     
     def get_data_metrics(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
                          employee_id: Optional[str] = None, office_id: Optional[str] = None, 
@@ -919,8 +944,8 @@ class NoBreaksReportGenerator:
 
     def _process_grouped_by_group(self, ws, all_work_entries, collections_mapping, current_row):
         """Process entries grouped by work groups using check type collections"""
-        # Group entries by group only (not by date)
-        grouped_entries = {}
+        # First, create a list of all entries with their group names
+        entries_with_groups = []
         
         for entry in all_work_entries:
             # Get group name from collections mapping based on workCheckTypeId
@@ -929,66 +954,92 @@ class NoBreaksReportGenerator:
             if collections_mapping and work_check_type_id:
                 group_name = collections_mapping.get(work_check_type_id, "Sin Grupo")
             
-            # Use only group name as key
+            # Store entry with its group name
+            entries_with_groups.append({
+                'group_name': group_name,
+                'entry': entry
+            })
+        
+        # Sort entries first by group name, then by date/time
+        def get_combined_sort_key(item):
+            group_name = item['group_name']
+            entry_datetime = self._get_entry_sort_key(item['entry'])
+            return (group_name, entry_datetime)
+        
+        entries_with_groups.sort(key=get_combined_sort_key)
+        
+        # Group entries for pause redistribution
+        grouped_entries = {}
+        for item in entries_with_groups:
+            group_name = item['group_name']
             if group_name not in grouped_entries:
-                grouped_entries[group_name] = {
-                    'group_name': group_name,
-                    'all_entries': []
-                }
-            
-            grouped_entries[group_name]['all_entries'].append(entry)
+                grouped_entries[group_name] = []
+            grouped_entries[group_name].append(item['entry'])
         
-        # Sort groups by group name
-        sorted_groups = sorted(grouped_entries.values(), 
-                             key=lambda x: x['group_name'])
-        
-        # Process each group
-        for group in sorted_groups:
-            all_entries = group['all_entries']
+        # Process each group for pause redistribution
+        all_processed_entries = []
+        for group_name, group_entries in grouped_entries.items():
+            # Process pause redistribution for this group
+            processed_entries = self._redistribute_pause_time(group_entries)
             
-            # Sort all entries chronologically by entry start time
-            all_entries.sort(key=self._get_entry_sort_key)
-            
-            # Process pause redistribution
-            processed_entries = self._redistribute_pause_time(all_entries)
-            
-            # Sort processed entries again to ensure chronological order after pause redistribution
-            processed_entries.sort(key=self._get_entry_sort_key)
-            
-            # Track totals for the entire group
-            group_total_seconds = 0
-            
-            # Write processed entries to Excel (without pause entries)
+            # Add group name to each processed entry
             for entry in processed_entries:
-                # Get employee info for this entry
-                employee_info = entry.get('employee', {})
-                row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
-                
-                # Override group name with our group (this ensures the grouped value is used)
-                row_data['group_name'] = group['group_name']
-                
-                # Write to Excel with columns: Grupo, Actividad, Fecha, Empleado, Tipo Doc, NID, Entrada, Salida, Duración
-                ws.cell(row=current_row, column=1, value=row_data['group_name'])
-                ws.cell(row=current_row, column=2, value=row_data['activity_name'])
-                ws.cell(row=current_row, column=3, value=row_data['entry_date'])
-                ws.cell(row=current_row, column=4, value=row_data['employee_name'])
-                ws.cell(row=current_row, column=5, value=row_data['employee_id_type'])
-                ws.cell(row=current_row, column=6, value=row_data['employee_nid'])
-                ws.cell(row=current_row, column=7, value=row_data['start_time'])
-                ws.cell(row=current_row, column=8, value=row_data['end_time'])
-                ws.cell(row=current_row, column=9, value=row_data['final_duration'])
-                
-                # Accumulate totals
-                worked_seconds = row_data['worked_seconds']
-                group_total_seconds += worked_seconds
-                
-                current_row += 1
+                all_processed_entries.append({
+                    'group_name': group_name,
+                    'entry': entry
+                })
+        
+        # Sort all processed entries again by group and time
+        all_processed_entries.sort(key=get_combined_sort_key)
+        
+        # Write all entries to Excel
+        current_group = None
+        group_total_seconds = 0
+        group_start_row = current_row
+        
+        for item in all_processed_entries:
+            group_name = item['group_name']
+            entry = item['entry']
             
-            # Add TOTAL row for this group
-            current_row = self._add_group_total_row(ws, group, group_total_seconds, current_row)
+            # Check if we're starting a new group
+            if current_group != group_name:
+                # Add total for previous group if exists
+                if current_group is not None and group_total_seconds > 0:
+                    # Optional: Add a subtotal row for the previous group
+                    # Skip this if you don't want subtotals
+                    pass
+                
+                # Reset for new group
+                current_group = group_name
+                group_total_seconds = 0
+                group_start_row = current_row
             
-            # Add blank row between different groups
+            # Get employee info for this entry
+            employee_info = entry.get('employee', {})
+            row_data = self._extract_entry_data(entry, employee_info, collections_mapping)
+            
+            # Override group name with our group (this ensures the grouped value is used)
+            row_data['group_name'] = group_name
+            
+            # Write to Excel with columns: Grupo, Actividad, Fecha, Empleado, Tipo Doc, NID, Entrada, Salida, Duración
+            ws.cell(row=current_row, column=1, value=row_data['group_name'])
+            ws.cell(row=current_row, column=2, value=row_data['activity_name'])
+            ws.cell(row=current_row, column=3, value=row_data['entry_date'])
+            ws.cell(row=current_row, column=4, value=row_data['employee_name'])
+            ws.cell(row=current_row, column=5, value=row_data['employee_id_type'])
+            ws.cell(row=current_row, column=6, value=row_data['employee_nid'])
+            ws.cell(row=current_row, column=7, value=row_data['start_time'])
+            ws.cell(row=current_row, column=8, value=row_data['end_time'])
+            ws.cell(row=current_row, column=9, value=row_data['final_duration'])
+            
+            # Accumulate totals
+            worked_seconds = row_data['worked_seconds']
+            group_total_seconds += worked_seconds
+            
             current_row += 1
+        
+        # Optional: Add a final total for the last group
+        # Skip this if you don't want subtotals
         
         return current_row
 
