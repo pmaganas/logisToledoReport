@@ -79,26 +79,45 @@ def generate_report_background(report_id, form_data, app_instance):
             
             report.update_status('processing')
             
+            # Check if cancelled before starting generation
+            if report.should_cancel():
+                logger.info(f"[THREAD] Report {report_id} was cancelled before generation started")
+                return
+            
             # Generate report
             report_data = None
             
             logger.info(f"[THREAD] Form data: {form_data}")
             logger.info(f"[THREAD] Starting NO-BREAKS report generation - Type: {form_data['report_type']}")
             
-            # Create a progress callback function
+            # Create a progress callback function with cancellation check
             def update_progress(current_page, total_pages, current_records, total_records):
                 try:
+                    # FIRST: Check if the report was cancelled
+                    if report.should_cancel():
+                        logger.info(f"[THREAD] Report {report_id} cancelled during progress update - stopping generation")
+                        raise InterruptedError("Report generation cancelled by user")
+                    
                     # Check if pagination is complete
                     is_pagination_complete = (current_page >= total_pages)
                     
                     # Update progress in database
                     report.update_progress(current_page, total_pages, current_records, total_records, is_pagination_complete)
                     logger.info(f"[THREAD] Progress updated - Page {current_page}/{total_pages}, Records {current_records}/{total_records}")
+                except InterruptedError:
+                    # Re-raise the cancellation error to stop processing
+                    raise
                 except Exception as e:
                     logger.error(f"[THREAD] Error updating progress: {e}")
             
             no_breaks_generator = NoBreaksReportGenerator()
             logger.info(f"[THREAD] Created NoBreaksReportGenerator instance")
+            
+            # Final check before starting intensive generation
+            if report.should_cancel():
+                logger.info(f"[THREAD] Report {report_id} was cancelled before generation started")
+                return
+                
             report_data = no_breaks_generator.generate_report(
                 from_date=form_data['from_date'],
                 to_date=form_data['to_date'],
@@ -107,7 +126,8 @@ def generate_report_background(report_id, form_data, app_instance):
                 department_id=form_data['department_id'],
                 report_type=form_data['report_type'],
                 format=form_data.get('format', 'xlsx'),
-                progress_callback=update_progress)
+                progress_callback=update_progress,
+                cancellation_token=report)
             logger.info(f"[THREAD] NO-BREAKS report generation completed successfully for report {report_id}")
 
             if report_data:
@@ -137,6 +157,16 @@ def generate_report_background(report_id, form_data, app_instance):
             else:
                 logger.error("[THREAD] No report data generated")
                 report.update_status('error', error_message='No se pudo generar el reporte')
+                
+    except InterruptedError as e:
+        # Handle cancellation specifically
+        logger.info(f"[THREAD] Report generation cancelled - ID: {report_id}")
+        try:
+            report = BackgroundReport.get_report(report_id)
+            if report and not report.is_cancelled():
+                report.update_status('cancelled', error_message='Report generation was cancelled by user')
+        except Exception as cleanup_error:
+            logger.error(f"[THREAD] Error during cancellation cleanup: {cleanup_error}")
                 
     except Exception as e:
         logger.error(f"[THREAD] Background report generation failed - ID: {report_id}, Error: {str(e)}")

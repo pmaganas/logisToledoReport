@@ -135,6 +135,16 @@ class BackgroundReport(db.Model):
         self.updated_at = datetime.utcnow()
         db.session.commit()
     
+    def is_cancelled(self):
+        """Check if this report has been cancelled"""
+        # Refresh from database to get latest status
+        db.session.refresh(self)
+        return self.status == 'cancelled'
+    
+    def should_cancel(self):
+        """Check if report should be cancelled - used during processing"""
+        return self.is_cancelled()
+    
     def update_progress(self, current_page, total_pages, current_records, total_records, pagination_complete=None):
         """Update report progress"""
         self.current_page = current_page

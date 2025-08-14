@@ -23,7 +23,7 @@ class NoBreaksReportGenerator:
     def generate_report(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
                        employee_id: Optional[str] = None, office_id: Optional[str] = None, 
                        department_id: Optional[str] = None, report_type: str = "by_employee", 
-                       format: str = "xlsx", progress_callback = None) -> Optional[bytes]:
+                       format: str = "xlsx", progress_callback = None, cancellation_token = None) -> Optional[bytes]:
         """Generate report with only work entries - no employee data processing"""
         
         try:
@@ -61,6 +61,9 @@ class NoBreaksReportGenerator:
             fetch_time = time.time() - start_time
             self.logger.info(f"[REPORT] PARALLEL API fetch completed in {fetch_time:.1f}s - Total entries: {len(all_work_entries)}")
             
+            # Check for cancellation after API fetch
+            self._check_cancellation(cancellation_token, "after API fetch")
+            
             # Simulate progress callback for compatibility
             if progress_callback and all_work_entries:
                 progress_callback(1, 1, len(all_work_entries), len(all_work_entries))
@@ -70,22 +73,28 @@ class NoBreaksReportGenerator:
 
             self.logger.info(f"[REPORT] API fetch completed - Total entries retrieved: {len(all_work_entries)}")
             
+            # Check for cancellation before cache warming
+            self._check_cancellation(cancellation_token, "before cache warming")
+            
             # OPTIMIZACIÓN: Pre-warm caches
             self.logger.info("[REPORT] Pre-warming caches for optimal performance...")
             self._warm_up_caches(all_work_entries)
             self.logger.info("[REPORT] Cache warm-up completed, starting report processing...")
             
+            # Final check before intensive processing
+            self._check_cancellation(cancellation_token, "before report processing")
+            
             # Generate report based on format
             if format.lower() == "csv":
-                return self._generate_csv_report(all_work_entries, collections_mapping, report_type)
+                return self._generate_csv_report(all_work_entries, collections_mapping, report_type, cancellation_token)
             else:
-                return self._generate_xlsx_report(all_work_entries, collections_mapping, report_type)
+                return self._generate_xlsx_report(all_work_entries, collections_mapping, report_type, cancellation_token)
             
         except Exception as e:
             self.logger.error(f"Error generating report: {str(e)}")
             return self._create_error_report(str(e), format)
 
-    def _generate_xlsx_report(self, all_work_entries, collections_mapping, report_type):
+    def _generate_xlsx_report(self, all_work_entries, collections_mapping, report_type, cancellation_token=None):
         """Generate XLSX report"""
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -109,13 +118,16 @@ class NoBreaksReportGenerator:
         
         current_row = 2
         
+        # Check cancellation before processing
+        self._check_cancellation(cancellation_token, "before XLSX processing")
+        
         # Process entries based on report type
         if report_type == "by_activity":
-            current_row = self._process_grouped_by_activity(ws, all_work_entries, collections_mapping, current_row)
+            current_row = self._process_grouped_by_activity(ws, all_work_entries, collections_mapping, current_row, cancellation_token)
         elif report_type == "by_group":
-            current_row = self._process_grouped_by_group(ws, all_work_entries, collections_mapping, current_row)
+            current_row = self._process_grouped_by_group(ws, all_work_entries, collections_mapping, current_row, cancellation_token)
         else:  # by_employee (default)
-            current_row = self._process_grouped_entries(ws, all_work_entries, collections_mapping, current_row)
+            current_row = self._process_grouped_entries(ws, all_work_entries, collections_mapping, current_row, cancellation_token)
         
         # Save to BytesIO
         output = BytesIO()
@@ -123,7 +135,7 @@ class NoBreaksReportGenerator:
         output.seek(0)
         return output.getvalue()
 
-    def _generate_csv_report(self, all_work_entries, collections_mapping, report_type):
+    def _generate_csv_report(self, all_work_entries, collections_mapping, report_type, cancellation_token=None):
         """Generate CSV report"""
         output = StringIO()
         writer = csv.writer(output)
@@ -492,6 +504,12 @@ class NoBreaksReportGenerator:
             current_row += 1
         
         return current_row
+    
+    def _check_cancellation(self, cancellation_token, context=""):
+        """Helper method to check cancellation and raise InterruptedError if cancelled"""
+        if cancellation_token and cancellation_token.should_cancel():
+            self.logger.info(f"[REPORT] Generation cancelled {context}")
+            raise InterruptedError("Report generation was cancelled")
     
     def _warm_up_caches(self, all_work_entries):
         """Pre-warm all caches for optimal performance"""
