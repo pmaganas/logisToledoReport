@@ -32,6 +32,7 @@ Application port: 5001 (changed from default 5000).
 - **Authentication**: Secure login/logout system using environment variables for credentials, protecting all application routes.
 - **Token Management**: API bearer tokens are securely stored in a PostgreSQL database with a web interface for configuration and testing.
 - **Check Type Management**: Activity types from the Sesame API are cached in the database for persistence and efficient lookup, with automatic synchronization.
+- **Background Report Management**: Report status and progress are now persisted in PostgreSQL database (`BackgroundReport` model) instead of in-memory storage, solving production issues with worker restarts and multi-worker environments.
 - **Error Handling**: Centralized error handlers, user-friendly messages, and comprehensive logging.
 - **Deployment**: Production-ready with environment-based configuration, designed for robust error handling and static file serving.
 - **Default Configuration**: "Grupos y tipos de fichaje por grupos" set as default report type for streamlined user experience.

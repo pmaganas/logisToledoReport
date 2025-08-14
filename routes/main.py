@@ -10,15 +10,13 @@ from services.no_breaks_report_generator import NoBreaksReportGenerator
 from services.sesame_api import SesameAPI
 from auth import requires_auth, check_auth, login_user, logout_user, authenticate
 from app import db
+from models import BackgroundReport
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
 
 # Configuration
 MAX_REPORTS = 10
-
-# Store for background reports
-background_reports = {}
 
 def _enforce_report_limit(temp_dir, max_reports=MAX_REPORTS):
     """Enforce maximum number of reports, delete oldest if exceeded"""
@@ -43,9 +41,14 @@ def _enforce_report_limit(temp_dir, max_reports=MAX_REPORTS):
                 filename = os.path.basename(file_to_delete)
                 if '_' in filename:
                     report_id = filename.split('_')[0]
-                    # Remove from background_reports if it exists
-                    if report_id in background_reports:
-                        del background_reports[report_id]
+                    # Remove from database if it exists
+                    try:
+                        report = BackgroundReport.get_report(report_id)
+                        if report:
+                            db.session.delete(report)
+                            db.session.commit()
+                    except Exception as e:
+                        logger.warning(f"Failed to delete report {report_id} from database: {str(e)}")
                 
                 # Delete the file
                 os.remove(file_to_delete)
@@ -67,7 +70,14 @@ def generate_report_background(report_id, form_data, app_instance):
         logger.info(f"[THREAD] Starting background thread for report {report_id}")
         with app_instance.app_context():
             logger.info(f"[THREAD] Inside app context - Starting background report generation - ID: {report_id}")
-            background_reports[report_id]['status'] = 'processing'
+            
+            # Get the report from database and update status
+            report = BackgroundReport.get_report(report_id)
+            if not report:
+                logger.error(f"[THREAD] Report {report_id} not found in database")
+                return
+            
+            report.update_status('processing')
             
             # Generate report
             report_data = None
@@ -77,17 +87,15 @@ def generate_report_background(report_id, form_data, app_instance):
             
             # Create a progress callback function
             def update_progress(current_page, total_pages, current_records, total_records):
-                if report_id in background_reports:
+                try:
                     # Check if pagination is complete
                     is_pagination_complete = (current_page >= total_pages)
                     
-                    background_reports[report_id]['progress'] = {
-                        'current_page': current_page,
-                        'total_pages': total_pages,
-                        'current_records': current_records,
-                        'total_records': total_records,
-                        'pagination_complete': is_pagination_complete
-                    }
+                    # Update progress in database
+                    report.update_progress(current_page, total_pages, current_records, total_records, is_pagination_complete)
+                    logger.info(f"[THREAD] Progress updated - Page {current_page}/{total_pages}, Records {current_records}/{total_records}")
+                except Exception as e:
+                    logger.error(f"[THREAD] Error updating progress: {e}")
             
             no_breaks_generator = NoBreaksReportGenerator()
             logger.info(f"[THREAD] Created NoBreaksReportGenerator instance")
@@ -123,39 +131,21 @@ def generate_report_background(report_id, form_data, app_instance):
                 if deleted_files:
                     logger.info(f"Deleted {len(deleted_files)} old report(s) to enforce 10 report limit: {', '.join(deleted_files)}")
                 
-                # Store filename and file_path in background_reports for later access
-                background_reports[report_id]['filename'] = filename
-                background_reports[report_id]['file_path'] = file_path
-                
-                # Update status outside app context to avoid DB connection issues
-                logger.info(f"Background report completed - ID: {report_id}, File: {filename}")
+                # Update status to completed with file information
+                report.update_status('completed', filename=filename, file_path=file_path)
+                logger.info(f"[THREAD] Report completed successfully - ID: {report_id}, File: {filename}")
             else:
-                logger.error("No report data generated")
-                background_reports[report_id]['status'] = 'error'
-                background_reports[report_id]['error'] = 'No se pudo generar el reporte'
+                logger.error("[THREAD] No report data generated")
+                report.update_status('error', error_message='No se pudo generar el reporte')
                 
     except Exception as e:
-        logger.error(f"Background report generation failed - ID: {report_id}, Error: {str(e)}")
-        background_reports[report_id]['status'] = 'error'
-        background_reports[report_id]['error'] = f'Error al generar el reporte: {str(e)}'
-        
-    # Update status outside app context to avoid DB SSL issues
-    try:
-        # Check if report was generated successfully by checking if the status is still 'processing'
-        # and if we reached this point without errors
-        if background_reports[report_id]['status'] == 'processing':
-            # The report was generated successfully if we get here
-            background_reports[report_id]['status'] = 'completed'
-            logger.info(f"[THREAD] Report status updated to COMPLETED - ID: {report_id}")
-            # Use the filename and file_path that were set above
-            # The variables are already set in the scope above (lines 91 and 98)
-        # If status is not 'processing', it means an error occurred earlier
-        
-    except Exception as e:
-        logger.error(f"Error updating report status - ID: {report_id}, Error: {str(e)}")
-        if report_id in background_reports:
-            background_reports[report_id]['status'] = 'error'
-            background_reports[report_id]['error'] = 'Error en el proceso final'
+        logger.error(f"[THREAD] Background report generation failed - ID: {report_id}, Error: {str(e)}")
+        try:
+            report = BackgroundReport.get_report(report_id)
+            if report:
+                report.update_status('error', error_message=f'Error al generar el reporte: {str(e)}')
+        except Exception as db_error:
+            logger.error(f"[THREAD] Error updating error status in DB: {db_error}")
 
 
 @main_bp.route('/login', methods=['GET', 'POST'])
@@ -236,11 +226,8 @@ def index():
             'format': request.form.get('format', 'xlsx')
         }
         
-        background_reports[report_id] = {
-            'status': 'starting',
-            'created_at': datetime.now(),
-            'form_data': form_data
-        }
+        # Create entry in database
+        BackgroundReport.create_report(report_id)
         
         # Start background thread with app context
         from app import app
@@ -263,54 +250,42 @@ def index():
 @requires_auth
 def report_status(report_id):
     """Check the status of a background report"""
-    if report_id not in background_reports:
+    report = BackgroundReport.get_report(report_id)
+    if not report:
         return jsonify({'status': 'not_found'}), 404
     
-    report = background_reports[report_id]
-    response_data = {
-        'status': report['status'],
-        'created_at': report['created_at'].isoformat(),
-        'filename': report.get('filename', ''),
-        'error': report.get('error', '')
-    }
-    
-    # Include progress information if available
-    if 'progress' in report:
-        response_data['progress'] = report['progress']
-    
-    return jsonify(response_data)
+    return jsonify(report.to_dict())
 
 
 @main_bp.route('/download-report/<report_id>')
 @requires_auth
 def download_report(report_id):
     """Download a completed background report"""
-    if report_id not in background_reports:
+    report = BackgroundReport.get_report(report_id)
+    if not report:
         flash('Reporte no encontrado', 'error')
         return redirect(url_for('main.index'))
     
-    report = background_reports[report_id]
-    
-    if report['status'] != 'completed':
+    if report.status != 'completed':
         flash('Reporte no está listo para descarga', 'error')
         return redirect(url_for('main.index'))
     
-    if not os.path.exists(report['file_path']):
+    if not report.file_path or not os.path.exists(report.file_path):
         flash('Archivo de reporte no encontrado', 'error')
         return redirect(url_for('main.index'))
     
     try:
         # Determine mimetype based on file extension
-        if report['filename'].endswith('.csv'):
+        if report.filename and report.filename.endswith('.csv'):
             mimetype = 'text/csv'
         else:
             mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         
         return send_file(
-            report['file_path'],
+            report.file_path,
             mimetype=mimetype,
             as_attachment=True,
-            download_name=report['filename']
+            download_name=report.filename
         )
     except Exception as e:
         logger.error(f"Error downloading report {report_id}: {str(e)}")
@@ -629,16 +604,23 @@ def get_current_token():
 def check_processing_reports():
     """Check if there are any reports currently being processed"""
     try:
-        # Check for reports in processing state
+        # Check for reports in processing state from database
+        processing_reports_query = BackgroundReport.query.filter_by(status='processing').all()
         processing_reports = []
-        for report_id, report_data in background_reports.items():
-            if report_data.get('status') == 'processing':
-                processing_reports.append({
-                    'id': report_id,
-                    'status': 'processing',
-                    'created_at': report_data.get('created_at', ''),
-                    'progress': report_data.get('progress', {})
-                })
+        
+        for report in processing_reports_query:
+            processing_reports.append({
+                'id': report.id,
+                'status': report.status,
+                'created_at': report.created_at.isoformat(),
+                'progress': {
+                    'current_page': report.current_page,
+                    'total_pages': report.total_pages,
+                    'current_records': report.current_records,
+                    'total_records': report.total_records,
+                    'pagination_complete': report.pagination_complete
+                }
+            })
         
         return jsonify({
             'status': 'success',
@@ -660,12 +642,10 @@ def check_processing_reports():
 def cancel_report(report_id):
     """Cancel a report that is being processed"""
     try:
-        if report_id in background_reports:
-            report_status = background_reports[report_id]
-            
+        report = BackgroundReport.get_report(report_id)
+        if report:
             # Mark as cancelled
-            report_status['status'] = 'cancelled'
-            report_status['cancelled_at'] = datetime.now().isoformat()
+            report.update_status('cancelled', error_message='Reporte cancelado por el usuario')
             
             # Clean up any partial files
             temp_dir = 'temp_reports'
@@ -816,9 +796,14 @@ def delete_report(report_id):
         # Delete the file
         os.remove(file_path)
         
-        # Also remove from background_reports if it exists
-        if report_id in background_reports:
-            del background_reports[report_id]
+        # Also remove from database if it exists
+        try:
+            report = BackgroundReport.get_report(report_id)
+            if report:
+                db.session.delete(report)
+                db.session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to delete report {report_id} from database: {str(e)}")
         
         return jsonify({
             'status': 'success',

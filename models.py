@@ -85,3 +85,79 @@ class CheckType(db.Model):
                 db.session.add(check_type)
         
         db.session.commit()
+
+
+class BackgroundReport(db.Model):
+    """Model to store background report status and progress"""
+    __tablename__ = 'background_reports'
+    
+    id = db.Column(db.String(36), primary_key=True)  # UUID string
+    status = db.Column(db.String(20), nullable=False, default='pending')  # pending, processing, completed, error
+    filename = db.Column(db.String(255), nullable=True)
+    file_path = db.Column(db.String(500), nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+    
+    # Progress tracking
+    current_page = db.Column(db.Integer, default=0)
+    total_pages = db.Column(db.Integer, default=0)
+    current_records = db.Column(db.Integer, default=0)
+    total_records = db.Column(db.Integer, default=0)
+    pagination_complete = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<BackgroundReport {self.id}: {self.status}>'
+    
+    @classmethod
+    def create_report(cls, report_id):
+        """Create a new background report"""
+        report = cls(id=report_id, status='pending')
+        db.session.add(report)
+        db.session.commit()
+        return report
+    
+    @classmethod
+    def get_report(cls, report_id):
+        """Get a report by ID"""
+        return cls.query.get(report_id)
+    
+    def update_status(self, status, filename=None, file_path=None, error_message=None):
+        """Update report status"""
+        self.status = status
+        if filename:
+            self.filename = filename
+        if file_path:
+            self.file_path = file_path
+        if error_message:
+            self.error_message = error_message
+        self.updated_at = datetime.utcnow()
+        db.session.commit()
+    
+    def update_progress(self, current_page, total_pages, current_records, total_records, pagination_complete=None):
+        """Update report progress"""
+        self.current_page = current_page
+        self.total_pages = total_pages
+        self.current_records = current_records
+        self.total_records = total_records
+        if pagination_complete is not None:
+            self.pagination_complete = pagination_complete
+        self.updated_at = datetime.utcnow()
+        db.session.commit()
+    
+    def to_dict(self):
+        """Convert to dictionary for JSON response"""
+        return {
+            'status': self.status,
+            'created_at': self.created_at.isoformat(),
+            'filename': self.filename or '',
+            'error': self.error_message or '',
+            'progress': {
+                'current_page': self.current_page,
+                'total_pages': self.total_pages,
+                'current_records': self.current_records,
+                'total_records': self.total_records,
+                'pagination_complete': self.pagination_complete
+            }
+        }
