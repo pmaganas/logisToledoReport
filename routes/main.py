@@ -148,6 +148,18 @@ def generate_report_background(report_id, form_data, app_instance):
             logger.error(f"[THREAD] Error updating error status in DB: {db_error}")
 
 
+@main_bp.route('/health')
+def health():
+    """Health check endpoint for Docker"""
+    try:
+        # Check database connection
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
+        return jsonify({'status': 'healthy', 'database': 'connected'}), 200
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 503
+
+
 @main_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page"""
