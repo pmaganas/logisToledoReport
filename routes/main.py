@@ -644,31 +644,52 @@ def get_current_token():
 @main_bp.route('/check-processing-reports')
 @requires_auth
 def check_processing_reports():
-    """Check if there are any reports currently being processed"""
+    """Check if there are any reports currently being processed - with cleanup of orphaned reports"""
     try:
+        from datetime import datetime, timedelta
+        
         # Check for reports in processing state from database
         processing_reports_query = BackgroundReport.query.filter_by(status='processing').all()
-        processing_reports = []
+        valid_processing_reports = []
+        orphaned_count = 0
+        
+        current_time = datetime.utcnow()
         
         for report in processing_reports_query:
-            processing_reports.append({
-                'id': report.id,
-                'status': report.status,
-                'created_at': report.created_at.isoformat(),
-                'progress': {
-                    'current_page': report.current_page,
-                    'total_pages': report.total_pages,
-                    'current_records': report.current_records,
-                    'total_records': report.total_records,
-                    'pagination_complete': report.pagination_complete
-                }
-            })
+            # Check if report is orphaned (processing for more than 30 minutes without update)
+            time_since_update = current_time - report.updated_at
+            
+            if time_since_update > timedelta(minutes=30):
+                # This report has been "processing" for too long - likely orphaned
+                logger.warning(f"Found orphaned report {report.id} - processing for {time_since_update}")
+                report.update_status('error', error_message=f'Report abandoned after {time_since_update}. Thread likely died.')
+                orphaned_count += 1
+            else:
+                # Valid processing report
+                valid_processing_reports.append({
+                    'id': report.id,
+                    'status': report.status,
+                    'created_at': report.created_at.isoformat(),
+                    'updated_at': report.updated_at.isoformat(),
+                    'time_processing': str(time_since_update),
+                    'progress': {
+                        'current_page': report.current_page,
+                        'total_pages': report.total_pages,
+                        'current_records': report.current_records,
+                        'total_records': report.total_records,
+                        'pagination_complete': report.pagination_complete
+                    }
+                })
+        
+        if orphaned_count > 0:
+            logger.info(f"Cleaned up {orphaned_count} orphaned report(s)")
         
         return jsonify({
             'status': 'success',
-            'has_processing': len(processing_reports) > 0,
-            'processing_count': len(processing_reports),
-            'reports': processing_reports
+            'has_processing': len(valid_processing_reports) > 0,
+            'processing_count': len(valid_processing_reports),
+            'orphaned_cleaned': orphaned_count,
+            'reports': valid_processing_reports
         })
         
     except Exception as e:
@@ -714,6 +735,39 @@ def cancel_report(report_id):
         return jsonify({
             'status': 'error',
             'message': f'Error al cancelar reporte: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/cleanup-reports', methods=['POST'])
+@requires_auth
+def cleanup_reports_endpoint():
+    """Manual cleanup of orphaned and old reports"""
+    try:
+        from services.report_cleanup import ReportCleanupService
+        
+        cleanup_service = ReportCleanupService()
+        result = cleanup_service.full_cleanup()
+        
+        if result['success']:
+            return jsonify({
+                'status': 'success',
+                'message': 'Limpieza completada exitosamente',
+                'orphaned_cleaned': result['orphaned_cleanup']['cleaned_count'],
+                'old_reports_deleted': result['old_reports_cleanup']['deleted_count'],
+                'statistics': result['final_statistics']['statistics']
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Error durante la limpieza',
+                'details': result
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error in cleanup endpoint: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error al ejecutar limpieza: {str(e)}'
         }), 500
 
 

@@ -725,27 +725,89 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/check-processing-reports')
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success' && data.has_processing && data.reports.length > 0) {
-                    // There are reports being processed - show indicator and check status
-                    const firstReport = data.reports[0];
-                    currentProcessingReportId = firstReport.id;
+                if (data.status === 'success') {
+                    // Check if any orphaned reports were cleaned up
+                    if (data.orphaned_cleaned && data.orphaned_cleaned > 0) {
+                        console.log(`Cleaned up ${data.orphaned_cleaned} orphaned report(s)`);
+                        
+                        // Show cleanup message to user
+                        const reportStatus = document.getElementById('reportStatus');
+                        if (reportStatus) {
+                            reportStatus.className = 'rounded-xl p-4 mb-4 bg-blue-50 border border-blue-200';
+                            reportStatus.innerHTML = `
+                                <div class="flex items-center text-blue-800">
+                                    <i class="ti ti-info-circle w-5 h-5 mr-2"></i>
+                                    <span class="font-medium">Se limpiaron ${data.orphaned_cleaned} reporte(s) abandonado(s) automáticamente</span>
+                                </div>
+                            `;
+                            
+                            // Hide message after 3 seconds
+                            setTimeout(() => {
+                                if (reportStatus && reportStatus.className.includes('bg-blue-50')) {
+                                    reportStatus.className = 'hidden';
+                                    reportStatus.innerHTML = '';
+                                }
+                            }, 3000);
+                        }
+                    }
                     
-                    // Disable report generation buttons
-                    disableReportButtons(true);
-                    
-                    // Show cancel button
-                    showCancelButton(firstReport.id);
-                    
-                    // Check status
-                    checkReportStatus(firstReport.id);
+                    if (data.has_processing && data.reports.length > 0) {
+                        // There are valid reports being processed - show indicator and check status
+                        const firstReport = data.reports[0];
+                        currentProcessingReportId = firstReport.id;
+                        
+                        console.log(`Found active report: ${firstReport.id} (processing for ${firstReport.time_processing})`);
+                        
+                        // Disable report generation buttons
+                        disableReportButtons(true);
+                        
+                        // Show cancel button
+                        showCancelButton(firstReport.id);
+                        
+                        // Check status
+                        checkReportStatus(firstReport.id);
+                    } else {
+                        // No valid processing reports - enable buttons and clear any residual state
+                        console.log('No active reports found - enabling interface');
+                        currentProcessingReportId = null;
+                        
+                        // Hide any cancel buttons
+                        hideCancelButton();
+                        
+                        // Clear any progress indicators
+                        clearProgressIndicators();
+                        
+                        // Enable buttons
+                        checkTokenStatus();
+                    }
                 } else {
-                    // No processing reports - enable buttons
+                    console.error('Error in processing reports response:', data);
+                    // Fallback: enable interface
                     checkTokenStatus();
                 }
             })
             .catch(error => {
                 console.error('Error checking for processing reports:', error);
+                // Fallback: enable interface
+                checkTokenStatus();
             });
+    }
+    
+    // Helper function to clear all progress indicators
+    function clearProgressIndicators() {
+        const reportStatus = document.getElementById('reportStatus');
+        if (reportStatus && !reportStatus.className.includes('bg-blue-50')) {
+            reportStatus.className = 'hidden';
+            reportStatus.innerHTML = '';
+        }
+        
+        // Clear any progress bars or other indicators
+        const progressElements = document.querySelectorAll('[class*="progress"]');
+        progressElements.forEach(element => {
+            if (element.style) {
+                element.style.display = 'none';
+            }
+        });
     }
     
     // Function to disable/enable report buttons
