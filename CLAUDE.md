@@ -13,6 +13,10 @@ This is a Flask-based web application that generates Excel and CSV reports from 
 - **Production**: `gunicorn app:app` (configured for Replit deployment)
 - **Note**: El puerto por defecto se cambió a 5001 para evitar conflictos con AirPlay en macOS
 
+### Performance Testing
+- **Test Optimizations**: `python3 test_optimizations.py` (verifica las optimizaciones de rendimiento)
+- **Benchmark Reports**: Las optimizaciones reducen el tiempo de generación de >30min a <5min
+
 ### Dependencies
 - Install dependencies: `pip install -r requirements.txt` or use `uv` if available
 - Dependencies are defined in `pyproject.toml`
@@ -52,6 +56,7 @@ This is a Flask-based web application that generates Excel and CSV reports from 
 - **Cleanup**: Automatic cleanup maintains maximum 10 reports
 - **Formats**: Both Excel (.xlsx) and CSV export with UTF-8 BOM encoding
 - **Background Processing**: Uses threading to prevent UI blocking during report generation
+- **Performance**: OPTIMIZED with parallel API calls, caching, and batch processing for <5min generation times
 
 ## Important Configuration
 

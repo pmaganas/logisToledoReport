@@ -1,9 +1,9 @@
 import requests
 import logging
+import time
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from models import SesameToken, db
-import time
 
 class ParallelSesameAPI:
     def __init__(self):
@@ -18,15 +18,16 @@ class ParallelSesameAPI:
         
         # Create a session with connection pooling
         self.session = requests.Session()
+        # OPTIMIZACIÓN: Configuración mejorada para mayor rendimiento
         retry_strategy = requests.adapters.Retry(
-            total=2,
-            backoff_factor=0.3,
-            status_forcelist=[500, 502, 503, 504],
+            total=3,  # Increased retries
+            backoff_factor=0.2,  # Faster backoff
+            status_forcelist=[500, 502, 503, 504, 429],  # Include rate limit
             allowed_methods=["GET", "POST"])
         adapter = requests.adapters.HTTPAdapter(
             max_retries=retry_strategy,
-            pool_connections=20,
-            pool_maxsize=20,
+            pool_connections=30,  # Increased pool size
+            pool_maxsize=30,     # Increased max pool size
             pool_block=False
         )
         self.session.mount('https://', adapter)
@@ -67,7 +68,7 @@ class ParallelSesameAPI:
                 headers=self.headers,
                 params=params,
                 json=data,
-                timeout=(5, 15),
+                timeout=(3, 10),  # Reduced timeout for faster failure detection
                 proxies={},
                 verify=True
             )
@@ -93,7 +94,7 @@ class ParallelSesameAPI:
                          from_date: Optional[str] = None,
                          to_date: Optional[str] = None,
                          page: int = 1,
-                         limit: int = 500) -> Optional[Dict]:
+                         limit: int = 1000) -> Optional[Dict]:
         """Get work entries (time tracking data)"""
         params: Dict[str, any] = {"page": page, "limit": limit}
 
@@ -115,7 +116,7 @@ class ParallelSesameAPI:
                           from_date: Optional[str] = None,
                           to_date: Optional[str] = None,
                           page: int = 1,
-                          limit: int = 500) -> Optional[Dict]:
+                          limit: int = 1000) -> Optional[Dict]:
         """Get time tracking entries - using work-entries endpoint"""
         return self.get_work_entries(employee_id, company_id, from_date,
                                      to_date, page, limit)
@@ -191,10 +192,10 @@ class ParallelSesameAPI:
                                            from_date: Optional[str] = None,
                                            to_date: Optional[str] = None,
                                            max_pages: int = 100,
-                                           max_workers: int = 5) -> List[Dict]:
-        """Get all time tracking data with parallel pagination"""
+                                           max_workers: int = 8) -> List[Dict]:
+        """Get all time tracking data with parallel pagination - OPTIMIZED"""
         all_data = []
-        limit = 500
+        limit = 1000  # Increased page size for better performance
         
         # First, get page 1 to determine total pages
         self.logger.info("[PARALLEL] Getting first page to determine total...")
@@ -222,7 +223,7 @@ class ParallelSesameAPI:
         
         # Fetch remaining pages in parallel
         pages_to_fetch = list(range(2, total_pages + 1))
-        self.logger.info(f"[PARALLEL] Starting parallel fetch of {len(pages_to_fetch)} pages with {max_workers} workers...")
+        self.logger.info(f"[PARALLEL] Starting OPTIMIZED parallel fetch of {len(pages_to_fetch)} pages with {max_workers} workers (limit: {limit})...")
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
@@ -240,14 +241,22 @@ class ParallelSesameAPI:
                     all_data.extend(data)
                 completed += 1
                 
-                if completed % 10 == 0:
-                    self.logger.info(f"[PARALLEL] Progress: {completed}/{len(pages_to_fetch)} pages completed")
+                # Show progress more frequently for better user feedback
+                if completed % 5 == 0 or completed == len(pages_to_fetch):
+                    percentage = (completed / len(pages_to_fetch)) * 100
+                    self.logger.info(f"[PARALLEL] Progress: {completed}/{len(pages_to_fetch)} pages ({percentage:.1f}%) - Records: {len(all_data)}")
         
-        # Sort all data by date and time
-        all_data.sort(key=lambda x: (
-            x.get('workEntryIn', {}).get('date', ''),
-            x.get('workEntryIn', {}).get('time', '')
-        ))
+        # OPTIMIZACIÓN: Sorting optimizado con manejo de errores
+        try:
+            sort_start = time.time()
+            all_data.sort(key=lambda x: (
+                x.get('workEntryIn', {}).get('date', '1900-01-01T00:00:00Z'),
+                x.get('workEntryIn', {}).get('time', '00:00:00')
+            ))
+            sort_time = time.time() - sort_start
+            self.logger.info(f"[PARALLEL] Data sorted in {sort_time:.1f}s")
+        except Exception as e:
+            self.logger.warning(f"[PARALLEL] Sorting failed, using unsorted data: {str(e)}")
         
         self.logger.info(f"[PARALLEL] Total records retrieved: {len(all_data)}")
         return all_data
@@ -265,5 +274,5 @@ class ParallelSesameAPI:
             from_date=from_date,
             to_date=to_date,
             max_pages=max_pages,
-            max_workers=5  # Adjust based on API rate limits
+            max_workers=8  # Optimized for better performance
         )

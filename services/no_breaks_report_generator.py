@@ -1,6 +1,7 @@
 import openpyxl
 import csv
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 from io import BytesIO, StringIO
@@ -15,6 +16,9 @@ class NoBreaksReportGenerator:
         # Create a regular SesameAPI instance for collections mapping
         self.regular_api = SesameAPI()
         self.logger = logging.getLogger(__name__)
+        # Cache for employee data and collections to avoid repeated processing
+        self._employee_cache = {}
+        self._collections_cache = None
 
     def generate_report(self, from_date: Optional[str] = None, to_date: Optional[str] = None, 
                        employee_id: Optional[str] = None, office_id: Optional[str] = None, 
@@ -32,69 +36,44 @@ class NoBreaksReportGenerator:
             if not check_types_service.ensure_check_types_cached():
                 self.logger.warning("Failed to cache check types, activity names may be incomplete")
             
-            # Get check type collections mapping
-            self.logger.info("[REPORT] Fetching check type collections mapping...")
-            collections_mapping = self.regular_api.get_all_check_type_collections_mapping()
-            self.logger.info(f"[REPORT] Collections mapping obtained with {len(collections_mapping)} check types")
+            # OPTIMIZACIÓN: Cache collections mapping
+            if self._collections_cache is None:
+                self.logger.info("[REPORT] Fetching check type collections mapping...")
+                self._collections_cache = self.regular_api.get_all_check_type_collections_mapping()
+                self.logger.info(f"[REPORT] Collections mapping cached with {len(self._collections_cache)} check types")
+            else:
+                self.logger.info(f"[REPORT] Using cached collections mapping with {len(self._collections_cache)} check types")
             
-            all_work_entries = []
-            page = 1
-            max_safe_pages = 100  # Limite aumentado para 10,000 registros
+            collections_mapping = self._collections_cache
             
-            self.logger.info(f"[REPORT] Starting work entries retrieval, max pages: {max_safe_pages}")
+            # OPTIMIZACIÓN: Usar procesamiento paralelo mejorado
+            self.logger.info(f"[REPORT] Starting PARALLEL work entries retrieval...")
+            start_time = time.time()
             
-            while page <= max_safe_pages:
-                try:
-                    self.logger.info(f"[REPORT] Fetching page {page}...")
-                    response = self.sesame_api.get_time_tracking(
-                        employee_id=employee_id,
-                        from_date=from_date,
-                        to_date=to_date,
-                        page=page,
-                        limit=500
-                    )
-                    self.logger.info(f"[REPORT] Response received for page {page}")
-                    
-                    if not response or not response.get('data'):
-                        break
-                    
-                    entries = response['data']
-                    all_work_entries.extend(entries)
-                    
-                    # Verificar si hay más páginas
-                    meta = response.get('meta', {})
-                    total_pages = meta.get('lastPage', 1)
-                    total_records = meta.get('total', 0)
-                    self.logger.info(f"[REPORT] Página {page} de {total_pages} - Registros en esta página: {len(entries)} - Total acumulado: {len(all_work_entries)} de {total_records}")
-                    
-                    # Call progress callback if provided
-                    if progress_callback:
-                        progress_callback(page, total_pages, len(all_work_entries), total_records)
-                    
-                    if page >= meta.get('lastPage', 1):
-                        break
-                    
-                    # Si no hay suficientes registros, terminamos
-                    if len(entries) < 500:
-                        break
-                    
-                    page += 1
-                    
-                except Exception as e:
-                    self.logger.error(f"Error en página {page}: {str(e)}")
-                    if page == 1:
-                        # Si falla la primera página, es un error crítico
-                        raise e
-                    else:
-                        # Si falla una página posterior, continuamos con lo que tenemos
-                        self.logger.warning(f"Continuando con {len(all_work_entries)} registros obtenidos hasta página {page-1}")
-                        break
+            all_work_entries = self.sesame_api.get_all_time_tracking_data_parallel(
+                employee_id=employee_id,
+                from_date=from_date,
+                to_date=to_date,
+                max_pages=100,
+                max_workers=8  # Increased workers for better performance
+            )
+            
+            fetch_time = time.time() - start_time
+            self.logger.info(f"[REPORT] PARALLEL API fetch completed in {fetch_time:.1f}s - Total entries: {len(all_work_entries)}")
+            
+            # Simulate progress callback for compatibility
+            if progress_callback and all_work_entries:
+                progress_callback(1, 1, len(all_work_entries), len(all_work_entries))
             
             if not all_work_entries:
                 return self._create_empty_report(format)
 
-            self.logger.info(f"[REPORT] API pagination completed - Total entries retrieved: {len(all_work_entries)}")
-            self.logger.info("[REPORT] Starting report processing...")
+            self.logger.info(f"[REPORT] API fetch completed - Total entries retrieved: {len(all_work_entries)}")
+            
+            # OPTIMIZACIÓN: Pre-warm caches
+            self.logger.info("[REPORT] Pre-warming caches for optimal performance...")
+            self._warm_up_caches(all_work_entries)
+            self.logger.info("[REPORT] Cache warm-up completed, starting report processing...")
             
             # Generate report based on format
             if format.lower() == "csv":
@@ -475,19 +454,21 @@ class NoBreaksReportGenerator:
             daily_totals = {}
             total_worked_seconds = 0
             
+            # OPTIMIZACIÓN: Batch process entries for Excel writing
+            batch_data = []
             for entry in processed_entries:
                 row_data = self._extract_entry_data(entry, group['employee_info'], collections_mapping)
-                
-                # Write to Excel
-                ws.cell(row=current_row, column=1, value=row_data['employee_name'])
-                ws.cell(row=current_row, column=2, value=row_data['employee_id_type'])
-                ws.cell(row=current_row, column=3, value=row_data['employee_nid'])
-                ws.cell(row=current_row, column=4, value=row_data['entry_date'])
-                ws.cell(row=current_row, column=5, value=row_data['activity_name'])
-                ws.cell(row=current_row, column=6, value=row_data['group_name'])
-                ws.cell(row=current_row, column=7, value=row_data['start_time'])
-                ws.cell(row=current_row, column=8, value=row_data['end_time'])
-                ws.cell(row=current_row, column=9, value=row_data['final_duration'])
+                batch_data.append([
+                    row_data['employee_name'],
+                    row_data['employee_id_type'],
+                    row_data['employee_nid'],
+                    row_data['entry_date'],
+                    row_data['activity_name'],
+                    row_data['group_name'],
+                    row_data['start_time'],
+                    row_data['end_time'],
+                    row_data['final_duration']
+                ])
                 
                 # Accumulate totals by activity type
                 activity_name = row_data['activity_name']
@@ -497,7 +478,11 @@ class NoBreaksReportGenerator:
                     daily_totals[activity_name] = 0
                 daily_totals[activity_name] += worked_seconds
                 total_worked_seconds += worked_seconds
-                
+            
+            # Write batch data to Excel - much faster than cell by cell
+            for row_values in batch_data:
+                for col_idx, value in enumerate(row_values, 1):
+                    ws.cell(row=current_row, column=col_idx, value=value)
                 current_row += 1
             
             # Add TOTAL row for this employee/date combination
@@ -508,28 +493,85 @@ class NoBreaksReportGenerator:
         
         return current_row
     
+    def _warm_up_caches(self, all_work_entries):
+        """Pre-warm all caches for optimal performance"""
+        try:
+            # Initialize check types service if not exists
+            if not hasattr(self, '_check_types_service'):
+                from services.check_types_service import CheckTypesService
+                self._check_types_service = CheckTypesService()
+            
+            # Warm up activity cache
+            self._check_types_service.warm_up_cache(all_work_entries)
+            
+            # Pre-cache unique employees
+            unique_employees = {}
+            for entry in all_work_entries:
+                employee_info = entry.get('employee', {})
+                employee_id = employee_info.get('id', 'unknown')
+                if employee_id not in unique_employees:
+                    unique_employees[employee_id] = employee_info
+            
+            # Pre-populate employee cache
+            for emp_id, emp_info in unique_employees.items():
+                if emp_id not in self._employee_cache:
+                    employee_name = f"{emp_info.get('firstName', '')} {emp_info.get('lastName', '')}".strip()
+                    if not employee_name:
+                        employee_name = "Empleado desconocido"
+                    
+                    employee_nid = emp_info.get('nid', 'No disponible')
+                    employee_id_type = emp_info.get('identityNumberType', 'DNI')
+                    if employee_id_type:
+                        employee_id_type = employee_id_type.lower()
+                    
+                    self._employee_cache[emp_id] = {
+                        'name': employee_name,
+                        'nid': employee_nid,
+                        'id_type': employee_id_type
+                    }
+            
+            self.logger.info(f"Caches warmed up - Employees: {len(self._employee_cache)}, Activities: {len(self._check_types_service._activity_cache)}")
+            
+        except Exception as e:
+            self.logger.error(f"Error warming up caches: {str(e)}")
+    
     def _extract_entry_data(self, entry, employee_info, collections_mapping=None):
-        """Extract data from a work entry for Excel output"""
-        # Employee name
-        employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
-        if not employee_name:
-            employee_name = "Empleado desconocido"
+        """Extract data from a work entry for Excel output - with caching"""
+        # OPTIMIZACIÓN: Use employee cache
+        employee_id = employee_info.get('id', 'unknown')
         
-        # Employee identification
-        employee_nid = employee_info.get('nid', 'No disponible')
-        employee_id_type = employee_info.get('identityNumberType', 'DNI')
-        # Convert to lowercase to match the example format
-        if employee_id_type:
-            employee_id_type = employee_id_type.lower()
+        if employee_id not in self._employee_cache:
+            # Employee name
+            employee_name = f"{employee_info.get('firstName', '')} {employee_info.get('lastName', '')}".strip()
+            if not employee_name:
+                employee_name = "Empleado desconocido"
+            
+            # Employee identification
+            employee_nid = employee_info.get('nid', 'No disponible')
+            employee_id_type = employee_info.get('identityNumberType', 'DNI')
+            # Convert to lowercase to match the example format
+            if employee_id_type:
+                employee_id_type = employee_id_type.lower()
+            
+            # Cache employee data
+            self._employee_cache[employee_id] = {
+                'name': employee_name,
+                'nid': employee_nid,
+                'id_type': employee_id_type
+            }
         
-        # Get activity name based on workEntryType and workBreakId
+        # Get cached employee data
+        cached_employee = self._employee_cache[employee_id]
+        employee_name = cached_employee['name']
+        employee_nid = cached_employee['nid']
+        employee_id_type = cached_employee['id_type']
+        
+        # OPTIMIZACIÓN: Use cached check types service
         work_entry_type = entry.get('workEntryType', '')
         work_break_id = entry.get('workBreakId')
         
-        # Import here to avoid circular import
-        from services.check_types_service import CheckTypesService
-        check_types_service = CheckTypesService()
-        activity_name = check_types_service.get_activity_name(work_entry_type, work_break_id)
+        # Use the cached instance
+        activity_name = self._check_types_service.get_activity_name(work_entry_type, work_break_id)
         
         # Get group name from collections mapping using workCheckTypeId
         work_check_type_id = entry.get('workCheckTypeId')
